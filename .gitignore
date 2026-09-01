@@ -1,0 +1,65 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Xcode — сборка
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.xcarchive
+
+# Xcode — пользовательские данные (не шарятся между разработчиками)
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad
+*.xcscmblueprint
+*.xccheckout
+*.perspectivev3
+*.mode1v3
+*.mode2v3
+*.pbxuser
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# Xcode — прочее
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+*.xcworkspace/*
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcworkspace/xcshareddata/
+*.playground/playground.xcworkspace
+timeline.xctimeline
+
+# Swift Package Manager
+# Внимание: Packages/ здесь — исходники локальных пакетов (FitCore, FitData,
+# FitContent), они коммитятся. Игнорируем только служебные каталоги SPM.
+.build/
+.swiftpm/
+!.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/configuration/
+
+# Playgrounds
+*.playground/timeline.xctimeline
+
+# Секреты и локальная конфигурация (Supabase URL/anon key и т.п.)
+*.local.xcconfig
+Secrets.xcconfig
+.env
+.env.local
+
+# Прочее
+*.log
+*.swp
+spec.md
+SPEC.md
