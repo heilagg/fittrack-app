@@ -1,0 +1,30 @@
+{
+  "_comment": "Эталонный пример разметки. Реальные 60-80 упражнений добавляются на этапе 2. Валидатор в Tools/content-validator проверяет каждый файл против этой формы.",
+  "slug": "hip_thrust_barbell",
+  "name": "Ягодичный мостик со штангой",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "glute_max": 0.60,
+    "hamstrings": 0.20,
+    "quads": 0.10,
+    "erectors": 0.10
+  },
+  "equipment": ["barbell", "bench"],
+  "equipment_optional": ["pad"],
+  "load_type": "external_barbell",
+  "weight_increment_source": "plates",
+  "unilateral": false,
+  "joint_stress": { "knee": "low", "lower_back": "medium", "hip": "medium" },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rep_range": [8, 12],
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.0,
+  "alternatives": ["hip_thrust_dumbbell", "glute_bridge_bw", "kas_glute_bridge"],
+  "progression_family": "hip_thrust",
+  "family_load_ratio": 1.0,
+  "setup_seconds": 90,
+  "cues": ["Подбородок к груди", "Рёбра вниз", "Сжать ягодицы в верхней точке"],
+  "common_errors": ["Переразгибание поясницы", "Отрыв пяток"],
+  "illustration": "hip_thrust_barbell"
+}
