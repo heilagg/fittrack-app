@@ -135,29 +135,73 @@ final class WeightLadderTests: XCTestCase {
         XCTAssertEqual(weights, [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
     }
 
-    // MARK: - round2 перед floor в .arithmetic (код-ревью feature/weight-ladder, 2026-09-04)
+    // MARK: - Границы ступеней в .arithmetic (код-ревью feature/weight-ladder, 2026-09-04)
 
-    func test_arithmeticStepRoundsQuotientBeforeFlooring_tenthKgStep() {
-        // 0.3 / 0.1 == 2.9999999999999996 в Double — без round2 перед floor
-        // stepsBelowOrAt получается 2 вместо 3, и функция возвращает саму
-        // baseline (0.3) вместо следующего шага (0.4).
-        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 0.1))
-        XCTAssertEqual(ladder.nextAchievableWeight(above: 0.3), 0.4)
+    func test_arithmeticLadderQuantisesAroundStepBoundaries() {
+        // Для каждого шага три позиции вокруг границы n×step: чуть ниже
+        // (n×step − 0.01), ровно на ней и чуть выше (n×step + 0.01). Обе
+        // прошлые попытки чинить эту ветку ловились ровно здесь:
+        //
+        //   • сырое `baseline / step` промахивалось вниз на «ровно» —
+        //     0.3 / 0.1 == 2.9999999999999996, floor давал 2 вместо 3, и
+        //     функция возвращала саму baseline;
+        //   • round2 поверх частного промахивался вверх на «чуть ниже» —
+        //     2.49 / 2.5 == 0.996, округление до сотых поднимало это до 1.0,
+        //     и лестница перепрыгивала через ступень (2.5 → 5.0).
+        //
+        // Оговорка про строку 0.1/«чуть ниже»: она проходила и на сломанном
+        // варианте (зазор 0.01/0.1 = 0.1 заведомо больше допуска round2
+        // 0.005), то есть служит контролем, а не детектором. Регрессию вверх
+        // ловят строки с шагом ≥ 2.0.
+        //
+        // (loadType, шаг, baseline, ожидаемый следующий вес)
+        let cases: [(LoadType, Double, Double, Double)] = [
+            (.machine, 0.10,  0.29,  0.30),
+            (.machine, 0.10,  0.30,  0.40),
+            (.machine, 0.10,  0.31,  0.40),
+
+            (.cable,   2.27, 34.04, 34.05),   // 5 фунтов
+            (.cable,   2.27, 34.05, 36.32),
+            (.cable,   2.27, 34.06, 36.32),
+
+            (.machine, 4.54, 68.09, 68.10),   // 10 фунтов
+            (.machine, 4.54, 68.10, 72.64),
+            (.machine, 4.54, 68.11, 72.64),
+
+            (.machine, 2.50,  2.49,  2.50),
+            (.machine, 2.50,  2.50,  5.00),
+            (.machine, 2.50,  2.51,  5.00),
+
+            (.cable,   5.00,  4.99,  5.00),
+            (.cable,   5.00,  5.00, 10.00),
+            (.cable,   5.00,  5.01, 10.00),
+
+            (.machine, 4.10, 12.29, 12.30),
+            (.machine, 4.10, 12.30, 16.40),
+            (.machine, 4.10, 12.31, 16.40),
+        ]
+
+        for (loadType, step, baseline, expected) in cases {
+            let ladder = WeightLadder.build(
+                loadType: loadType,
+                profile: EquipmentProfile(machineStepKg: step)
+            )
+            XCTAssertEqual(
+                ladder.nextAchievableWeight(above: baseline), expected,
+                "loadType=\(loadType) step=\(step) baseline=\(baseline)"
+            )
+        }
     }
 
-    func test_arithmeticStepRoundsQuotientBeforeFlooring_lbDerivedStep5() {
-        // Шаг 2.27 кг (5 фунтов, тот же класс, что и блины в
-        // test_barbellSubsetSum) даёт ту же ловушку на 15-м шаге: 34.05 / 2.27
-        // == 14.999999999999998 в Double.
-        let ladder = WeightLadder.build(loadType: .cable, profile: EquipmentProfile(machineStepKg: 2.27))
-        XCTAssertEqual(ladder.nextAchievableWeight(above: 34.05), 36.32)
-    }
-
-    func test_arithmeticStepRoundsQuotientBeforeFlooring_lbDerivedStep10() {
-        // Шаг 4.54 кг (10 фунтов) — тот же класс бага на 15-м шаге:
-        // 68.1 / 4.54 == 14.999999999999998 в Double.
-        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 4.54))
-        XCTAssertEqual(ladder.nextAchievableWeight(above: 68.1), 72.64)
+    func test_arithmeticLadderReturnsNilForNonFiniteBaseline() {
+        // Счёт в целых сотых переводит Double в Int, а `Int(_: Double)` на
+        // nan/inf не возвращает мусор, а роняет процесс — здесь проверяется
+        // именно то, что guard в cents() отрабатывает раньше конверсии.
+        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 2.5))
+        XCTAssertNil(ladder.nextAchievableWeight(above: .nan))
+        XCTAssertNil(ladder.nextAchievableWeight(above: .infinity))
+        XCTAssertNil(ladder.nextAchievableWeight(above: -.infinity))
+        XCTAssertNil(ladder.nextAchievableWeight(above: 1e300))
     }
 
     func test_nextAchievableWeightRoundsBaselineBeforeComparing() {

@@ -35,20 +35,32 @@ public enum WeightLadder: Sendable, Equatable {
 
         case .arithmetic(let step):
             guard step > 0 else { return nil }
-            // round2 перед floor, а не только после: `baseline / step` — та же
-            // ловушка Double-шума, что и суммы блинов ниже (0.3 / 0.1 =
-            // 2.9999999999999996 → floor даёт 2 вместо 3, и .rounded(.down)
-            // это не лечит — округление после умножения строкой ниже цепляет
-            // уже неверный stepsBelowOrAt). Код-ревью feature/weight-ladder,
-            // 2026-09-04.
-            let stepsBelowOrAt = WeightLadder.round2(baseline / step).rounded(.down)
-            // TODO(код-ревью feature/weight-ladder, 2026-09-04): max(step, ...)
+            // Число шагов считается в целых сотых, без деления Double вообще.
+            // Деление здесь ломалось в обе стороны: сырое `baseline / step`
+            // давало off-by-one вниз на шуме (0.3 / 0.1 = 2.9999999999999996 →
+            // floor 2 вместо 3), а round2 поверх частного — off-by-one вверх,
+            // потому что его допуск 0.005 на порядки грубее шума ~1e-16 и
+            // заодно схлопывал честные частные чуть ниже целого (2.49 / 2.5 =
+            // 0.996 → 1 → лестница перепрыгивала ступень). Оба раза виновато
+            // само деление Double; и baseline, и step кратны сотой
+            // (numeric(_,2), SPEC §3.1), поэтому целочисленной арифметики
+            // достаточно и порог подбирать не нужно. Код-ревью
+            // feature/weight-ladder, 2026-09-04.
+            guard let baselineCents = WeightLadder.cents(baseline),
+                  let stepCents = WeightLadder.cents(step),
+                  stepCents > 0
+            else { return nil }
+            // Int-деление в Swift усекает к нулю, а нужен floor — для
+            // отрицательного baseline это разные вещи (см. тест на above: -3).
+            var stepsBelowOrAt = baselineCents / stepCents
+            if baselineCents % stepCents < 0 { stepsBelowOrAt -= 1 }
+            // TODO(код-ревью feature/weight-ladder, 2026-09-04): max(stepCents, ...)
             // латает отрицательный baseline постфактум вместо того, чтобы
             // клэмпить stepsBelowOrAt у источника (max(0, ...)) — «пол лестницы
             // это step» выражен как патч над результатом, а не как инвариант
             // построения. Не тронуто по решению ревью (altitude, не блокирует
             // мерж).
-            return max(step, WeightLadder.round2((stepsBelowOrAt + 1) * step))
+            return Double(max(stepCents, (stepsBelowOrAt + 1) * stepCents)) / 100
 
         case .none:
             return nil
@@ -63,15 +75,36 @@ public enum WeightLadder: Sendable, Equatable {
     /// Округление после каждой арифметической операции и перед сравнением
     /// схлопывает такой шум в одно и то же представление `Double`.
     ///
-    /// TODO(код-ревью feature/weight-ladder, 2026-09-04): корректность зависит
-    /// от того, что round2 не забыли вызвать в каждой из точек арифметики
-    /// (сейчас их 8) — ничего не заставляет это технически. Более глубокое
-    /// решение — тип-обёртка вроде Kilograms, у которой +/*/сравнение сами
-    /// округляют. Не тронуто по решению ревью (altitude, не блокирует мерж);
-    /// естественный повод сделать это — когда Progression/Planner тоже
-    /// понадобится точность numeric(_,2).
+    /// TODO(код-ревью feature/weight-ladder, 2026-09-04): в `build()` и
+    /// `subsetSums` корректность по-прежнему держится на том, что round2 не
+    /// забыли вызвать в каждой точке арифметики — технически это ничем не
+    /// обеспечено. `.arithmetic` из этого списка выбыла: она считает в целых
+    /// сотых (см. `cents`), деления Double там нет вовсе, и дисциплина ей
+    /// больше не нужна. Более глубокое решение для остальных — тип-обёртка
+    /// вроде Kilograms, у которой +/*/сравнение сами округляют. Не тронуто по
+    /// решению ревью (altitude, не блокирует мерж); естественный повод
+    /// сделать это — когда Progression/Planner тоже понадобится точность
+    /// numeric(_,2).
     private static func round2(_ value: Double) -> Double {
         (value * 100).rounded() / 100
+    }
+
+    /// Вес в целых сотых долях килограмма. Колонки веса в Postgres — это
+    /// `numeric(_,2)` (SPEC §3.1), то есть входные веса по построению кратны
+    /// сотой: их можно перевести в целые один раз и дальше считать точно,
+    /// не внося шум Double делением и не подбирая эпсилон.
+    ///
+    /// `nil` — значение не конечно (nan/inf) либо не помещается в Int без
+    /// потери точности: за 2^53 сотых сам Double уже не представляет целые
+    /// точно. Проверка обязательна, а не косметическая — `Int(_: Double)` на
+    /// таких значениях не возвращает мусор, а роняет процесс.
+    ///
+    /// Кодирует то же правило «точность до сотых», что и `round2` выше;
+    /// объединить их в один тип — часть отложенной работы про Kilograms.
+    private static func cents(_ value: Double) -> Int? {
+        let scaled = (value * 100).rounded()
+        guard scaled.isFinite, scaled.magnitude <= 9_007_199_254_740_992 else { return nil }
+        return Int(scaled)
     }
 }
 
