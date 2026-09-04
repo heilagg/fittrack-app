@@ -204,6 +204,24 @@ final class WeightLadderTests: XCTestCase {
         XCTAssertNil(ladder.nextAchievableWeight(above: 1e300))
     }
 
+    // MARK: - isCentMultiple (код-ревью feature/weight-ladder, 2026-09-04)
+
+    func test_isCentMultiple_rejectsNonCentValues() {
+        // .discrete падает через precondition на ступени, не кратной центу
+        // (см. doc на case discrete) — сам precondition XCTest поймать не
+        // может, это fatal trap, а не throw. Здесь проверяется условие,
+        // которое precondition защищает, а не сам трап.
+        XCTAssertFalse(WeightLadder.isCentMultiple(5.995))
+        XCTAssertFalse(WeightLadder.isCentMultiple(8.001))
+        XCTAssertFalse(WeightLadder.isCentMultiple(0.001))
+
+        XCTAssertTrue(WeightLadder.isCentMultiple(6.0))
+        XCTAssertTrue(WeightLadder.isCentMultiple(2.5))
+        XCTAssertTrue(WeightLadder.isCentMultiple(0.01))
+        XCTAssertTrue(WeightLadder.isCentMultiple(0.0))
+        XCTAssertTrue(WeightLadder.isCentMultiple(-6.0))
+    }
+
     // MARK: - Sweep: инвариант вместо таблицы чисел
 
     // Три раунда вручную подобранных чисел трижды не поймали следующий

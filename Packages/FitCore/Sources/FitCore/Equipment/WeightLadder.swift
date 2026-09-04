@@ -14,6 +14,14 @@
 //                  в описании PR).
 //   .none        — вес не квантуется вовсе (собственный вес, резинки).
 public enum WeightLadder: Sendable, Equatable {
+    /// Явный список достижимых весов. Каждый элемент обязан быть кратен
+    /// сотой доле кг (`numeric(_,2)`, SPEC §3.1) — эту гарантию даёт
+    /// `build()` (все четыре пути к `.discrete` там проходят через
+    /// `round2`). Конструирование вручную с нецентовым весом — обязанность
+    /// вызывающего кода нарушена: `nextAchievableWeight` полагается на
+    /// кратность центу при сравнении и падает через `precondition`, если
+    /// это не так (см. `isCentMultiple`). Код-ревью feature/weight-ladder,
+    /// 2026-09-04.
     case discrete([Double])
     case arithmetic(step: Double)
     case none
@@ -28,6 +36,17 @@ public enum WeightLadder: Sendable, Equatable {
             // Сравнение идёт с позицией baseline на сетке центов, а не с
             // самим baseline: ступени кратны центу, поэтому для ступени r
             // условие `r > baseline` эквивалентно `r > floorCents(baseline)`.
+            // Верно только если каждая ступень тоже кратна центу — это
+            // обязанность конструирующего кода (см. doc на `case discrete`),
+            // и здесь она проверяется явно, а не молча: с нецентовой
+            // ступенью порог мог оказаться ниже baseline, и функция вернула
+            // бы вес не старше запрошенного — порча контракта «строго выше»,
+            // а не просто неточность. Код-ревью feature/weight-ladder,
+            // 2026-09-04.
+            precondition(
+                weights.allSatisfy(WeightLadder.isCentMultiple),
+                "WeightLadder.discrete requires every rung to be a multiple of 0.01 kg (numeric(_,2), SPEC §3.1); construct via build(), which guarantees this."
+            )
             guard let baselineCents = WeightLadder.floorCents(baseline) else { return nil }
             let threshold = Double(baselineCents) / 100
             // TODO(код-ревью feature/weight-ladder, 2026-09-04): filter+min
@@ -127,18 +146,44 @@ public enum WeightLadder: Sendable, Equatable {
     /// Зачем вообще допуск: baseline может прийти из накопленной арифметики,
     /// и 5.999999999999996 обязан читаться как «стоим на 6.0» (см.
     /// `test_nextAchievableWeightRoundsBaselineBeforeComparing`). Но 7.999 —
-    /// честно ниже 8.0, и допуск не имеет права его туда тянуть. Отсюда
-    /// величина: 1e-9 цента абсолютный пол и 1e-12 относительный — на ~4
-    /// порядка выше накопленного шума (~1e-13 цента) и на ~9 порядков ниже
-    /// цента. Предыдущие три захода гасили шум допуском в 0.005 цента,
-    /// вплотную к самой сетке, — отсюда и три раунда одного и того же бага.
+    /// честно ниже 8.0, и допуск не имеет права его туда тянуть.
+    ///
+    /// Допуск = `min(1e-3, max(1e-9, |scaled| · 1e-12))` цента — **никогда не
+    /// превышает 1e-3 цента (3 порядка ниже цента), при любом baseline,
+    /// допускаемом guard'ом ниже**. Без верхнего `min` относительный член
+    /// растёт вместе с |baseline| без предела и достигает целого цента уже
+    /// при |baseline| = 1e10 кг — внутри диапазона, который guard пропускает
+    /// (до ~9·10¹³ кг) — и воспроизводит тот же баг, ради которого этот
+    /// хелпер написан: пропуск ступени. Именно это и стало четвёртым по
+    /// счёту случаем одного и того же дефекта (код-ревью
+    /// feature/weight-ladder, 2026-09-04) — клэмп фиксирует это структурно, а
+    /// не очередной подбор порога.
+    ///
+    /// TODO(код-ревью feature/weight-ladder, 2026-09-04): клэмп в 1e-3 цента
+    /// сам по себе достаточен, только пока реальный шум `Double`-арифметики
+    /// (порядка `|scaled| · 2⁻⁵²`) остаётся ниже него — это верно при
+    /// |baseline| ≲ 4.5·10¹⁰ кг. Выше этой границы (физически абсурдные
+    /// значения — 45 миллионов тонн) шум в принципе может превысить клэмп и
+    /// перестать гаситься, воспроизводя в миниатюре до-4561e85 поведение
+    /// (не распознать шумную baseline «на ступени»). Не чинится — граница
+    /// недостижима иначе как в обход `build()`.
     private static func floorCents(_ value: Double) -> Int? {
         let scaled = value * 100
         guard scaled.isFinite else { return nil }
-        let noise = max(1e-9, scaled.magnitude * 1e-12)
+        let noise = min(1e-3, max(1e-9, scaled.magnitude * 1e-12))
         let floored = (scaled + noise).rounded(.down)
         guard floored.magnitude <= 9_007_199_254_740_992 else { return nil }
         return Int(floored)
+    }
+
+    /// `value` уже кратно сотой доле кг — `value * 100` не требует
+    /// округления, чтобы стать целым. Проверяет ровно то же условие, которое
+    /// защищает `precondition` в `.discrete` (см. doc на `case discrete`);
+    /// не `private`, чтобы тест мог проверить условие напрямую — сам
+    /// `precondition` XCTest поймать не может (это fatal trap, не throw).
+    static func isCentMultiple(_ value: Double) -> Bool {
+        let scaled = value * 100
+        return scaled.isFinite && scaled == scaled.rounded()
     }
 }
 
