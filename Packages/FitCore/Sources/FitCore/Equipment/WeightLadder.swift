@@ -26,11 +26,28 @@ public enum WeightLadder: Sendable, Equatable {
         let baseline = WeightLadder.round2(baseline)
         switch self {
         case .discrete(let weights):
+            // TODO(код-ревью feature/weight-ladder, 2026-09-04): filter+min
+            // делает два прохода и аллокацию, хотя build() всегда возвращает
+            // weights уже отсортированным — first(where:) по отсортированному
+            // массиву был бы одним проходом без аллокации. Не тронуто по
+            // решению ревью (efficiency, не блокирует мерж).
             return weights.filter { $0 > baseline }.min()
 
         case .arithmetic(let step):
             guard step > 0 else { return nil }
-            let stepsBelowOrAt = (baseline / step).rounded(.down)
+            // round2 перед floor, а не только после: `baseline / step` — та же
+            // ловушка Double-шума, что и суммы блинов ниже (0.3 / 0.1 =
+            // 2.9999999999999996 → floor даёт 2 вместо 3, и .rounded(.down)
+            // это не лечит — округление после умножения строкой ниже цепляет
+            // уже неверный stepsBelowOrAt). Код-ревью feature/weight-ladder,
+            // 2026-09-04.
+            let stepsBelowOrAt = WeightLadder.round2(baseline / step).rounded(.down)
+            // TODO(код-ревью feature/weight-ladder, 2026-09-04): max(step, ...)
+            // латает отрицательный baseline постфактум вместо того, чтобы
+            // клэмпить stepsBelowOrAt у источника (max(0, ...)) — «пол лестницы
+            // это step» выражен как патч над результатом, а не как инвариант
+            // построения. Не тронуто по решению ревью (altitude, не блокирует
+            // мерж).
             return max(step, WeightLadder.round2((stepsBelowOrAt + 1) * step))
 
         case .none:
@@ -45,6 +62,14 @@ public enum WeightLadder: Sendable, Equatable {
     /// мог сравнить `baseline` с лестницей на пару ULP не в ту сторону.
     /// Округление после каждой арифметической операции и перед сравнением
     /// схлопывает такой шум в одно и то же представление `Double`.
+    ///
+    /// TODO(код-ревью feature/weight-ladder, 2026-09-04): корректность зависит
+    /// от того, что round2 не забыли вызвать в каждой из точек арифметики
+    /// (сейчас их 8) — ничего не заставляет это технически. Более глубокое
+    /// решение — тип-обёртка вроде Kilograms, у которой +/*/сравнение сами
+    /// округляют. Не тронуто по решению ревью (altitude, не блокирует мерж);
+    /// естественный повод сделать это — когда Progression/Planner тоже
+    /// понадобится точность numeric(_,2).
     private static func round2(_ value: Double) -> Double {
         (value * 100).rounded() / 100
     }
@@ -80,6 +105,12 @@ extension WeightLadder {
     /// `platesKg` уже описывает пары (SPEC §3.1, комментарий к колонке).
     /// Округляется на каждом шаге (см. `round2`), иначе накопленный шум
     /// `Double` может помешать дедупу сумм от разных подмножеств.
+    ///
+    /// TODO(код-ревью feature/weight-ladder, 2026-09-04): O(2^n) по числу
+    /// блинов, без заявленной границы. SPEC (equipment_profiles.plates_kg)
+    /// хранит блины поштучно, а не по номиналам, так что n — это реальный
+    /// инвентарь пользователя, не набор из 5-8 номиналов. Не тронуто по
+    /// решению ревью (efficiency, не блокирует мерж).
     private static func subsetSums(of plates: [Double]) -> [Double] {
         var sums: Set<Double> = [0]
         for plate in plates {

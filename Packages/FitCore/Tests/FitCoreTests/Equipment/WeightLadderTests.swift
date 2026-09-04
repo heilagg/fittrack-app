@@ -135,6 +135,31 @@ final class WeightLadderTests: XCTestCase {
         XCTAssertEqual(weights, [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2])
     }
 
+    // MARK: - round2 перед floor в .arithmetic (код-ревью feature/weight-ladder, 2026-09-04)
+
+    func test_arithmeticStepRoundsQuotientBeforeFlooring_tenthKgStep() {
+        // 0.3 / 0.1 == 2.9999999999999996 в Double — без round2 перед floor
+        // stepsBelowOrAt получается 2 вместо 3, и функция возвращает саму
+        // baseline (0.3) вместо следующего шага (0.4).
+        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 0.1))
+        XCTAssertEqual(ladder.nextAchievableWeight(above: 0.3), 0.4)
+    }
+
+    func test_arithmeticStepRoundsQuotientBeforeFlooring_lbDerivedStep5() {
+        // Шаг 2.27 кг (5 фунтов, тот же класс, что и блины в
+        // test_barbellSubsetSum) даёт ту же ловушку на 15-м шаге: 34.05 / 2.27
+        // == 14.999999999999998 в Double.
+        let ladder = WeightLadder.build(loadType: .cable, profile: EquipmentProfile(machineStepKg: 2.27))
+        XCTAssertEqual(ladder.nextAchievableWeight(above: 34.05), 36.32)
+    }
+
+    func test_arithmeticStepRoundsQuotientBeforeFlooring_lbDerivedStep10() {
+        // Шаг 4.54 кг (10 фунтов) — тот же класс бага на 15-м шаге:
+        // 68.1 / 4.54 == 14.999999999999998 в Double.
+        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 4.54))
+        XCTAssertEqual(ladder.nextAchievableWeight(above: 68.1), 72.64)
+    }
+
     func test_nextAchievableWeightRoundsBaselineBeforeComparing() {
         // Складываем 0.1 десять раз вместо использования литерала 1.0 —
         // классика Double: сумма не совпадает бит-в-бит с 1.0, и
