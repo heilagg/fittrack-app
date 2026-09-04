@@ -23,15 +23,19 @@ public enum WeightLadder: Sendable, Equatable {
     /// нет вовсе (`.none`). Это единственный сигнал, на который реагирует
     /// вызывающий код (SPEC §9.5, п. 1: «тяжелее нет вообще»).
     public func nextAchievableWeight(above baseline: Double) -> Double? {
-        let baseline = WeightLadder.round2(baseline)
         switch self {
         case .discrete(let weights):
+            // Сравнение идёт с позицией baseline на сетке центов, а не с
+            // самим baseline: ступени кратны центу, поэтому для ступени r
+            // условие `r > baseline` эквивалентно `r > floorCents(baseline)`.
+            guard let baselineCents = WeightLadder.floorCents(baseline) else { return nil }
+            let threshold = Double(baselineCents) / 100
             // TODO(код-ревью feature/weight-ladder, 2026-09-04): filter+min
             // делает два прохода и аллокацию, хотя build() всегда возвращает
             // weights уже отсортированным — first(where:) по отсортированному
             // массиву был бы одним проходом без аллокации. Не тронуто по
             // решению ревью (efficiency, не блокирует мерж).
-            return weights.filter { $0 > baseline }.min()
+            return weights.filter { $0 > threshold }.min()
 
         case .arithmetic(let step):
             guard step > 0 else { return nil }
@@ -46,7 +50,7 @@ public enum WeightLadder: Sendable, Equatable {
             // (numeric(_,2), SPEC §3.1), поэтому целочисленной арифметики
             // достаточно и порог подбирать не нужно. Код-ревью
             // feature/weight-ladder, 2026-09-04.
-            guard let baselineCents = WeightLadder.cents(baseline),
+            guard let baselineCents = WeightLadder.floorCents(baseline),
                   let stepCents = WeightLadder.cents(step),
                   stepCents > 0
             else { return nil }
@@ -89,22 +93,52 @@ public enum WeightLadder: Sendable, Equatable {
         (value * 100).rounded() / 100
     }
 
-    /// Вес в целых сотых долях килограмма. Колонки веса в Postgres — это
-    /// `numeric(_,2)` (SPEC §3.1), то есть входные веса по построению кратны
-    /// сотой: их можно перевести в целые один раз и дальше считать точно,
-    /// не внося шум Double делением и не подбирая эпсилон.
+    /// Кладёт **значение домена** на сетку центов: округление к ближайшему.
+    /// Колонки веса в Postgres — `numeric(_,2)` (SPEC §3.1), то есть веса
+    /// инвентаря и шаг по построению уже кратны сотой, и такое округление
+    /// для них идемпотентно: два разных истинных значения отличаются минимум
+    /// на цент, поэтому к ближайшему центу значение не может уехать на чужую
+    /// точку сетки.
+    ///
+    /// Не применять к `baseline` — он сеткой не ограничен (произвольный
+    /// результат вычислений вызывающего кода), и округление к ближайшему
+    /// перетаскивает его через достижимую ступень. Для него `floorCents`.
     ///
     /// `nil` — значение не конечно (nan/inf) либо не помещается в Int без
     /// потери точности: за 2^53 сотых сам Double уже не представляет целые
     /// точно. Проверка обязательна, а не косметическая — `Int(_: Double)` на
     /// таких значениях не возвращает мусор, а роняет процесс.
-    ///
-    /// Кодирует то же правило «точность до сотых», что и `round2` выше;
-    /// объединить их в один тип — часть отложенной работы про Kilograms.
     private static func cents(_ value: Double) -> Int? {
         let scaled = (value * 100).rounded()
         guard scaled.isFinite, scaled.magnitude <= 9_007_199_254_740_992 else { return nil }
         return Int(scaled)
+    }
+
+    /// Определяет **позицию для сравнения** на сетке центов: округление вниз
+    /// с допуском масштаба шума `Double`.
+    ///
+    /// Почему вниз, а не к ближайшему: все ступени лестницы кратны центу, а
+    /// для целой ступени `r` условие `r > x` тождественно `r > floor(x)`.
+    /// Округление вниз поэтому не теряет ничего, а округление к ближайшему
+    /// затягивает baseline вверх через достижимую ступень — 7.999 становился
+    /// 8.0, и лестница либо перепрыгивала 8.0, либо (в `.discrete`) объявляла
+    /// себя исчерпанной при доступных 8 кг.
+    ///
+    /// Зачем вообще допуск: baseline может прийти из накопленной арифметики,
+    /// и 5.999999999999996 обязан читаться как «стоим на 6.0» (см.
+    /// `test_nextAchievableWeightRoundsBaselineBeforeComparing`). Но 7.999 —
+    /// честно ниже 8.0, и допуск не имеет права его туда тянуть. Отсюда
+    /// величина: 1e-9 цента абсолютный пол и 1e-12 относительный — на ~4
+    /// порядка выше накопленного шума (~1e-13 цента) и на ~9 порядков ниже
+    /// цента. Предыдущие три захода гасили шум допуском в 0.005 цента,
+    /// вплотную к самой сетке, — отсюда и три раунда одного и того же бага.
+    private static func floorCents(_ value: Double) -> Int? {
+        let scaled = value * 100
+        guard scaled.isFinite else { return nil }
+        let noise = max(1e-9, scaled.magnitude * 1e-12)
+        let floored = (scaled + noise).rounded(.down)
+        guard floored.magnitude <= 9_007_199_254_740_992 else { return nil }
+        return Int(floored)
     }
 }
 

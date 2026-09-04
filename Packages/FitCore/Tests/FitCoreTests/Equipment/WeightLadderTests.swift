@@ -204,6 +204,101 @@ final class WeightLadderTests: XCTestCase {
         XCTAssertNil(ladder.nextAchievableWeight(above: 1e300))
     }
 
+    // MARK: - Sweep: инвариант вместо таблицы чисел
+
+    // Три раунда вручную подобранных чисел трижды не поймали следующий
+    // случай, потому что каждый раз двигались по той оси, которую только что
+    // починили. Здесь проверяется инвариант — «ни одна ступень не пропущена и
+    // nil не возвращается ложно» — на сетке baseline вокруг ступеней, а
+    // ожидаемое значение даёт независимый оракул (линейный поиск по
+    // ступеням), а не повтор формулы из реализации.
+    //
+    // Ключевое: offset'ы берутся ТРЕМЯ полосами, разнесёнными на порядки.
+    // Черновик с двумя полосами (шумовой и центовой) проходил на сломанном
+    // коде: целые центы — ровно та точность, где округление baseline к
+    // ближайшему центу является no-op. Баг жил в промежутке между шумом и
+    // центом, и именно его никто не тестировал.
+    //
+    //   шумовая    ±1…10 ULP          — шум обязан гаситься
+    //   субцентовая ±1e-8…±0.009 кг   — честная разница обязана НЕ гаситься
+    //   центовая   ±0.01…±0.03 кг     — обычная сетка
+    //
+    // Полоса между 1e-14 и 1e-8 кг намеренно не проверяется: там проходит
+    // сама граница допуска, её точное положение — проектное решение, а не
+    // инвариант. Обе проверяемые полосы отстоят от неё на ~1000×, поэтому
+    // тест не зашивает конкретное значение epsilon.
+
+    private static let realOffsetsKg: [Double] = [
+        -0.03, -0.02, -0.01, -0.009, -0.005, -0.001, -0.00001, -0.00000001,
+         0.00000001, 0.00001, 0.001, 0.005, 0.009, 0.01, 0.02, 0.03,
+    ]
+    private static let ulpOffsets: [Int] = [-10, -4, -1, 0, 1, 4, 10]
+
+    /// `value`, сдвинутое на `k` ULP (знак `k` задаёт направление).
+    private func perturb(_ value: Double, byULP k: Int) -> Double {
+        var x = value
+        for _ in 0..<abs(k) { x = k < 0 ? x.nextDown : x.nextUp }
+        return x
+    }
+
+    func test_sweep_arithmeticNeverSkipsRungAndNeverFalselyReportsExhausted() {
+        for step in [0.1, 2.5, 2.27] {
+            let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: step))
+            let stepCents = Int((step * 100).rounded())
+
+            for n in 1...12 {
+                let rungKg = Double(n * stepCents) / 100
+
+                for offset in Self.realOffsetsKg {
+                    let baseline = rungKg + offset
+                    // Оракул: линейный поиск по ступеням, независим от
+                    // floor-деления в реализации.
+                    var rung = stepCents
+                    while Double(rung) / 100 <= baseline { rung += stepCents }
+                    XCTAssertEqual(
+                        ladder.nextAchievableWeight(above: baseline), Double(rung) / 100,
+                        "step=\(step) n=\(n) offset=\(offset)"
+                    )
+                }
+
+                for k in Self.ulpOffsets {
+                    // Шум обязан гаситься: baseline читается как «ровно на
+                    // ступени n», значит ответ — ступень n+1.
+                    var rung = stepCents
+                    while rung <= n * stepCents { rung += stepCents }
+                    XCTAssertEqual(
+                        ladder.nextAchievableWeight(above: perturb(rungKg, byULP: k)), Double(rung) / 100,
+                        "step=\(step) n=\(n) ulp=\(k)"
+                    )
+                }
+            }
+        }
+    }
+
+    func test_sweep_discreteNeverSkipsRungAndNeverFalselyReportsExhausted() {
+        let weights: [Double] = [2, 4, 6, 8]
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: weights))
+
+        for rungKg in weights {
+            for offset in Self.realOffsetsKg {
+                let baseline = rungKg + offset
+                XCTAssertEqual(
+                    ladder.nextAchievableWeight(above: baseline), weights.filter { $0 > baseline }.min(),
+                    "rung=\(rungKg) offset=\(offset)"
+                )
+            }
+            for k in Self.ulpOffsets {
+                // Шум гасится → стоим на rungKg, ответ — следующая гантель
+                // (или nil на самой тяжёлой, что и есть честная исчерпанность).
+                XCTAssertEqual(
+                    ladder.nextAchievableWeight(above: perturb(rungKg, byULP: k)),
+                    weights.filter { $0 > rungKg }.min(),
+                    "rung=\(rungKg) ulp=\(k)"
+                )
+            }
+        }
+    }
+
     func test_nextAchievableWeightRoundsBaselineBeforeComparing() {
         // Складываем 0.1 десять раз вместо использования литерала 1.0 —
         // классика Double: сумма не совпадает бит-в-бит с 1.0, и
