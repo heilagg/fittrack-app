@@ -19,12 +19,16 @@
 //      выполнялся сам собой, и одна сессия с одним 'failed' роняла baseline
 //      вопреки §9.4 («один плохой день не откатывает вес»).
 //   2. Оверрайд определяется сравнением с ПРЕДПИСАНИЕМ (`prescribed_kg`), а
-//      не с `baseline_kg`. Предписание — это `baseline × readiness` (§9.6),
-//      поэтому сравнение с baseline читает принятое как есть предписание как
-//      оверрайд на всяком дне с readiness ≠ 1.0, причём в обе стороны:
-//      вниз оно ложно понижало базовую линию на readiness 0.8, вверх —
-//      ложно поднимало её до раздутого готовностью веса на readiness 1.10.
-//      И то и другое — ровно то, что §9.6 запрещает.
+//      не с `baseline_kg`, И ДОПОЛНИТЕЛЬНО обязан лежать по правильную
+//      сторону от baseline — см. `effectiveOverride`.
+//
+//  Ни одна ветка здесь не присваивает `baselineKg` напрямую: они возвращают
+//  `BaselineMove`, который проверяет и применяет `BaselineMove.apply`
+//  (BaselineMove.swift). Присваиваний `state.baselineKg =` в этом файле
+//  ровно одно — сидирование, то есть инициализация, а не сдвиг. Это
+//  структурная защита от четвёртого раунда одного и того же дефекта:
+//  правило направления живёт в одном месте, а не переписывается в каждой
+//  ветке заново.
 //
 //  Несостыковка со SPEC (задокументировано в теле коммита, не в SPEC.md):
 //  §9.4/§9.5 описывают шаг веса как ступень лестницы ОТ baseline_kg, но
@@ -41,9 +45,8 @@
 //  с двумя failed») — ни один из них не срабатывает на сценарии 11 (одна
 //  сессия, один 'hard', повторы в диапазоне, но вес уже снижен
 //  пользователем). Решение: добавлен третий, не описанный в SPEC триггер
-//  понижения — открывающий подход взят легче предписанного И он же получил
-//  'hard'/'failed'. Оба признака читаются с одного и того же подхода,
-//  потому что сценарий 11 описывает одно событие, а не два.
+//  понижения — открывающий подход взят легче предписанного И легче baseline,
+//  И он же получил 'hard'/'failed'.
 extension Progression {
 
     private static let centEpsilonKg = 0.005
@@ -72,6 +75,18 @@ extension Progression {
         baseRange: ClosedRange<Int>,
         ladder: WeightLadder
     ) -> ExerciseState {
+        rebuildStatesWithDiagnostics(from: sessions, baseRange: baseRange, ladder: ladder).state
+    }
+
+    /// Тот же расчёт, но с диагностикой нарушений инварианта направления.
+    /// Не `public`: пока единственный потребитель — тесты (через `@testable`),
+    /// которые свипом утверждают, что на всём корпусе сценариев аномалий
+    /// ноль. Станет публичным, когда у FitData появится, куда их писать.
+    static func rebuildStatesWithDiagnostics(
+        from sessions: [ExerciseSession],
+        baseRange: ClosedRange<Int>,
+        ladder: WeightLadder
+    ) -> (state: ExerciseState, anomalies: [BaselineAnomaly]) {
         // Упражнения без веса (`LoadType.bodyweight`/`.band`, `ladder == .none`)
         // прогрессируют только повторами/подходами: `baseline_kg` в схеме для
         // них nullable и остаётся nil навсегда (SPEC §3.1). `baseline`
@@ -82,6 +97,7 @@ extension Progression {
         let isWeighted = ladder != .none
 
         var state = ExerciseState()
+        var anomalies: [BaselineAnomaly] = []
         var consecutiveHeldSessions = 0
         var previousSessionUnderRepMin = false
         var consecutiveCalibrationExitSets = 0
@@ -90,15 +106,22 @@ extension Progression {
         // схеме нет колонки: количество подходов — это
         // `workout_exercises.target_sets`, владелец — Planner), а обе ветки
         // каскада, которые он различает (`.addSet` и `.suggestHarderVariant`),
-        // состояние не меняют. Следствие: на исчерпанной лестнице с
-        // repExtension = 4 свёртка возвращает одно и то же состояние
-        // независимо от его значения — то есть шаг 2 каскада §9.5
-        // («затем добавляем подход») из результата rebuildStates
-        // невосстановим, и покрыть его тестом через публичный API нельзя.
-        // Сброс ниже поэтому корректен, но пока не наблюдаем. Чинится либо
-        // выносом счётчика в ExerciseState, либо передачей его снаружи
-        // (Planner как владелец target_sets) — решение за модулем Planner.
+        // состояние не меняют. Следствие: шаг 2 каскада §9.5 из результата
+        // rebuildStates невосстановим, и покрыть его тестом через публичный
+        // API нельзя. Сброс ниже поэтому корректен, но пока не наблюдаем.
+        // Зафиксировано как открытый вопрос SPEC §19.2 — решать вместе с
+        // Planner, который владеет target_sets.
         var extraSetsAdded = 0
+
+        /// Применить намерение через единственную точку схождения и запомнить
+        /// аномалию, если инвариант нарушен.
+        func move(_ intent: BaselineMove, openingWeight: Double?, readiness: Double) {
+            if let anomaly = BaselineMove.apply(
+                intent, to: &state.baselineKg, openingWeight: openingWeight, readiness: readiness
+            ) {
+                anomalies.append(anomaly)
+            }
+        }
 
         for session in sessions {
             // Пустая сессия — артефакт данных (тренировка начата, подходы не
@@ -114,27 +137,26 @@ extension Progression {
                 case .none:
                     break
                 case .mildDecay:
-                    state.baselineKg = baseline * 0.92
+                    move(.lower(to: baseline * 0.92, reason: .detraining),
+                         openingWeight: firstSet.actualKg, readiness: session.readiness)
                 case .moderateDecay:
-                    state.baselineKg = baseline * 0.85
+                    move(.lower(to: baseline * 0.85, reason: .detraining),
+                         openingWeight: firstSet.actualKg, readiness: session.readiness)
                     state.repExtension = 0
                 case .restartCalibration:
-                    state.baselineKg = baseline * 0.75
+                    move(.lower(to: baseline * 0.75, reason: .detraining),
+                         openingWeight: firstSet.actualKg, readiness: session.readiness)
                     state.isInCalibration = true
                     // Полный рестарт — надмножество .moderateDecay и не может
                     // сохранять БОЛЬШЕ накопленного состояния, чем более
-                    // короткий перерыв. Без этих двух строк 60-дневный
-                    // перерыв оставлял repExtension нетронутым, требуя больше
-                    // повторов, чем 30-дневный, на весе, срезанном на 25%.
-                    // Код-ревью feature/progression, 2026-09-07.
+                    // короткий перерыв.
                     state.repExtension = 0
                     state.stallCount = 0
                 }
                 if decay != .none {
                     // «Два подхода подряд» (SPEC §9.8) не может охватывать
                     // перерыв в 11+ дней: подход до перерыва и подход после
-                    // него — не подряд. Сброс на любом ненулевом вердикте, а
-                    // не только на .restartCalibration.
+                    // него — не подряд.
                     consecutiveCalibrationExitSets = 0
                 }
             }
@@ -157,29 +179,25 @@ extension Progression {
             let reps = session.sets.map(\.actualReps)
             let anyUnderRepMin = reps.contains { $0 < baseRange.lowerBound }
 
+            // Сидирование расщеплено на присвоение baseline (здесь) и политику
+            // счётчиков смежности (ниже). Раньше они были слиты в одной ветке
+            // с `continue`, и первая сессия — которая по §9.8 почти всегда И
+            // калибровочная — получала политику сидирования, молча минуя
+            // политику калибровки. Код-ревью 3b92caa, 2026-09-07.
+            var seededThisSession = false
             if isWeighted, state.baselineKg == nil {
-                // Первая сессия в журнале вообще: неоткуда взять предыдущий
-                // baseline для сравнения — сама сессия его и задаёт.
+                // Единственное присвоение baselineKg в этом файле: это
+                // инициализация, а не сдвиг, поэтому оно не идёт через
+                // BaselineMove (двигать ещё нечего).
                 //
-                // Здесь, в отличие от опорного веса ниже, берётся ПОСЛЕДНИЙ
-                // подход, и это намеренно: открывающий вес самой первой
-                // сессии — это холодный старт (§9.8, таблица от веса тела
-                // × 0.6, заведомо заниженный), а калибровка поднимает вес
-                // внутри сессии, поэтому закрывающий подход — более честная
-                // оценка рабочего веса, чем открывающий.
+                // Берётся ПОСЛЕДНИЙ подход, в отличие от опорного веса ниже, и
+                // это намеренно: открывающий вес самой первой сессии — холодный
+                // старт (§9.8, таблица от веса тела × 0.6, заведомо заниженный),
+                // а калибровка поднимает вес внутри сессии, поэтому закрывающий
+                // подход — более честная оценка рабочего веса.
                 state.baselineKg = session.sets.last?.actualKg
-                // Сидирующая сессия — настоящая тренировка, и недобор по
-                // повторам определён относительно baseRange без всякого
-                // baseline. Флаг смежности присваивается, иначе у
-                // пользователя, чьи первые две сессии обе провалились по
-                // повторам, понижение не сработает никогда.
-                previousSessionUnderRepMin = anyUnderRepMin
-                // А вот consecutiveHeldSessions не трогаем: «сессия без
-                // повышения» для неё бессмысленна — baseline только что
-                // создан, повышаться было не от чего.
-                continue
+                seededThisSession = state.baselineKg != nil
             }
-            let baseline = state.baselineKg ?? 0
 
             if session.isCalibration {
                 // Калибровочная сессия — другой режим (§9.8: шаг ±15%, до 3
@@ -189,6 +207,10 @@ extension Progression {
                 // оба прогона. Сброс консервативен: он откладывает понижение
                 // и deload, а не вызывает их ложно.
                 //
+                // Проверяется РАНЬШЕ сидирования: при совпадении (первая
+                // сессия и есть калибровочная) утверждение о режиме сессии
+                // сильнее утверждения о том, что она первая.
+                //
                 // Асимметрия с lastPerformedAt выше намеренная: мышца
                 // работала, поэтому счётчик детренированности сбросить
                 // правильно, а счётчики смежности — нет.
@@ -196,6 +218,20 @@ extension Progression {
                 consecutiveHeldSessions = 0
                 continue
             }
+
+            if seededThisSession {
+                // Сидирующая сессия — настоящая тренировка, и недобор по
+                // повторам определён относительно baseRange без всякого
+                // baseline. Флаг смежности присваивается, иначе у
+                // пользователя, чьи первые две сессии обе провалились по
+                // повторам, понижение не сработает никогда.
+                previousSessionUnderRepMin = anyUnderRepMin
+                // А consecutiveHeldSessions не трогаем: «сессия без
+                // повышения» для неё бессмысленна — baseline только что
+                // создан, повышаться было не от чего.
+                continue
+            }
+            let baseline = state.baselineKg ?? 0
 
             let effectiveUpper = baseRange.upperBound + state.repExtension
             let feedbacks = session.sets.map(\.feedback)
@@ -206,17 +242,22 @@ extension Progression {
 
             // Опорный вес — вес ОТКРЫВАЮЩЕГО подхода (см. правило 1 в шапке).
             let refWeight = firstSet.actualKg ?? baseline
-            let override = openingOverride(firstSet)
+            let override = effectiveOverride(firstSet, baseline: isWeighted ? baseline : nil)
             // Третий, не описанный в SPEC триггер понижения: открывающий
-            // подход взят легче предписанного И он же получил 'hard'/'failed'.
-            let openedLighterAndStruggled = isWeighted
-                && override == .down
+            // подход взят легче предписанного (и легче baseline — это уже
+            // внутри effectiveOverride) И он же получил 'hard'/'failed'.
+            let openedLighterAndStruggled = override == .down
                 && (firstSet.feedback == .hard || firstSet.feedback == .failed)
 
             if failedCount >= 2 || (previousSessionUnderRepMin && anyUnderRepMin) || openedLighterAndStruggled {
                 if isWeighted {
-                    let target = lowerTarget(baseline: baseline, referenceWeight: refWeight, ladder: ladder)
-                    state.baselineKg = BaselineUpdater.apply(baseline: baseline, target: target, readiness: readiness)
+                    if let target = lowerTarget(baseline: baseline, referenceWeight: refWeight, ladder: ladder) {
+                        move(.lower(to: target, reason: override == .down ? .userOverride : .ladderStep),
+                             openingWeight: firstSet.actualKg, readiness: readiness)
+                    }
+                    // nil — понижать некуда (лестница исчерпана снизу). Это
+                    // законная ситуация, а не аномалия: базовая линия просто
+                    // остаётся на месте.
                 }
                 state.repExtension = 0
                 state.stallCount = 0
@@ -224,21 +265,16 @@ extension Progression {
             } else if allAtTop && failedCount == 0 && anyEasyOrOk {
                 var raisedWeight = false
 
-                if isWeighted, override == .up {
-                    // Пользователь сам взял вес тяжелее предписанного и
-                    // справился — это факт, а не гипотетическая рекомендация,
-                    // поэтому проверка «прыжок ≤ 10%» (SPEC §9.5) здесь не
+                if isWeighted, override == .up,
+                   let target = raiseTarget(baseline: baseline, referenceWeight: refWeight, ladder: ladder) {
+                    // Пользователь сам взял вес тяжелее предписанного и своей
+                    // базовой линии и справился — это факт, а не гипотеза,
+                    // поэтому проверка «прыжок ≤ 10%» (SPEC §9.5) не
                     // применяется.
-                    let target = ladder.roundToAchievable(refWeight, direction: .up)
-                    // roundToAchievable(.up) КЛЭМПИТ ВНИЗ к максимуму
-                    // лестницы, когда запрошенный вес выше него, а baseline
-                    // сидируется из пользовательского actual_kg и лестницей
-                    // не ограничен. Без этой проверки ветка ПОВЫШЕНИЯ роняла
-                    // baseline (20 → 8 на лестнице [4,6,8]). Ветка повышения
-                    // не имеет права уменьшать базовую линию ни при каком
-                    // входе. Код-ревью feature/progression, 2026-09-07.
-                    if target > baseline + centEpsilonKg {
-                        state.baselineKg = BaselineUpdater.apply(baseline: baseline, target: target, readiness: readiness)
+                    let before = state.baselineKg
+                    move(.raise(to: target, reason: .userOverride),
+                         openingWeight: firstSet.actualKg, readiness: readiness)
+                    if state.baselineKg != before {
                         state.repExtension = 0
                         raisedWeight = true
                     }
@@ -256,8 +292,10 @@ extension Progression {
                         state.repExtension = min(state.repExtension + 2, 4)
                     case .increaseWeight(let next), .increaseWeightWithRepReset(let next, _):
                         if isWeighted {
-                            state.baselineKg = BaselineUpdater.apply(baseline: baseline, target: next, readiness: readiness)
-                            raisedWeight = true
+                            let before = state.baselineKg
+                            move(.raise(to: next, reason: .ladderStep),
+                                 openingWeight: firstSet.actualKg, readiness: readiness)
+                            raisedWeight = state.baselineKg != before
                         }
                         state.repExtension = 0
                     case .addSet:
@@ -270,10 +308,9 @@ extension Progression {
                 if raisedWeight {
                     // Добавленные подходы — компенсация за «тяжелее нет
                     // вообще» (SPEC §9.5, п. 2). Как только тяжелее появилось
-                    // и было взято, компенсация возвращается: иначе +2
-                    // подхода остаются навсегда и складываются с повышением
-                    // веса. На понижении счётчик не трогаем — срезать
-                    // одновременно и вес, и объём было бы двойным штрафом.
+                    // и было взято, компенсация возвращается. На понижении
+                    // счётчик не трогаем — срезать одновременно и вес, и
+                    // объём было бы двойным штрафом.
                     extraSetsAdded = 0
                 }
 
@@ -286,7 +323,8 @@ extension Progression {
                     consecutiveHeldSessions = 0
                     if state.stallCount == 1 {
                         if isWeighted {
-                            state.baselineKg = baseline * 0.90
+                            move(.lower(to: baseline * 0.90, reason: .stallDeload),
+                                 openingWeight: firstSet.actualKg, readiness: readiness)
                         }
                         state.repExtension = 0
                     }
@@ -299,31 +337,76 @@ extension Progression {
             previousSessionUnderRepMin = anyUnderRepMin
         }
 
-        return state
+        return (state, anomalies)
     }
 
-    /// Направление, в котором пользователь изменил предписанный вес
-    /// открывающего подхода. `nil` — предписание принято как есть либо
-    /// сравнивать не с чем (вес не предписывался или не записан).
+    /// Направление, в котором пользователь **осмысленно** отклонился от
+    /// предписания на открывающем подходе: не только относительно
+    /// `prescribed_kg`, но и относительно базовой линии.
     ///
-    /// Переиспользует `RoundDirection` из Equipment: это ровно та же пара
-    /// «вверх/вниз», заводить второй такой enum незачем.
-    private static func openingOverride(_ set: SetResult) -> RoundDirection? {
-        guard let prescribed = set.prescribedKg, let actual = set.actualKg else { return nil }
-        if actual > prescribed + centEpsilonKg { return .up }
-        if actual < prescribed - centEpsilonKg { return .down }
+    /// Второе условие — не перестраховка, а суть. Предписанный вес это
+    /// `baseline × readiness` (§9.6), и readiness доходит до 1.10 (§10),
+    /// поэтому предписание бывает ВЫШЕ базовой линии. Отказ от такой
+    /// надбавки (взяла меньше предписанного, но не меньше своей базовой
+    /// линии) — это не заявление «мне тяжело на моём рабочем весе», и читать
+    /// его как сигнал снизить базовую линию значит позволить дневной
+    /// готовности портить долгосрочную — ровно то, что §9.6 запрещает.
+    /// Симметрично вверх: принятая надбавка не есть оверрайд.
+    ///
+    /// Обе ветки свёртки читают результат этой функции; отдельных условий
+    /// «и ещё сравнить с baseline» в ветках нет и быть не должно — три
+    /// раунда ревью подряд ловили именно рассредоточенные проверки.
+    /// Код-ревью 3b92caa, 2026-09-07.
+    ///
+    /// `baseline` = nil — упражнение без веса: оверрайда нет по определению.
+    private static func effectiveOverride(_ set: SetResult, baseline: Double?) -> RoundDirection? {
+        guard let baseline,
+              let prescribed = set.prescribedKg,
+              let actual = set.actualKg
+        else { return nil }
+
+        if actual > prescribed + centEpsilonKg && actual > baseline + centEpsilonKg { return .up }
+        if actual < prescribed - centEpsilonKg && actual < baseline - centEpsilonKg { return .down }
         return nil
+    }
+
+    /// Цель повышения базовой линии по фактически взятому весу.
+    ///
+    /// `nil` — повышать некуда: `roundToAchievable(_, .up)` клэмпит ВНИЗ к
+    /// максимуму лестницы, когда запрошенный вес выше него, а базовая линия
+    /// лестницей не ограничена (сидируется из пользовательского `actual_kg`,
+    /// например с тренировки на чужом инвентаре). Ситуация законная — на
+    /// домашней лестнице просто нет ступени выше — поэтому она отсекается
+    /// здесь и НЕ доходит до инварианта: тот сигнализирует о дефекте, а не о
+    /// нормальном исчерпании лестницы. Ровно так же устроен `lowerTarget`.
+    /// Код-ревью 3b92caa, 2026-09-07.
+    private static func raiseTarget(baseline: Double, referenceWeight: Double, ladder: WeightLadder) -> Double? {
+        let target = ladder.roundToAchievable(referenceWeight, direction: .up)
+        return target > baseline + centEpsilonKg ? target : nil
     }
 
     /// Цель понижения базовой линии (SPEC §9.4, с поправкой на фактически
     /// использованный вес — см. несостыковку в шапке файла).
-    private static func lowerTarget(baseline: Double, referenceWeight: Double, ladder: WeightLadder) -> Double {
+    ///
+    /// `nil` — понижать некуда: лестница исчерпана снизу либо результат
+    /// округления оказался не ниже базовой линии. Возвращать в этом случае
+    /// клэмп к минимуму лестницы нельзя — `roundToAchievable(_, .down)`
+    /// округляет ВВЕРХ, когда значение ниже первой ступени, и ветка понижения
+    /// поднимала базовую линию (3 → 4 на лестнице [4,6,8]). Инвариант в
+    /// BaselineMove это тоже отсечёт, но здесь ситуация законная, а не
+    /// аномальная: ниже просто нет ступеней, и засорять ею диагностику
+    /// незачем. Код-ревью 3b92caa, 2026-09-07.
+    private static func lowerTarget(baseline: Double, referenceWeight: Double, ladder: WeightLadder) -> Double? {
+        let target: Double
         if referenceWeight < baseline - centEpsilonKg {
             // Пользователь уже сам снизил вес — это и есть новая нижняя
             // граница; ещё один шаг вниз поверх неё был бы двойным штрафом
             // (SPEC §18, сценарий 11).
-            return ladder.roundToAchievable(referenceWeight, direction: .down)
+            target = ladder.roundToAchievable(referenceWeight, direction: .down)
+        } else {
+            guard let step = ladder.previousAchievableWeight(below: baseline) else { return nil }
+            target = step
         }
-        return ladder.previousAchievableWeight(below: baseline) ?? baseline
+        return target < baseline - centEpsilonKg ? target : nil
     }
 }

@@ -486,4 +486,177 @@ final class ProgressionTests: XCTestCase {
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         XCTAssertTrue(state.isInCalibration, "перерыв обрывает прогон подходов для выхода из калибровки")
     }
+
+
+    // MARK: - Регрессии код-ревью 3b92caa, 2026-09-07
+    //
+    // Три находки на сам исправляющий коммит: он поставил guard «повышение не
+    // может понизить» в ветке повышения и ничего симметричного — в ветке
+    // понижения. Лечится не четвёртым guard'ом, а инвариантом направления в
+    // BaselineMove.apply, через который теперь идёт всякий сдвиг baseline.
+
+    func test_declinedReadinessBonusDoesNotLowerBaseline() {
+        // readiness 1.10 → предписание 12 при baseline 10. Пользователь берёт
+        // РОВНО свои 10, выполняет 12 повторов (верх диапазона) и отмечает
+        // «тяжело». Раньше «взяла легче предписанного» + hard роняло baseline
+        // до 8 — то есть все цели выполнены на своём рабочем весе, а вес
+        // срезан. Отказ от надбавки готовности оверрайдом не является.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 12]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(2, readiness: 1.10, [(12, 10, 12, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+    }
+
+    func test_declinedBonusAboveOwnBaselineDoesNotLower() {
+        // Тот же дефект, вариант со взятым весом строго ВЫШЕ базовой линии:
+        // предписано 12, взято 11, baseline 10.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 11, 12]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(2, readiness: 1.10, [(12, 11, 9, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+    }
+
+    func test_control_genuineDownwardOverrideStillLowers() {
+        // Контроль: настоящий оверрайд вниз (легче и предписания, и базовой
+        // линии) обязан по-прежнему понижать — §18 сценарий 11 не отключён.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(1, [(10, 6, 9, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 6, accuracy: 0.0001)
+    }
+
+    func test_loweringNeverRaisesBaseline() {
+        // roundToAchievable(_, .down) клэмпит ВВЕРХ к минимуму лестницы, а
+        // baseline сидируется из пользовательского actual_kg и лестницей не
+        // ограничен (первая сессия на чужом инвентаре, 3 кг при домашних
+        // [4,6,8]). Ветка ПОНИЖЕНИЯ поднимала базовую линию 3 → 4.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8]))
+        let sessions = [
+            session(0, [(3, 3, 9, .ok)]),
+            session(1, [(3, 1, 9, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 3, accuracy: 0.0001, "понижать некуда — базовая линия остаётся на месте")
+    }
+
+    func test_calibrationSeedingSessionBreaksUnderRepMinRun() {
+        // По §9.8 первые 2–3 тренировки калибровочные, то есть первая сессия
+        // почти всегда И сидирующая, И калибровочная. Раньше сидирующая ветка
+        // выходила раньше калибровочной проверки, и политика «калибровка
+        // обрывает прогон» молча не применялась.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, isCalibration: true, [(10, 10, 5, .hard)]),
+            session(1, [(10, 10, 5, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+    }
+
+    func test_control_calibrationSeedingSessionStillSeedsBaseline() {
+        // Порядок веток изменён, но калибровочная сессия обязана остаться
+        // источником начальной базовой линии: калибровка и есть способ
+        // подобрать вес (§9.8).
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let state = Progression.rebuildStates(
+            from: [session(0, isCalibration: true, [(8, 8, 9, .ok)])],
+            baseRange: hypertrophyRange, ladder: ladder
+        )
+        XCTAssertEqual(state.baselineKg ?? -1, 8, accuracy: 0.0001)
+    }
+
+    // MARK: - Инвариант направления (BaselineMove)
+
+    func test_invariant_noAnomaliesAcrossRepresentativeCorpus() {
+        // Громкость инварианта: любая ветка, которая однажды начнёт двигать
+        // базовую линию не в свою сторону, повалит этот тест, не дожидаясь
+        // отдельного теста именно на неё. Корпус подобран так, чтобы задеть
+        // каждую ветку, применяющую сдвиг: оверрайд вверх и вниз, шаг по
+        // лестнице, deload по застою, все три вердикта детренированности.
+        let normal = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10, 12]))
+        let sparse = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8]))
+        let single = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8]))
+
+        let corpus: [(String, [ExerciseSession], WeightLadder)] = [
+            ("оверрайд вверх", [session(0, [(8, 8, 9, .ok)]), session(1, [(8, 12, 12, .ok)])], normal),
+            ("оверрайд вниз", [session(0, [(10, 10, 9, .ok)]), session(1, [(10, 6, 9, .hard)])], normal),
+            ("шаг по лестнице", [session(0, [(10, 10, 9, .ok)]), session(1, [(10, 10, 12, .easy)])], normal),
+            ("две подряд с недобором", [session(0, [(10, 10, 9, .ok)]), session(1, [(10, 10, 5, .hard)]), session(2, [(10, 10, 5, .hard)])], normal),
+            ("deload по застою", [session(0, [(10, 10, 9, .ok)]), session(1, [(10, 10, 9, .ok)]), session(2, [(10, 10, 9, .ok)]), session(3, [(10, 10, 9, .ok)])], normal),
+            ("детренированность 15д", [session(0, [(10, 10, 9, .ok)]), session(15, [(10, 10, 9, .ok)])], normal),
+            ("детренированность 30д", [session(0, [(10, 10, 9, .ok)]), session(30, [(10, 10, 9, .ok)])], normal),
+            ("детренированность 60д", [session(0, [(10, 10, 9, .ok)]), session(60, [(10, 10, 9, .ok)])], normal),
+            ("baseline выше максимума лестницы", [session(0, [(20, 20, 9, .ok)]), session(1, [(20, 25, 12, .ok)])], sparse),
+            ("baseline ниже минимума лестницы", [session(0, [(3, 3, 9, .ok)]), session(1, [(3, 1, 9, .hard)])], sparse),
+            ("отказ от надбавки готовности", [session(0, [(10, 10, 9, .ok)]), session(2, readiness: 1.10, [(12, 10, 12, .hard)])], normal),
+            ("исчерпанная лестница", [session(0, [(8, 8, 9, .ok)]), session(1, [(8, 8, 20, .easy)]), session(2, [(8, 8, 20, .easy)]), session(3, [(8, 8, 20, .easy)])], single),
+            ("калибровочная первой", [session(0, isCalibration: true, [(10, 10, 5, .hard)]), session(1, [(10, 10, 5, .hard)])], normal),
+        ]
+
+        for (name, sessions, ladder) in corpus {
+            let result = Progression.rebuildStatesWithDiagnostics(
+                from: sessions, baseRange: hypertrophyRange, ladder: ladder
+            )
+            XCTAssertTrue(result.anomalies.isEmpty, "«\(name)» нарушил инвариант направления: \(result.anomalies)")
+        }
+    }
+
+    func test_invariant_rejectsRaiseThatWouldLower() {
+        // Ветка отката исполняется и в тестах — в этом весь смысл выбора
+        // «возврат аномалии» вместо precondition/assert: при трапе XCTest
+        // ничего не поймал бы, а при assert-в-debug эта ветка в тестах
+        // никогда бы не исполнилась.
+        var baseline: Double? = 20
+        let anomaly = BaselineMove.apply(
+            .raise(to: 8, reason: .ladderStep), to: &baseline, openingWeight: 25, readiness: 1.0
+        )
+        XCTAssertEqual(baseline, 20, "базовая линия не сдвинулась")
+        XCTAssertEqual(anomaly, .raiseWouldNotRaise(from: 20, to: 8, reason: .ladderStep))
+    }
+
+    func test_invariant_rejectsLowerThatWouldRaise() {
+        var baseline: Double? = 3
+        let anomaly = BaselineMove.apply(
+            .lower(to: 4, reason: .ladderStep), to: &baseline, openingWeight: 1, readiness: 1.0
+        )
+        XCTAssertEqual(baseline, 3)
+        XCTAssertEqual(anomaly, .lowerWouldNotLower(from: 3, to: 4, reason: .ladderStep))
+    }
+
+    func test_invariant_rejectsOverrideOnWrongSideOfBaseline() {
+        // Сеть под effectiveOverride: даже если триггер однажды снова начнёт
+        // считать отказ от надбавки оверрайдом, сдвиг не применится.
+        var baseline: Double? = 10
+        let anomaly = BaselineMove.apply(
+            .lower(to: 8, reason: .userOverride), to: &baseline, openingWeight: 10, readiness: 1.0
+        )
+        XCTAssertEqual(baseline, 10, "открывающий вес не ниже базовой линии — это не оверрайд вниз")
+        XCTAssertEqual(anomaly, .overrideAgainstBaseline(opening: 10, baseline: 10, raising: false))
+    }
+
+    func test_invariant_appliesValidMovesAndDampsOnlyFeedbackDriven() {
+        // Положительный контроль: корректные ходы проходят, и демпфирование
+        // §9.6 применяется к фидбэк-обусловленным ходам, но не к
+        // детренированности с deload'ом (те приходят готовым множителем).
+        var feedbackDriven: Double? = 10
+        XCTAssertNil(BaselineMove.apply(
+            .lower(to: 6, reason: .userOverride), to: &feedbackDriven, openingWeight: 6, readiness: 0.8
+        ))
+        XCTAssertEqual(feedbackDriven ?? -1, 8.4, accuracy: 0.0001, "10 + (6 − 10) × 0.4")
+
+        var decay: Double? = 10
+        XCTAssertNil(BaselineMove.apply(
+            .lower(to: 7.5, reason: .detraining), to: &decay, openingWeight: nil, readiness: 0.8
+        ))
+        XCTAssertEqual(decay ?? -1, 7.5, accuracy: 0.0001, "детренированность не демпфируется")
+    }
 }
