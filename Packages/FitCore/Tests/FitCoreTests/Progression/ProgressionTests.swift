@@ -111,11 +111,11 @@ final class ProgressionTests: XCTestCase {
 
     func test_scenario8_threeStagnantSessionsDeloadSixSuggestReplacement() {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 12]))
-        let heldSet = SetResult(actualKg: nil, actualReps: 9, feedback: .ok)  // в диапазоне, не у верха, не под rep_min
+        let heldSet = SetResult(prescribedKg: nil, actualKg: nil, actualReps: 9, feedback: .ok)  // в диапазоне, не у верха, не под rep_min
 
         var sessions = [
             ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: 10, actualReps: 9, feedback: .ok)])
+                             sets: [SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok)])
         ]
         for n in 1...6 {
             sessions.append(ExerciseSession(performedAt: day(n), readiness: 1.0, isCalibration: false, sets: [heldSet]))
@@ -152,11 +152,11 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 12]))
         let sessions = [
             ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: 8, actualReps: 9, feedback: .ok)]),
+                             sets: [SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok)]),
             // Пользователь сам взял 12 кг (не 10, следующую по лестнице
             // ступень от 8) и отработал верх диапазона нормально.
             ExerciseSession(performedAt: day(1), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: 12, actualReps: 12, feedback: .ok)]),
+                             sets: [SetResult(prescribedKg: 8, actualKg: 12, actualReps: 12, feedback: .ok)]),
         ]
 
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
@@ -171,11 +171,11 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
         let sessions = [
             ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: 10, actualReps: 9, feedback: .ok)]),
+                             sets: [SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok)]),
             // Пользователь сам снизил вес до 6 (на две ступени от 10, минуя
             // 8) и всё равно было тяжело.
             ExerciseSession(performedAt: day(1), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: 6, actualReps: 9, feedback: .hard)]),
+                             sets: [SetResult(prescribedKg: 10, actualKg: 6, actualReps: 9, feedback: .hard)]),
         ]
 
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
@@ -191,9 +191,10 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
         let sessions = [
             ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: 10, actualReps: 9, feedback: .ok)]),
+                             sets: [SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok)]),
+            // Предписано 8 (baseline 10 × readiness 0.8, §9.6), взято 6 — оверрайд вниз.
             ExerciseSession(performedAt: day(1), readiness: 0.8, isCalibration: false,
-                             sets: [SetResult(actualKg: 6, actualReps: 9, feedback: .hard)]),
+                             sets: [SetResult(prescribedKg: 8, actualKg: 6, actualReps: 9, feedback: .hard)]),
         ]
 
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
@@ -269,8 +270,8 @@ final class ProgressionTests: XCTestCase {
         let session = ExerciseSession(
             performedAt: day(0), readiness: 1.0, isCalibration: true,
             sets: [
-                SetResult(actualKg: 8, actualReps: 9, feedback: .ok),
-                SetResult(actualKg: 8, actualReps: 9, feedback: .ok),
+                SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok),
+                SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok),
             ]
         )
         let state = Progression.rebuildStates(from: [session], baseRange: hypertrophyRange, ladder: ladder)
@@ -284,18 +285,205 @@ final class ProgressionTests: XCTestCase {
             ExerciseSession(
                 performedAt: day(0), readiness: 1.0, isCalibration: true,
                 sets: [
-                    SetResult(actualKg: 10, actualReps: 9, feedback: .ok),
-                    SetResult(actualKg: 10, actualReps: 9, feedback: .ok),
+                    SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
+                    SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
                 ]
             ),
             // 60 дней спустя — перерыв > 45 дней.
             ExerciseSession(performedAt: day(60), readiness: 1.0, isCalibration: false,
-                             sets: [SetResult(actualKg: nil, actualReps: 9, feedback: .ok)]),
+                             sets: [SetResult(prescribedKg: nil, actualKg: nil, actualReps: 9, feedback: .ok)]),
         ]
 
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
 
         XCTAssertEqual(state.baselineKg ?? -1, 7.5, accuracy: 0.0001)
         XCTAssertTrue(state.isInCalibration)
+    }
+
+    // MARK: - Регрессии код-ревью feature/progression, 2026-09-07
+    //
+    // Каждый тест здесь закрывает подтверждённый прогоном дефект свёртки.
+    // Держатся отдельно от обязательных сценариев §18: те описывают продукт,
+    // эти — конкретные способы его сломать, найденные ревью.
+
+    /// Хелпер: сессия из подходов вида (предписано, фактически, повторы, фидбэк).
+    private func session(
+        _ dayOffset: Int,
+        readiness: Double = 1.0,
+        isCalibration: Bool = false,
+        _ sets: [(Double?, Double?, Int, Feedback)]
+    ) -> ExerciseSession {
+        ExerciseSession(
+            performedAt: day(dayOffset), readiness: readiness, isCalibration: isCalibration,
+            sets: sets.map { SetResult(prescribedKg: $0.0, actualKg: $0.1, actualReps: $0.2, feedback: $0.3) }
+        )
+    }
+
+    func test_finding1_singleFailedSetDoesNotLowerBaseline() {
+        // Опорный вес брался из ПОСЛЕДНЕГО подхода, а его понижает сама §9.3
+        // на этом же 'failed' — признак «пользователь снизил вес» выполнялся
+        // сам собой, и одна сессия с одним 'failed' роняла baseline 10 → 8.
+        // §9.4 требует двух сессий подряд или двух 'failed' в одной.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            // Первый подход провален на предписанных 10, дальше §9.3 увела на 8.
+            session(2, [(10, 10, 6, .failed), (8, 8, 9, .ok), (8, 8, 9, .ok)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+    }
+
+    func test_finding1_acceptedPrescriptionOnLowReadinessDoesNotLowerBaseline() {
+        // Сравнение опорного веса с baseline вместо предписания означало, что
+        // на дне с readiness 0.8 принятое как есть предписание (8 при baseline
+        // 10) читалось как «пользователь снизил вес». С 'hard' это давало
+        // понижение — ровно случай, ради которого написан §9.6.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(2, readiness: 0.8, [(8, 8, 9, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+    }
+
+    func test_finding6_acceptedPrescriptionOnHighReadinessDoesNotRaiseBaseline() {
+        // Зеркальный дефект на стороне повышения: readiness доходит до 1.10
+        // (§10), и принятое предписание 12 при baseline 10 читалось как
+        // «пользователь взял тяжелее» → baseline прыгал на 12 в обход
+        // проверки «прыжок ≤ 10%» (§9.5). Прыжок здесь 20%, поэтому
+        // правильная реакция — расширение диапазона, а не повышение веса.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [10, 12]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(2, readiness: 1.10, [(12, 12, 12, .ok)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+        XCTAssertEqual(state.repExtension, 2)
+    }
+
+    func test_finding2_longBreakResetsRepExtensionAndStallCount() {
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [10, 12]))
+
+        // (а) repExtension: перерыв 22–45 дней его сбрасывал, а перерыв >45
+        // дней — нет, из-за чего более длинный перерыв оставлял БОЛЕЕ жёсткую
+        // цель по повторам на весе, срезанном на 25%.
+        func afterBreak(_ gap: Int) -> ExerciseState {
+            Progression.rebuildStates(
+                from: [
+                    session(0, [(10, 10, 9, .ok)]),
+                    session(1, [(10, 10, 12, .easy)]),   // прыжок 20% → extendReps
+                    session(1 + gap, [(nil, nil, 9, .ok)]),
+                ],
+                baseRange: hypertrophyRange, ladder: ladder
+            )
+        }
+        XCTAssertEqual(afterBreak(30).repExtension, 0, "перерыв 22–45 дней сбрасывает repExtension")
+        XCTAssertEqual(afterBreak(60).repExtension, 0, "перерыв >45 дней не может сбрасывать меньше")
+
+        // (б) stallCount: полный рестарт — надмножество .moderateDecay, он
+        // обязан сбрасывать и счётчик застоя.
+        let afterStallThenBreak = Progression.rebuildStates(
+            from: [
+                session(0, [(10, 10, 9, .ok)]),
+                session(1, [(10, 10, 9, .ok)]),
+                session(2, [(10, 10, 9, .ok)]),
+                session(3, [(10, 10, 9, .ok)]),   // третья застойная → stallCount 1, deload
+                session(63, [(nil, nil, 9, .ok)]),
+            ],
+            baseRange: hypertrophyRange, ladder: ladder
+        )
+        XCTAssertEqual(afterStallThenBreak.stallCount, 0)
+        XCTAssertTrue(afterStallThenBreak.isInCalibration)
+    }
+
+    func test_finding3_raiseBranchNeverLowersBaseline() {
+        // roundToAchievable(.up) клэмпит ВНИЗ к максимуму лестницы, а baseline
+        // сидируется из пользовательского actual_kg и лестницей не ограничен
+        // (тренировка в зале при домашнем инвентаре). Ветка ПОВЫШЕНИЯ роняла
+        // baseline 20 → 8. Смены инвентаря для этого не требуется.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8]))
+        let sessions = [
+            session(0, [(20, 20, 9, .ok)]),
+            session(1, [(20, 25, 12, .ok)]),   // оверрайд вверх, верх диапазона
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 20, accuracy: 0.0001)
+        // Тяжелее на лестнице нет → честный каскад §9.5: расширение повторов.
+        XCTAssertEqual(state.repExtension, 2)
+    }
+
+    func test_finding4_calibrationSessionBreaksUnderRepMinRun() {
+        // previousSessionUnderRepMin присваивался только в конце тела цикла,
+        // а calibration-сессия уходила по continue — две несмежные сессии с
+        // недобором считались «двумя подряд» и давали понижение.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(1, [(10, 10, 5, .hard)]),
+            session(2, isCalibration: true, [(10, 10, 9, .ok)]),
+            session(3, [(10, 10, 5, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+    }
+
+    func test_finding4_control_twoConsecutiveUnderRepMinStillLowers() {
+        // Положительный контроль: правка не должна была отключить сам §9.4.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(1, [(10, 10, 5, .hard)]),
+            session(2, [(10, 10, 5, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 8, accuracy: 0.0001)
+    }
+
+    func test_finding4_control_normalSessionBetweenUnderRepMinDoesNotLower() {
+        // Контрольный случай: недобор / обычная сессия / недобор. Две сессии
+        // с недобором НЕ подряд, поэтому понижение срабатывать не должно.
+        //
+        // Три сессии без прогресса подряд при этом дают законный deload по
+        // застою (§9.4), и именно он объясняет 9.0. Утверждение различает два
+        // механизма однозначно: понижение дало бы шаг вниз по лестнице (8.0)
+        // и обнулило бы stallCount, deload даёт ×0.90 (9.0) при stallCount 1.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(1, [(10, 10, 5, .hard)]),
+            session(2, [(10, 10, 9, .ok)]),
+            session(3, [(10, 10, 5, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 9.0, accuracy: 0.0001)
+        XCTAssertEqual(state.stallCount, 1)
+    }
+
+    func test_finding4_seedingSessionCountsTowardUnderRepMinRun() {
+        // Сидирующая сессия тоже уходила по continue, теряя свой недобор:
+        // у пользователя, чьи первые две сессии обе провалились по повторам,
+        // понижение не срабатывало никогда.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 5, .hard)]),
+            session(1, [(10, 10, 5, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 8, accuracy: 0.0001)
+    }
+
+    func test_sweep_calibrationExitCounterDoesNotSpanBreak() {
+        // «Два подхода подряд» (§9.8) не может охватывать перерыв: подход до
+        // 30-дневного перерыва и подход после него выводили из калибровки.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [6, 8, 10]))
+        let sessions = [
+            session(0, isCalibration: true, [(8, 8, 9, .ok)]),
+            session(30, [(nil, nil, 9, .ok)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertTrue(state.isInCalibration, "перерыв обрывает прогон подходов для выхода из калибровки")
     }
 }

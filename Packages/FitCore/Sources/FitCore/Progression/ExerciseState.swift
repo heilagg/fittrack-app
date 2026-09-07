@@ -39,12 +39,27 @@ public struct ExerciseState: Sendable, Equatable {
 /// для прогрессии. `skipped`/`rest_seconds`/`pain_flag` сюда не входят: они
 /// влияют на Planner/Recovery, не на baseline_kg.
 public struct SetResult: Sendable, Equatable {
+    /// Вес, который был показан пользователю на этот подход, кг
+    /// (`sets.prescribed_kg`). Для открывающего подхода это
+    /// `baseline_kg × readiness` после округления (SPEC §9.6), для
+    /// последующих — то, что назначила внутрисессионная реакция (SPEC §9.3).
+    ///
+    /// Нужен, чтобы отличить «пользователь сам изменил вес» от «алгоритм
+    /// изменил вес»: сравнение `actualKg` с `baseline_kg` для этого не
+    /// годится, потому что предписание уже промодулировано готовностью, и
+    /// принятое как есть предписание в день с readiness ≠ 1.0 выглядело бы
+    /// оверрайдом в обе стороны. Код-ревью feature/progression, 2026-09-07.
+    ///
+    /// `nil` — вес не предписывался (упражнение без веса) либо не записан;
+    /// тогда оверрайд не определяется и считается отсутствующим.
+    public var prescribedKg: Double?
     /// Фактический вес, кг. `nil` — упражнение без веса.
     public var actualKg: Double?
     public var actualReps: Int
     public var feedback: Feedback
 
-    public init(actualKg: Double?, actualReps: Int, feedback: Feedback) {
+    public init(prescribedKg: Double?, actualKg: Double?, actualReps: Int, feedback: Feedback) {
+        self.prescribedKg = prescribedKg
         self.actualKg = actualKg
         self.actualReps = actualReps
         self.feedback = feedback
