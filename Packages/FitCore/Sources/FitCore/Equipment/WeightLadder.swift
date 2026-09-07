@@ -13,6 +13,16 @@
 //                  поэтому конечный список построить нельзя — см. несостыковку
 //                  в описании PR).
 //   .none        — вес не квантуется вовсе (собственный вес, резинки).
+//
+//  RoundDirection/roundToAchievable — второй примитив квантования, рядом с
+//  nextAchievableWeight/previousAchievableWeight: «включающее» округление
+//  произвольного веса до ступени в заданную сторону (SPEC §9.3). Нужен
+//  Progression, которого здесь по-прежнему нет и не должно быть.
+public enum RoundDirection: Sendable, Equatable {
+    case up
+    case down
+}
+
 public enum WeightLadder: Sendable, Equatable {
     /// Явный список достижимых весов. Каждый элемент обязан быть кратен
     /// сотой доле кг (`numeric(_,2)`, SPEC §3.1) — эту гарантию даёт
@@ -88,6 +98,104 @@ public enum WeightLadder: Sendable, Equatable {
 
         case .none:
             return nil
+        }
+    }
+
+    /// Ближайший достижимый вес строго ниже `baseline`. Зеркало
+    /// `nextAchievableWeight(above:)` — та же нормализация шума через
+    /// `floorCents`, та же семантика `nil` («квантования нет либо лестница
+    /// исчерпана снизу»), только направление и `max()` вместо `min()`.
+    ///
+    /// Нужен Progression для «шаг вниз» между сессиями (SPEC §9.4): в
+    /// отличие от `roundToAchievable(_:direction:.down)`, здесь `baseline`
+    /// предполагается уже достижимым весом (стоящим на ступени), и результат
+    /// обязан быть СТРОГО ниже него, а не им самим.
+    public func previousAchievableWeight(below baseline: Double) -> Double? {
+        switch self {
+        case .discrete(let weights):
+            precondition(
+                weights.allSatisfy(WeightLadder.isCentMultiple),
+                "WeightLadder.discrete requires every rung to be a multiple of 0.01 kg (numeric(_,2), SPEC §3.1); construct via build(), which guarantees this."
+            )
+            guard let baselineCents = WeightLadder.floorCents(baseline) else { return nil }
+            let threshold = Double(baselineCents) / 100
+            return weights.filter { $0 < threshold }.max()
+
+        case .arithmetic(let step):
+            guard step > 0 else { return nil }
+            guard let baselineCents = WeightLadder.floorCents(baseline),
+                  let stepCents = WeightLadder.cents(step),
+                  stepCents > 0
+            else { return nil }
+            // Тот же паттерн пола, что и в nextAchievableWeight, но здесь
+            // нужно различать «baseline ровно на ступени n» (тогда предыдущая
+            // ступень — n−1) от «baseline между ступенями n и n+1» (тогда
+            // сама ступень n уже строго ниже baseline и есть ответ).
+            var floorSteps = baselineCents / stepCents
+            if baselineCents % stepCents < 0 { floorSteps -= 1 }
+            let isExactRung = floorSteps * stepCents == baselineCents
+            let previousStep = isExactRung ? floorSteps - 1 : floorSteps
+            guard previousStep >= 1 else { return nil }  // ниже первой ступени лестницы нет
+            return Double(previousStep * stepCents) / 100
+
+        case .none:
+            return nil
+        }
+    }
+
+    /// Ближайший достижимый вес в направлении `direction`, **включая** сам
+    /// `value`, если он уже лежит на ступени — в отличие от
+    /// `nextAchievableWeight`/`previousAchievableWeight`, которые обе строгие.
+    /// SPEC §9.3: «понижение округляется вниз, повышение — вверх» для
+    /// произвольного вычисленного веса (например `current * 0.90`), который
+    /// может как совпасть со ступенью, так и попасть между ними.
+    ///
+    /// `.none` — квантования нет вовсе, `value` возвращается как есть.
+    /// Пустая `.discrete([])` или `.arithmetic` с шагом ≤ 0 (нет штанги / нет
+    /// шага тренажёра, SPEC §18 сценарий 14) — квантовать не к чему, тоже
+    /// возвращается исходное значение, а не падает.
+    public func roundToAchievable(_ value: Double, direction: RoundDirection) -> Double {
+        if let onRung = exactRung(value) { return onRung }
+
+        switch direction {
+        case .up:
+            if let next = nextAchievableWeight(above: value) { return next }
+            // Лестница исчерпана сверху (.discrete на максимуме) — ближе
+            // некуда, кроме самого верха. Для .arithmetic эта ветка
+            // недостижима при валидном шаге (лестница не ограничена сверху,
+            // см. doc на .arithmetic), недостижима и приводит просто к
+            // возврату исходного value как деградации на невалидном шаге.
+            if case .discrete(let weights) = self, let max = weights.max() { return max }
+            return value
+
+        case .down:
+            if let previous = previousAchievableWeight(below: value) { return previous }
+            // Ниже первой ступени либо лестница пуста/невалидна: клэмп к
+            // минимуму, а не отдаём мусорное значение (SPEC §18, сценарий 13).
+            switch self {
+            case .discrete(let weights): return weights.min() ?? value
+            case .arithmetic(let step) where step > 0: return step
+            default: return value
+            }
+        }
+    }
+
+    /// `value`, если он (с точностью до цента) совпадает с достижимой
+    /// ступенью — иначе `nil`. Используется `roundToAchievable`, чтобы
+    /// «включающее» округление возвращало саму ступень, а не соседнюю.
+    private func exactRung(_ value: Double) -> Double? {
+        switch self {
+        case .none:
+            return nil
+        case .discrete(let weights):
+            guard let valueCents = WeightLadder.cents(value) else { return nil }
+            return weights.first { WeightLadder.cents($0) == valueCents }
+        case .arithmetic(let step):
+            guard let valueCents = WeightLadder.cents(value),
+                  let stepCents = WeightLadder.cents(step), stepCents > 0,
+                  valueCents > 0, valueCents % stepCents == 0
+            else { return nil }
+            return Double(valueCents) / 100
         }
     }
 
