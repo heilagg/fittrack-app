@@ -49,6 +49,21 @@
 //  И он же получил 'hard'/'failed'.
 extension Progression {
 
+    /// Что сессия дала прогрессии — вход для учёта застоя (SPEC §9.4: три
+    /// сессии подряд «без повышения»).
+    private enum SessionOutcome {
+        /// Вес вырос — по оверрайду пользователя или по шагу лестницы.
+        case weightIncrease
+        /// Тяжелее на лестнице ничего нет: рост идёт повторами и подходами по
+        /// каскаду §9.5. Это прогресс, а не застой.
+        case ladderCeiling
+        /// Повышения не было, хотя лестница жива: либо удержание, либо
+        /// вынужденное расширение повторов из-за слишком большого шага.
+        case noIncrease
+        /// Сессия закончилась понижением — §9.4 обнуляет счётчик застоя явно.
+        case lowered
+    }
+
     private static let centEpsilonKg = 0.005
 
     /// `sessions` — сессии одного упражнения одного пользователя в
@@ -101,6 +116,13 @@ extension Progression {
         var consecutiveHeldSessions = 0
         var previousSessionUnderRepMin = false
         var consecutiveCalibrationExitSets = 0
+        // Потолок длительности калибровки (условие 3 из §9.8-цикла ниже).
+        var calibrationSessions = 0
+        // Максимум базовой линии за всю историю. Нужен, чтобы отличить рост
+        // от отыгрыша: возврат на вес, который уже был, повышением по смыслу
+        // §9.4 не является. Не персистится — свёртка пересчитывает его с нуля
+        // вместе со всем остальным.
+        var maxBaselineReached = 0.0
         // TODO(код-ревью feature/progression, 2026-09-07): этот счётчик
         // никуда не выходит из свёртки. `ExerciseState` его не хранит (в
         // схеме нет колонки: количество подходов — это
@@ -130,6 +152,7 @@ extension Progression {
             // присваивания lastPerformedAt), ни счётчики смежности ниже.
             guard let firstSet = session.sets.first else { continue }
 
+            var cutThisSession = false
             if isWeighted, let lastDay = state.lastPerformedAt, let baseline = state.baselineKg {
                 let gap = lastDay.days(until: session.performedAt)
                 let decay = detrainingAdjustment(daysSinceLastPerformed: gap)
@@ -147,6 +170,14 @@ extension Progression {
                     move(.lower(to: baseline * 0.75, reason: .detraining),
                          openingWeight: firstSet.actualKg, readiness: session.readiness)
                     state.isInCalibration = true
+                    // Срез обязан пережить свою собственную сессию. Она уже
+                    // помечена калибровочной (строкой выше), и без этого флага
+                    // её же данные — где пользователь мог взять старый вес
+                    // сама — тут же усваиваются калибровкой и ×0.75
+                    // отменяется в тот же момент. Тогда §9.7 перестаёт быть
+                    // гарантией «начнём чуть легче» и становится подсказкой.
+                    // Калибровка начинается со следующей сессии.
+                    cutThisSession = true
                     // Полный рестарт — надмножество .moderateDecay и не может
                     // сохранять БОЛЬШЕ накопленного состояния, чем более
                     // короткий перерыв.
@@ -161,6 +192,16 @@ extension Progression {
                 }
             }
             state.lastPerformedAt = session.performedAt
+
+            // Режим снимается ДО скана выхода и до условий завершения ниже:
+            // «условие выхода выполнено» означает «калибровка кончается ПОСЛЕ
+            // этой сессии», а не «эта сессия не была калибровочной». Без
+            // снимка сессия, которая выход и вызвала, уходила по обычному
+            // пути и теряла своё калибровочное обновление — базовая линия
+            // застревала на предыдущей ступени, потому что §9.5 шаг больше
+            // 10% не пропускает. Код-ревью многосессионного прогона,
+            // 2026-09-08.
+            let inCalibrationRegime = state.isInCalibration
 
             if state.isInCalibration {
                 for set in session.sets {
@@ -190,6 +231,18 @@ extension Progression {
             // дать ни повышения, ни понижения независимо от того, оставила ли
             // она baseline после себя.
             let hadNoBaseline = isWeighted && state.baselineKg == nil
+            // Условие 2 завершения калибровки: тяжелее ничего нет, искать
+            // больше нечего. Без него женщина на максимальной гантели с 20
+            // лёгкими повторами не выходила бы из режима никогда (условие §9.8
+            // требует попадания в диапазон, а она его перевыполняет) и не
+            // попадала бы в каскад §9.5 — то есть §18 сценарии 3 и 4 ломались
+            // бы. Проверяется до присвоения ниже: у сидирующей сессии базовой
+            // линии ещё нет, и условие к ней неприменимо.
+            if state.isInCalibration, isWeighted, let current = state.baselineKg,
+               ladder.nextAchievableWeight(above: current) == nil {
+                state.isInCalibration = false
+            }
+
             if hadNoBaseline {
                 // Единственное присвоение baselineKg в этом файле: это
                 // инициализация, а не сдвиг, поэтому оно не идёт через
@@ -202,7 +255,20 @@ extension Progression {
                 state.baselineKg = establishedWeight(session, baseRange: baseRange)
             }
 
-            if session.isCalibration {
+            // Режим калибровки определяется ТОЛЬКО состоянием.
+            // `exercise_states.in_calibration` (SPEC §3.1) — источник истины, и
+            // его вычисляет эта свёртка; `workouts.is_calibration` остаётся
+            // флагом для UI и аналитики, но режимом не управляет. Контракт для
+            // приложения: помечать тренировку калибровочной по состоянию, а не
+            // считать тренировки.
+            //
+            // Почему не `session.isCalibration || state.isInCalibration`: тогда
+            // приложение, продолжающее слать флаг, держит режим открытым вечно
+            // и отменяет условия завершения ниже — упражнение на исчерпанной
+            // лестнице так и не попадает в каскад §9.5.
+            // Код-ревью многосессионного прогона, 2026-09-08.
+            if inCalibrationRegime {
+                calibrationSessions += 1
                 // Калибровочная сессия — другой режим (§9.8: шаг ±15%, до 3
                 // повышений за сессию). Нельзя утверждать «две сессии подряд
                 // с недобором» или «три сессии без прогресса», когда одна из
@@ -228,18 +294,30 @@ extension Progression {
                 // УТОМЛЕНИЯ и НЕДЕЛЬНОГО ОБЪЁМА, а не из обновления базовой
                 // линии; это исключение было прочитано слишком широко.
                 // Код-ревью 433afa0, 2026-09-08.
-                if isWeighted, !hadNoBaseline,
+                if isWeighted, !hadNoBaseline, !cutThisSession,
                    let established = establishedWeight(session, baseRange: baseRange),
                    let current = state.baselineKg {
+                    let target = calibrationTarget(
+                        session, established: established,
+                        effectiveUpper: baseRange.upperBound + state.repExtension, ladder: ladder
+                    )
                     let intent: BaselineMove =
-                        established > current + centEpsilonKg ? .raise(to: established, reason: .calibration)
-                      : established < current - centEpsilonKg ? .lower(to: established, reason: .calibration)
+                        target > current + centEpsilonKg ? .raise(to: target, reason: .calibration)
+                      : target < current - centEpsilonKg ? .lower(to: target, reason: .calibration)
                       : .hold
                     move(intent, openingWeight: firstSet.actualKg, readiness: session.readiness)
                 }
                 // hadNoBaseline пропускается намеренно: сидирование выше уже
                 // записало ровно это значение, и повторный ход дал бы
                 // target == baseline, то есть ложную аномалию.
+
+                // Условие 3 завершения: потолок длительности. §9.8 говорит
+                // «первые 2–3 тренировки»; шесть — вдвое больше ориентира, то
+                // есть спека соблюдена, а залипание на странных данных
+                // исключено.
+                if calibrationSessions >= 6 {
+                    state.isInCalibration = false
+                }
                 previousSessionUnderRepMin = false
                 consecutiveHeldSessions = 0
                 continue
@@ -286,6 +364,12 @@ extension Progression {
             let openedLighterAndStruggled = override == .down
                 && (firstSet.feedback == .hard || firstSet.feedback == .failed)
 
+            // Тяжелее на лестнице ничего нет: и .extendReps, и .addSet, и
+            // .suggestHarderVariant в этом состоянии означают следование
+            // каскаду §9.5, а не застой.
+            let ladderCeiling = ladder.nextAchievableWeight(above: baseline) == nil
+            var outcome: SessionOutcome
+
             if failedCount >= 2 || (previousSessionUnderRepMin && anyUnderRepMin) || openedLighterAndStruggled {
                 if isWeighted {
                     // Решение «снизил ли вес ПОЛЬЗОВАТЕЛЬ» приходит сюда уже
@@ -308,8 +392,7 @@ extension Progression {
                     // остаётся на месте.
                 }
                 state.repExtension = 0
-                state.stallCount = 0
-                consecutiveHeldSessions = 0
+                outcome = .lowered
             } else if allAtTop && failedCount == 0 && anyEasyOrOk {
                 var raisedWeight = false
 
@@ -362,9 +445,51 @@ extension Progression {
                     extraSetsAdded = 0
                 }
 
+                // Классификация исхода, а не сброс счётчиков на месте: §9.4
+                // считает застоем три сессии «без ПОВЫШЕНИЯ», а расширение
+                // повторов вес не двигает. Различить «расширяем повторы, потому
+                // что лестница кончилась» (§9.5 шаг 1, это прогресс) и
+                // «расширяем, потому что следующая ступень дороже 10%» по
+                // самому WeightDecision нельзя — обе ветки возвращают
+                // .extendReps, — поэтому исчерпанность спрашивается у лестницы.
+                outcome = raisedWeight ? .weightIncrease
+                        : (ladderCeiling ? .ladderCeiling : .noIncrease)
+            } else {
+                outcome = .noIncrease
+            }
+
+            // Единственная точка учёта застоя: ветки выше объявляют исход, а
+            // счётчики двигаются здесь. Раньше сброс стоял в конце ветки
+            // повышения вне switch и срабатывал на любом исходе каскада —
+            // из-за чего .extendReps засчитывался как прогресс, stallCount
+            // никогда не доходил до 2, «предложить замену упражнения» (§9.4)
+            // было недостижимо, а deload повторялся бесконечно: базовая линия
+            // безупречно выполняющей женщины шла 10 → 9 → 8.1 → 7.29 → 6.5 за
+            // 30 сессий. Код-ревью многосессионного прогона, 2026-09-08.
+            switch outcome {
+            case .weightIncrease where !((state.baselineKg ?? 0) > maxBaselineReached + centEpsilonKg):
+                // Вес вырос, но не превзошёл ранее достигнутый максимум: это
+                // отыгрыш после deload, а не прогресс. Прогон одноподходного
+                // упражнения показал вечный цикл: deload 10 → 9, затем два
+                // расширения повторов и increaseWeightWithRepReset обратно на
+                // 10, что сбрасывало stallCount — и через три сессии снова
+                // deload. Счётчик не доходил до 2 никогда, то есть замена
+                // упражнения (§9.4) так и не предлагалась, хотя женщина
+                // объективно стоит на месте.
+                //
+                // Прогон сессий засчитывается (она отработала), а счётчик
+                // ЭПИЗОДОВ застоя — нет.
+                consecutiveHeldSessions = 0
+            case .lowered, .weightIncrease, .ladderCeiling:
+                // Понижение сбрасывает счётчик по букве §9.4. Исчерпанная
+                // лестница — потому что deload на 10% не решает ничего для
+                // той, кто упёрлась в потолок инвентаря и растёт повторами и
+                // подходами ровно так, как предписывает §9.5: у него там своя
+                // эскалация (повторы → подходы → сложный вариант → «на
+                // поддержании»).
                 state.stallCount = 0
                 consecutiveHeldSessions = 0
-            } else {
+            case .noIncrease:
                 consecutiveHeldSessions += 1
                 if consecutiveHeldSessions == 3 {
                     state.stallCount += 1
@@ -382,10 +507,40 @@ extension Progression {
                 }
             }
 
+            if let b = state.baselineKg { maxBaselineReached = max(maxBaselineReached, b) }
             previousSessionUnderRepMin = anyUnderRepMin
         }
 
         return (state, anomalies)
+    }
+
+    /// Куда калибровочная сессия двигает базовую линию.
+    ///
+    /// Обычно это `established` — самый тяжёлый выполненный вес. Но если
+    /// сессия закончилась «легко» на верху диапазона, значит подъём §9.3 не
+    /// завершился — просто кончились подходы, — и следующая сессия обязана
+    /// открыться выше, иначе калибровка не сходится вовсе. Ярче всего это на
+    /// одноподходном упражнении: внутри сессии подъёма нет ни одного, и без
+    /// межсессионного шага базовая линия навсегда остаётся на холодном старте
+    /// (проверено прогоном на 12 сессий).
+    ///
+    /// Шаг тот же, что §9.3 делает внутри сессии в калибровке: +15% с
+    /// округлением вверх до достижимого. Перелёта это не создаёт — следующая
+    /// сессия немедленно даёт фидбэк на первом же подходе, а
+    /// `establishedWeight` провальный вес не усваивает.
+    /// Код-ревью многосессионного прогона, 2026-09-08.
+    private static func calibrationTarget(
+        _ session: ExerciseSession, established: Double,
+        effectiveUpper: Int, ladder: WeightLadder
+    ) -> Double {
+        let climbUnfinished = session.sets.last.map {
+            $0.feedback == .easy && $0.actualReps >= effectiveUpper
+        } ?? false
+        guard climbUnfinished else { return established }
+        let stepped = ladder.roundToAchievable(established * 1.15, direction: .up)
+        // roundToAchievable(.up) клэмпит к максимуму лестницы, поэтому на
+        // исчерпанной лестнице шаг сам собой выродится в established.
+        return stepped > established + centEpsilonKg ? stepped : established
     }
 
     /// Рабочий вес, который установила сессия: самый тяжёлый подход,
