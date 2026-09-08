@@ -10,3 +10,7 @@
 //
 //  Демпфирование baseline (SPEC §9.6) живёт только в BaselineUpdater
 //  и нигде больше.
+//
+//  Закрывает SPEC §9.2–§9.7 и тесты 4–13 из SPEC §18 (1–3, 14 закрыты
+//  Equipment/WeightLadder). Зависит от WeightLadder — ни от чего внутри
+//  FitCore больше не зависит.

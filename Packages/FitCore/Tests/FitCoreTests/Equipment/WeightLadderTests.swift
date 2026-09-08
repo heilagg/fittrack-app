@@ -329,4 +329,65 @@ final class WeightLadderTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [2, 4, 6, 8]))
         XCTAssertEqual(ladder.nextAchievableWeight(above: noisyBaseline), 8)
     }
+
+    // MARK: - previousAchievableWeight / roundToAchievable (добавлено для Progression)
+    //
+    // Не входят в номерные сценарии §18 (те закрыты выше) — это примитивы,
+    // понадобившиеся Progression (SPEC §9.3, §9.4) и естественно живущие
+    // рядом с nextAchievableWeight.
+
+    func test_previousAchievableWeight_discreteMirrorsNextAchievable() {
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [2, 4, 6, 8]))
+        XCTAssertEqual(ladder.previousAchievableWeight(below: 8), 6)
+        XCTAssertEqual(ladder.previousAchievableWeight(below: 6), 4)
+        XCTAssertNil(ladder.previousAchievableWeight(below: 2), "ниже первой ступени нет")
+        XCTAssertEqual(ladder.previousAchievableWeight(below: 100), 8)
+        XCTAssertNil(ladder.previousAchievableWeight(below: -5))
+    }
+
+    func test_previousAchievableWeight_arithmeticDistinguishesExactRungFromBetween() {
+        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 2.5))
+        // Ровно на ступени (n=3, 7.5) — предыдущая ступень n−1 (5.0).
+        XCTAssertEqual(ladder.previousAchievableWeight(below: 7.5), 5.0)
+        // Между ступенями (7 между 5.0 и 7.5) — сама нижняя ступень уже строго ниже.
+        XCTAssertEqual(ladder.previousAchievableWeight(below: 7), 5.0)
+        XCTAssertNil(ladder.previousAchievableWeight(below: 2.5), "первая ступень — минимум")
+        XCTAssertNil(ladder.previousAchievableWeight(below: 1))
+    }
+
+    func test_roundToAchievable_discreteInclusiveBothDirections() {
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [2, 4, 6, 8]))
+        // Значение между ступенями — округляется в сторону direction.
+        XCTAssertEqual(ladder.roundToAchievable(5, direction: .up), 6)
+        XCTAssertEqual(ladder.roundToAchievable(5, direction: .down), 4)
+        // Значение уже на ступени — включающее округление возвращает её саму
+        // в обе стороны, а не соседнюю.
+        XCTAssertEqual(ladder.roundToAchievable(6, direction: .up), 6)
+        XCTAssertEqual(ladder.roundToAchievable(6, direction: .down), 6)
+        // За пределами лестницы — клэмп к ближайшему краю, не крash (SPEC §18, сценарий 13).
+        XCTAssertEqual(ladder.roundToAchievable(100, direction: .up), 8)
+        XCTAssertEqual(ladder.roundToAchievable(-5, direction: .down), 2)
+        XCTAssertEqual(ladder.roundToAchievable(-5, direction: .up), 2)
+    }
+
+    func test_roundToAchievable_degradesGracefullyOnEmptyOrNoneLadder() {
+        let empty = WeightLadder.build(loadType: .barbell, profile: EquipmentProfile(platesKg: [5], barbellKg: nil))
+        XCTAssertEqual(empty.roundToAchievable(5, direction: .up), 5, "нечего квантовать — отдаём исходное")
+        XCTAssertEqual(empty.roundToAchievable(5, direction: .down), 5)
+
+        XCTAssertEqual(WeightLadder.none.roundToAchievable(5.5, direction: .up), 5.5)
+        XCTAssertEqual(WeightLadder.none.roundToAchievable(5.5, direction: .down), 5.5)
+    }
+
+    func test_roundToAchievable_arithmeticInclusiveAndMinimumClamp() {
+        let ladder = WeightLadder.build(loadType: .machine, profile: EquipmentProfile(machineStepKg: 2.5))
+        XCTAssertEqual(ladder.roundToAchievable(7, direction: .up), 7.5)
+        XCTAssertEqual(ladder.roundToAchievable(7, direction: .down), 5.0)
+        XCTAssertEqual(ladder.roundToAchievable(7.5, direction: .up), 7.5)
+        XCTAssertEqual(ladder.roundToAchievable(7.5, direction: .down), 7.5)
+        // Ниже первой ступени — клэмп к ней же, а не к нулю или отрицательному.
+        XCTAssertEqual(ladder.roundToAchievable(0, direction: .down), 2.5)
+        XCTAssertEqual(ladder.roundToAchievable(0, direction: .up), 2.5)
+        XCTAssertEqual(ladder.roundToAchievable(-100, direction: .down), 2.5)
+    }
 }
