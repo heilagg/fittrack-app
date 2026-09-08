@@ -12,6 +12,9 @@
 //
 //  Остальные типы добавляются по мере реализации соответствующих модулей.
 //  LoadType понадобился первым — как зависимость Equipment/WeightLadder.
+//  MuscleSlug, Joint и Timestamp добавлены для Recovery: распад утомления
+//  (SPEC §8.1) считается в часах, а не в целых сутках, поэтому CalendarDay
+//  для него недостаточно точен.
 
 /// Способ округления/квантования веса упражнения (SPEC §6.3).
 public enum LoadType: String, Sendable, Equatable, Hashable, CaseIterable {
@@ -72,4 +75,69 @@ public struct CalendarDay: Sendable, Equatable, Hashable, Comparable {
     public func adding(days: Int) -> CalendarDay {
         CalendarDay(dayNumber: dayNumber + days)
     }
+}
+
+/// Момент времени в часах от эпохи — независим от Foundation.Date/TimeZone,
+/// как и CalendarDay. Нужен там, где гранулярности суток недостаточно:
+/// распад утомления (SPEC §8.1) считается по периоду полураспада в часах
+/// (20–40ч), а не в сутках.
+public struct Timestamp: Sendable, Equatable, Hashable, Comparable {
+    public let hoursSinceEpoch: Double
+
+    public init(hoursSinceEpoch: Double) {
+        self.hoursSinceEpoch = hoursSinceEpoch
+    }
+
+    /// Полночь заданного календарного дня плюс смещение в часах.
+    public init(day: CalendarDay, hour: Double = 0) {
+        self.hoursSinceEpoch = Double(day.dayNumber) * 24 + hour
+    }
+
+    public static func < (lhs: Timestamp, rhs: Timestamp) -> Bool {
+        lhs.hoursSinceEpoch < rhs.hoursSinceEpoch
+    }
+
+    /// Число часов от `self` до `other`; отрицательное, если `other` раньше `self`.
+    public func hours(until other: Timestamp) -> Double {
+        other.hoursSinceEpoch - hoursSinceEpoch
+    }
+
+    public func adding(hours: Double) -> Timestamp {
+        Timestamp(hoursSinceEpoch: hoursSinceEpoch + hours)
+    }
+}
+
+/// Плоский список слагов мышц (SPEC §6.4), без иерархии.
+public enum MuscleSlug: String, Sendable, Equatable, Hashable, CaseIterable {
+    case gluteMax = "glute_max"
+    case gluteMed = "glute_med"
+    case quads
+    case hamstrings
+    case adductors
+    case calves
+    case erectors
+    case lats
+    case trapsMid = "traps_mid"
+    case trapsUpper = "traps_upper"
+    case rearDelts = "rear_delts"
+    case sideDelts = "side_delts"
+    case frontDelts = "front_delts"
+    case pecs
+    case biceps
+    case triceps
+    case forearms
+    case abs
+    case obliques
+}
+
+/// Сустав из `user_restrictions.joint` (SPEC §3.1) / `exercise.joint_stress`
+/// (SPEC §6.2) — нужен Recovery для эскалации флага боли по суставу (SPEC §8.4).
+public enum Joint: String, Sendable, Equatable, Hashable, CaseIterable {
+    case knee
+    case lowerBack = "lower_back"
+    case shoulder
+    case wrist
+    case neck
+    case hip
+    case ankle
 }
