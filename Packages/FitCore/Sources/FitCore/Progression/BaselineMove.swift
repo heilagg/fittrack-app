@@ -39,6 +39,12 @@ enum BaselineMove: Equatable {
         case userOverride
         /// Обычный шаг по лестнице из каскада §9.5.
         case ladderStep
+        /// Вес, установленный калибровочной сессией (SPEC §9.8). Не
+        /// демпфируется: калибровка ИЗМЕРЯЕТ факт («вот вес, который она
+        /// вытянула сегодня»), а не корректирует базовую линию по ощущениям,
+        /// и ×0.4 растянул бы сходимость на много тренировок вместо
+        /// обещанных §9.8 двух-трёх.
+        case calibration
         /// Deload при stall_count = 1 (SPEC §9.4).
         case stallDeload
         /// Множитель детренированности (SPEC §9.7).
@@ -125,7 +131,7 @@ extension BaselineMove {
         let damped: Bool
         switch reason {
         case .userOverride, .ladderStep: damped = true
-        case .stallDeload, .detraining:  damped = false
+        case .calibration, .stallDeload, .detraining: damped = false
         }
         baseline = damped
             ? BaselineUpdater.apply(baseline: current, target: target, readiness: readiness)
