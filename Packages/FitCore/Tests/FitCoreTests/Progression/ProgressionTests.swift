@@ -576,12 +576,23 @@ final class ProgressionTests: XCTestCase {
 
     // MARK: - Инвариант направления (BaselineMove)
 
-    func test_invariant_noAnomaliesAcrossRepresentativeCorpus() {
-        // Громкость инварианта: любая ветка, которая однажды начнёт двигать
-        // базовую линию не в свою сторону, повалит этот тест, не дожидаясь
-        // отдельного теста именно на неё. Корпус подобран так, чтобы задеть
-        // каждую ветку, применяющую сдвиг: оверрайд вверх и вниз, шаг по
-        // лестнице, deload по застою, все три вердикта детренированности.
+    func test_regressionNet_corpusProducesNoAnomalies() {
+        // ЧЕСТНАЯ ОГОВОРКА: сегодня этот тест упасть не может, и доказывает он
+        // меньше, чем кажется по названию. Каждая точка вызова move() внутри
+        // свёртки предварительно отфильтрована raiseTarget/lowerTarget, так
+        // что инвариант в BaselineMove.apply оттуда недостижим, и ноль
+        // аномалий здесь — тавтология, а не свидетельство.
+        //
+        // Тест оставлен как СЕТЬ НА БУДУЩЕЕ: ветка, добавленная в обход
+        // пред-фильтра, его повалит, не дожидаясь отдельного теста именно на
+        // неё. Корпус подобран так, чтобы задеть каждую ветку, применяющую
+        // сдвиг: оверрайд вверх и вниз, шаг по лестнице, deload по застою,
+        // все три вердикта детренированности.
+        //
+        // Доказательство того, что инвариант действительно работает, дают три
+        // прямых теста на applier ниже: test_invariant_rejectsRaiseThatWouldLower,
+        // test_invariant_rejectsLowerThatWouldRaise и
+        // test_invariant_rejectsOverrideOnWrongSideOfBaseline.
         let normal = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10, 12]))
         let sparse = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8]))
         let single = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8]))
@@ -658,5 +669,68 @@ final class ProgressionTests: XCTestCase {
             .lower(to: 7.5, reason: .detraining), to: &decay, openingWeight: nil, readiness: 0.8
         ))
         XCTAssertEqual(decay ?? -1, 7.5, accuracy: 0.0001, "детренированность не демпфируется")
+    }
+
+
+    // MARK: - Регрессии код-ревью e1a7ee7, 2026-09-08
+
+    func test_acceptedLowReadinessPrescriptionDoesNotDeepenTheDrop() {
+        // lowerTarget спрашивал «пользователь сам снизил вес?» сырым
+        // сравнением refWeight < baseline, а оно истинно и когда вес срезала
+        // ГОТОВНОСТЬ, а пользователь предписание просто принял. Понижение по
+        // двум 'failed' считалось тогда от сниженного предписания (6), а не
+        // от базовой линии, и день с низкой готовностью бил по базовой линии
+        // сильнее (8.4), чем тот же провал на полном весе (9.2).
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [2, 4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            // readiness 0.75 → предписано 6, принято как есть: оверрайда нет.
+            session(1, readiness: 0.75, [(6, 6, 4, .failed), (6, 6, 4, .failed)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        // Шаг вниз от базовой линии (10 → 8), демпфированный ×0.4: 10 + (8−10)×0.4.
+        XCTAssertEqual(state.baselineKg ?? -1, 9.2, accuracy: 0.0001)
+    }
+
+    func test_control_genuineOverrideDownStillUsesUserWeightAsTarget() {
+        // Контроль к предыдущему: при том же readiness пользователь берёт 4 —
+        // ниже и предписания (6), и базовой линии (10). Это настоящий
+        // оверрайд, и цель обязана считаться от её веса, а не от ступени
+        // лестницы (§18 сценарий 11 не сломан).
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [2, 4, 6, 8, 10]))
+        let sessions = [
+            session(0, [(10, 10, 9, .ok)]),
+            session(1, readiness: 0.75, [(6, 4, 9, .hard)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        // Цель — её собственные 4, демпфированные: 10 + (4−10)×0.4 = 7.6.
+        XCTAssertEqual(state.baselineKg ?? -1, 7.6, accuracy: 0.0001)
+    }
+
+    func test_weightedExerciseWithoutRecordedWeightIsSkipped() {
+        // Расщепление сидирующей ветки убрало общий continue, и взвешенное
+        // упражнение с незаписанным весом проваливалось в расчёты с `?? 0`:
+        // jump = (next − 0) / 0 = inf, каскад молча возвращал extendReps и
+        // наращивал rep_extension упражнению без базовой линии.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8]))
+        let sessions = [
+            session(0, [(8, 10, 12, .easy), (8, nil, 12, .easy)]),
+            session(1, [(8, nil, 12, .easy)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertNil(state.baselineKg, "сидировать было не от чего")
+        XCTAssertEqual(state.repExtension, 0, "расширение диапазона не выводится из бесконечности")
+    }
+
+    func test_control_seedingRecoversOnceWeightIsRecorded() {
+        // Контроль: пропуск сессий без веса не должен ломать сидирование
+        // навсегда — как только вес записан, базовая линия заводится.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8]))
+        let sessions = [
+            session(0, [(8, nil, 12, .easy)]),
+            session(1, [(8, 8, 9, .ok)]),
+        ]
+        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(state.baselineKg ?? -1, 8, accuracy: 0.0001)
     }
 }

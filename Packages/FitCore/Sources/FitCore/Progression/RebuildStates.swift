@@ -184,8 +184,13 @@ extension Progression {
             // с `continue`, и первая сессия — которая по §9.8 почти всегда И
             // калибровочная — получала политику сидирования, молча минуя
             // политику калибровки. Код-ревью 3b92caa, 2026-09-07.
-            var seededThisSession = false
-            if isWeighted, state.baselineKg == nil {
+            //
+            // Признак считается ДО попытки присвоения и покрывает оба её
+            // исхода одинаково: сессия, начавшаяся без базовой линии, не может
+            // дать ни повышения, ни понижения независимо от того, оставила ли
+            // она baseline после себя.
+            let hadNoBaseline = isWeighted && state.baselineKg == nil
+            if hadNoBaseline {
                 // Единственное присвоение baselineKg в этом файле: это
                 // инициализация, а не сдвиг, поэтому оно не идёт через
                 // BaselineMove (двигать ещё нечего).
@@ -196,7 +201,6 @@ extension Progression {
                 // а калибровка поднимает вес внутри сессии, поэтому закрывающий
                 // подход — более честная оценка рабочего веса.
                 state.baselineKg = session.sets.last?.actualKg
-                seededThisSession = state.baselineKg != nil
             }
 
             if session.isCalibration {
@@ -219,18 +223,29 @@ extension Progression {
                 continue
             }
 
-            if seededThisSession {
-                // Сидирующая сессия — настоящая тренировка, и недобор по
-                // повторам определён относительно baseRange без всякого
-                // baseline. Флаг смежности присваивается, иначе у
-                // пользователя, чьи первые две сессии обе провалились по
-                // повторам, понижение не сработает никогда.
+            if hadNoBaseline {
+                // Сессия — настоящая тренировка, и недобор по повторам
+                // определён относительно baseRange без всякого baseline.
+                // Флаг смежности присваивается, иначе у пользователя, чьи
+                // первые две сессии обе провалились по повторам, понижение
+                // не сработает никогда.
                 previousSessionUnderRepMin = anyUnderRepMin
                 // А consecutiveHeldSessions не трогаем: «сессия без
-                // повышения» для неё бессмысленна — baseline только что
-                // создан, повышаться было не от чего.
+                // повышения» для неё бессмысленна — базовой линии на входе
+                // не было, повышаться было не от чего.
+                //
+                // Выход здесь обязателен и когда сидирование НЕ удалось (у
+                // последнего подхода нет actual_kg — колонка nullable):
+                // иначе управление доходит до `?? 0` ниже, planProgression
+                // считает jump = (next − 0) / 0 = inf, и каскад молча
+                // возвращает extendReps, наращивая rep_extension упражнению
+                // без базовой линии. Код-ревью e1a7ee7, 2026-09-08.
                 continue
             }
+            // Для взвешенных упражнений baselineKg здесь гарантированно не nil
+            // (иначе сработал бы выход выше), поэтому `?? 0` остаётся только
+            // для ladder == .none, ради которого он и написан: там 0 —
+            // нейтральное значение, а не подмена несуществующего веса.
             let baseline = state.baselineKg ?? 0
 
             let effectiveUpper = baseRange.upperBound + state.repExtension
@@ -251,7 +266,18 @@ extension Progression {
 
             if failedCount >= 2 || (previousSessionUnderRepMin && anyUnderRepMin) || openedLighterAndStruggled {
                 if isWeighted {
-                    if let target = lowerTarget(baseline: baseline, referenceWeight: refWeight, ladder: ladder) {
+                    // Решение «снизил ли вес ПОЛЬЗОВАТЕЛЬ» приходит сюда уже
+                    // принятым (effectiveOverride) и внутри lowerTarget не
+                    // переоткрывается: сырое сравнение refWeight с baseline
+                    // истинно и тогда, когда вес срезала ГОТОВНОСТЬ, а
+                    // пользователь предписание просто принял, — и день с
+                    // низкой готовностью наказывал базовую линию сильнее,
+                    // чем день на полном весе. Код-ревью e1a7ee7, 2026-09-08.
+                    if let target = lowerTarget(
+                        baseline: baseline,
+                        userLoweredTo: override == .down ? refWeight : nil,
+                        ladder: ladder
+                    ) {
                         move(.lower(to: target, reason: override == .down ? .userOverride : .ladderStep),
                              openingWeight: firstSet.actualKg, readiness: readiness)
                     }
@@ -266,7 +292,7 @@ extension Progression {
                 var raisedWeight = false
 
                 if isWeighted, override == .up,
-                   let target = raiseTarget(baseline: baseline, referenceWeight: refWeight, ladder: ladder) {
+                   let target = raiseTarget(baseline: baseline, userRaisedTo: refWeight, ladder: ladder) {
                     // Пользователь сам взял вес тяжелее предписанного и своей
                     // базовой линии и справился — это факт, а не гипотеза,
                     // поэтому проверка «прыжок ≤ 10%» (SPEC §9.5) не
@@ -380,8 +406,8 @@ extension Progression {
     /// здесь и НЕ доходит до инварианта: тот сигнализирует о дефекте, а не о
     /// нормальном исчерпании лестницы. Ровно так же устроен `lowerTarget`.
     /// Код-ревью 3b92caa, 2026-09-07.
-    private static func raiseTarget(baseline: Double, referenceWeight: Double, ladder: WeightLadder) -> Double? {
-        let target = ladder.roundToAchievable(referenceWeight, direction: .up)
+    private static func raiseTarget(baseline: Double, userRaisedTo: Double, ladder: WeightLadder) -> Double? {
+        let target = ladder.roundToAchievable(userRaisedTo, direction: .up)
         return target > baseline + centEpsilonKg ? target : nil
     }
 
@@ -396,13 +422,13 @@ extension Progression {
     /// BaselineMove это тоже отсечёт, но здесь ситуация законная, а не
     /// аномальная: ниже просто нет ступеней, и засорять ею диагностику
     /// незачем. Код-ревью 3b92caa, 2026-09-07.
-    private static func lowerTarget(baseline: Double, referenceWeight: Double, ladder: WeightLadder) -> Double? {
+    private static func lowerTarget(baseline: Double, userLoweredTo: Double?, ladder: WeightLadder) -> Double? {
         let target: Double
-        if referenceWeight < baseline - centEpsilonKg {
+        if let userWeight = userLoweredTo {
             // Пользователь уже сам снизил вес — это и есть новая нижняя
             // граница; ещё один шаг вниз поверх неё был бы двойным штрафом
             // (SPEC §18, сценарий 11).
-            target = ladder.roundToAchievable(referenceWeight, direction: .down)
+            target = ladder.roundToAchievable(userWeight, direction: .down)
         } else {
             guard let step = ladder.previousAchievableWeight(below: baseline) else { return nil }
             target = step
