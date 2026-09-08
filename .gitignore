@@ -61,5 +61,3 @@ Secrets.xcconfig
 # Прочее
 *.log
 *.swp
-spec.md
-SPEC.md
