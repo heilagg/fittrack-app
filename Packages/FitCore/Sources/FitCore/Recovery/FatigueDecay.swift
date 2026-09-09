@@ -27,6 +27,12 @@ public enum Recovery {
     /// блокировать тренировку утомлением, а более быстрый распад для
     /// неклассифицированной мышцы реже завышает её утомление там, где это
     /// не подтверждено спекой.
+    ///
+    /// Switch исчерпывающий, без `default`, намеренно: `MuscleSlug` закрыт
+    /// (§6.4 — фиксированный список), и новая мышца обязана не скомпилироваться,
+    /// пока ей не назначили период полураспада явно. Неклассифицированные
+    /// мышцы вынесены отдельной веткой, а не слиты с «мелкими», чтобы граница
+    /// между значением из SPEC и выбранным дефолтом оставалась видна в коде.
     public static func fatigueHalfLifeHours(for muscle: MuscleSlug) -> Double {
         switch muscle {
         case .gluteMax, .quads, .hamstrings, .lats, .pecs:
@@ -35,31 +41,46 @@ public enum Recovery {
             return 20
         case .erectors:
             return 40
-        default:
+        case .gluteMed, .adductors, .trapsMid, .trapsUpper, .rearDelts,
+             .frontDelts, .forearms, .abs, .obliques:
             return 20
         }
     }
 
+    /// Доля утомления, дожившая за `hours` (SPEC §8.1). `hours <= 0` — множитель
+    /// 1: назад во времени утомление не экстраполируется.
+    private static func decayFactor(hours: Double, muscle: MuscleSlug) -> Double {
+        guard hours > 0 else { return 1 }
+        return pow(0.5, hours / fatigueHalfLifeHours(for: muscle))
+    }
+
     /// Утомление мышцы, перенесённое распадом с `state.updatedAt` на
-    /// `timestamp`. `timestamp` раньше `state.updatedAt` не уменьшает
-    /// значение (защита от рассинхронизированного порядка входа, а не
-    /// «отрицательное время» из SPEC).
+    /// `timestamp`. `timestamp` раньше `state.updatedAt` не увеличивает
+    /// значение: это запрос «сколько сейчас», а не экстраполяция в прошлое.
     public static func decayed(_ state: FatigueState, to timestamp: Timestamp, muscle: MuscleSlug) -> Double {
-        let elapsedHours = state.updatedAt.hours(until: timestamp)
-        guard elapsedHours > 0 else { return state.value }
-        let halfLife = fatigueHalfLifeHours(for: muscle)
-        return state.value * pow(0.5, elapsedHours / halfLife)
+        state.value * decayFactor(hours: state.updatedAt.hours(until: timestamp), muscle: muscle)
     }
 
     /// Применяет подходы одной тренировки к текущим состояниям утомления:
-    /// сначала распад каждой затронутой мышцы до `timestamp`, затем
-    /// добавление `Δfatigue[m] = Σ muscleLoad[m] × intensityFactor(feedback)`
-    /// (SPEC §8.1). Мышцы без предшествующего состояния стартуют с 0.
+    /// `Δfatigue[m] = Σ muscleLoad[m] × intensityFactor(feedback)` (SPEC §8.1).
+    /// Мышцы без предшествующего состояния стартуют с 0.
     ///
-    /// Инкрементально, а не сверткой по всей истории: экспоненциальный
-    /// распад коммутативен по времени (распад на t₁, затем на t₂, даёт то
-    /// же самое, что распад сразу на t₁+t₂), поэтому одного `(value,
-    /// updatedAt)` на мышцу достаточно — как в самой таблице `muscle_fatigue`.
+    /// Инкрементально, а не сверткой по всей истории: утомление линейно по
+    /// вкладам, `F(T) = Σ dᵢ · 0.5^((T − tᵢ)/H)`, поэтому одного
+    /// `(value, updatedAt)` на мышцу достаточно — ровно то, что хранит таблица
+    /// `muscle_fatigue` (SPEC §3.1).
+    ///
+    /// **Порядок вызовов не влияет на результат, и `updatedAt` не убывает.**
+    /// Обе величины — накопленное значение и новая дельта — приводятся к более
+    /// позднему из двух моментов, поэтому запоздавший подход (SPEC §4.3:
+    /// offline-first, две сессии с двух устройств приходят в произвольном
+    /// порядке) засчитывается со своим собственным распадом, а не как
+    /// произошедший только что. Свернуть журнал в любом порядке — значит
+    /// получить то же состояние.
+    ///
+    /// Коммутативность опирается на неотрицательность дельт
+    /// (`muscleLoad ≥ 0`, `intensityFactor > 0`), при которой клэмп `max(0,…)`
+    /// ниже никогда не срабатывает и потому не зависит от порядка.
     public static func applying(
         _ sets: [FatigueSet],
         at timestamp: Timestamp,
@@ -73,19 +94,37 @@ public enum Recovery {
             }
         }
 
-        var result = states
+        // Единый момент на весь вызов, а не свой на каждую мышцу: только так
+        // представление получается каноническим. С «своим» моментом порядок
+        // свёртки менял бы updatedAt (последний вызов с ранней меткой не
+        // подтягивает вперёд остальные мышцы), и две сошедшиеся по смыслу
+        // строки `muscle_fatigue` отличались бы побайтово — §18 сценарий 37
+        // («состояния сошлись») это бы не прошёл.
+        let latestKnown = states.values.map(\.updatedAt).max()
+        let at = latestKnown.map { max($0, timestamp) } ?? timestamp
+
+        var result: [MuscleSlug: FatigueState] = [:]
         for muscle in Set(states.keys).union(deltas.keys) {
-            let carried = states[muscle].map { decayed($0, to: timestamp, muscle: muscle) } ?? 0
-            let newValue = max(0, carried + (deltas[muscle] ?? 0))
-            result[muscle] = FatigueState(value: newValue, updatedAt: timestamp)
+            let prior = states[muscle]
+            let carried = (prior?.value ?? 0)
+                * decayFactor(hours: prior.map { $0.updatedAt.hours(until: at) } ?? 0, muscle: muscle)
+            let added = (deltas[muscle] ?? 0) * decayFactor(hours: timestamp.hours(until: at), muscle: muscle)
+            result[muscle] = FatigueState(value: max(0, carried + added), updatedAt: at)
         }
         return result
     }
 
+    /// SPEC §8.1: мышца восстановлена ниже этого значения.
+    public static let recoveredBelow = 0.8
+    /// SPEC §8.1: выше этого значения мышца не восстановлена.
+    public static let notRecoveredAbove = 1.8
+    /// SPEC §8.3: максимальный срез объёма на переутомлённую мышцу (−30%).
+    public static let maxVolumeCut = 0.3
+
     /// SPEC §8.1: пороги восстановления.
     public static func recoveryStatus(forFatigue value: Double) -> RecoveryStatus {
-        if value < 0.8 { return .recovered }
-        if value <= 1.8 { return .partial }
+        if value < recoveredBelow { return .recovered }
+        if value <= notRecoveredAbove { return .partial }
         return .notRecovered
     }
 
@@ -104,10 +143,10 @@ public enum Recovery {
         case .recovered:
             return RecoveryAdjustment(targetRIRDelta: 0, volumeMultiplier: 1.0)
         case .partial:
-            let t = (value - 0.8) / (1.8 - 0.8)
-            return RecoveryAdjustment(targetRIRDelta: 0, volumeMultiplier: 1.0 - 0.3 * t)
+            let t = (value - recoveredBelow) / (notRecoveredAbove - recoveredBelow)
+            return RecoveryAdjustment(targetRIRDelta: 0, volumeMultiplier: 1.0 - maxVolumeCut * t)
         case .notRecovered:
-            return RecoveryAdjustment(targetRIRDelta: 1, volumeMultiplier: 0.7)
+            return RecoveryAdjustment(targetRIRDelta: 1, volumeMultiplier: 1.0 - maxVolumeCut)
         }
     }
 }

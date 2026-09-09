@@ -198,6 +198,40 @@ final class RecoveryTests: XCTestCase {
         XCTAssertEqual(Recovery.escalations(from: events, asOf: day(31)), [])
     }
 
+    // MARK: - Флаг боли: выбор сустава (SPEC §6.2 joint_stress)
+
+    func test_primaryJointPicksHighestStressLevel() {
+        let stress: [Joint: JointStressLevel] = [.knee: .low, .hip: .medium, .lowerBack: .high]
+        XCTAssertEqual(Recovery.primaryJoint(from: stress), .lowerBack)
+    }
+
+    func test_primaryJointBreaksTieByDeclarationOrder() {
+        // Канонический пример §6.2 (hip_thrust_barbell) сам содержит ничью:
+        // lower_back и hip оба medium. Тай-брейк — порядок объявления Joint,
+        // повторяющий порядок из §3.1, где lowerBack идёт раньше hip.
+        let stress: [Joint: JointStressLevel] = [.knee: .low, .lowerBack: .medium, .hip: .medium]
+        XCTAssertEqual(Recovery.primaryJoint(from: stress), .lowerBack)
+    }
+
+    func test_primaryJointIsStableRegardlessOfDictionaryOrder() {
+        // Словарь не хранит порядок вставки — резолвер обязан давать один и
+        // тот же ответ, иначе две вызывающие стороны разошлись бы на ничьей.
+        let stress: [Joint: JointStressLevel] = [.hip: .medium, .lowerBack: .medium, .knee: .low]
+        for _ in 0..<50 {
+            XCTAssertEqual(Recovery.primaryJoint(from: stress), .lowerBack)
+        }
+    }
+
+    func test_primaryJointWithSingleEntryReturnsIt() {
+        XCTAssertEqual(Recovery.primaryJoint(from: [.wrist: .low]), .wrist)
+    }
+
+    func test_primaryJointOfEmptyStressMapIsNil() {
+        // Пустой joint_stress — ошибка разметки контента, ловится валидатором,
+        // а не здесь; резолвер обязан лишь не падать.
+        XCTAssertNil(Recovery.primaryJoint(from: [:]))
+    }
+
     // MARK: - Многосессионный прогон (implement-feature skill §5а)
     //
     // Обязателен, потому что Recovery.applying(_:at:to:) — та же свёртка по
@@ -271,5 +305,103 @@ final class RecoveryTests: XCTestCase {
                        "каждый блок отдыха обязан возвращать в .recovered без остатка")
         XCTAssertLessThan(states[muscle]!.value, 0.01,
                           "после 6 циклов остаточное утомление не должно расти; итог: \(states[muscle]!.value)")
+    }
+
+    // MARK: - Регрессии код-ревью feature/recovery, 2026-09-08
+    //
+    // Вызов не по порядку — штатный вход, а не дефект вызывающего: SPEC §4.3
+    // offline-first, две сессии с двух устройств приходят в произвольном
+    // порядке. Раньше applying безусловно штамповал updatedAt переданным
+    // моментом, отматывая метку времени назад; последующий распад считался
+    // от неверной точки отсчёта.
+
+    private func fatigueSet(_ muscle: MuscleSlug, _ load: Double, _ feedback: Feedback = .ok) -> FatigueSet {
+        FatigueSet(muscleLoad: [muscle: load], feedback: feedback)
+    }
+
+    func test_applyingOutOfOrderNeverMovesUpdatedAtBackward() {
+        // Мышца, которой запоздавшая сессия вообще не касается, обязана
+        // сохранить и значение, и метку времени.
+        let seeded = Recovery.applying([fatigueSet(.quads, 1.0)],
+                                        at: Timestamp(hoursSinceEpoch: 100), to: [:])
+        XCTAssertEqual(seeded[.quads]!.updatedAt.hoursSinceEpoch, 100, accuracy: 0.0001)
+
+        let late = Recovery.applying([fatigueSet(.hamstrings, 1.0)],
+                                      at: Timestamp(hoursSinceEpoch: 50), to: seeded)
+        XCTAssertEqual(late[.quads]!.updatedAt.hoursSinceEpoch, 100, accuracy: 0.0001,
+                       "updatedAt не должен уезжать назад")
+        XCTAssertEqual(late[.quads]!.value, seeded[.quads]!.value, accuracy: 0.0001,
+                       "нетронутая мышца не должна менять значение")
+    }
+
+    func test_lateArrivingSessionIsCreditedWithItsOwnDecay() {
+        // Контроль к предыдущему: одного max() по updatedAt мало. Дельта
+        // 50-часовой давности обязана прийти продекейненной, а не целиком.
+        let seeded = Recovery.applying([fatigueSet(.quads, 1.0)],
+                                        at: Timestamp(hoursSinceEpoch: 100), to: [:])
+        let late = Recovery.applying([fatigueSet(.quads, 1.0)],
+                                      at: Timestamp(hoursSinceEpoch: 50), to: seeded)
+
+        let halfLife = Recovery.fatigueHalfLifeHours(for: .quads)
+        let expected = seeded[.quads]!.value + 1.0 * pow(0.5, 50 / halfLife)
+        XCTAssertEqual(late[.quads]!.value, expected, accuracy: 0.0001)
+        XCTAssertLessThan(late[.quads]!.value, seeded[.quads]!.value + 1.0,
+                          "запоздавшая дельта не должна засчитываться как только что произошедшая")
+    }
+
+    private func permutations<T>(_ items: [T]) -> [[T]] {
+        guard items.count > 1 else { return [items] }
+        var result: [[T]] = []
+        for index in items.indices {
+            var rest = items
+            let item = rest.remove(at: index)
+            for tail in permutations(rest) { result.append([item] + tail) }
+        }
+        return result
+    }
+
+    func test_applyingIsOrderIndependent() {
+        // Прямая проверка того, чем doc-комментарий модуля обосновывает весь
+        // инкрементальный дизайн: свёртка журнала в ЛЮБОМ порядке даёт одно и
+        // то же состояние — не только значение, но и updatedAt (иначе две
+        // сошедшиеся по смыслу строки `muscle_fatigue` отличались бы
+        // побайтово, см. §18 сценарий 37). Каждый шаг строится применением к
+        // результату предыдущего, значения руками не задаются.
+        //
+        // Проверяются все 720 перестановок, а не выборка: именно накопление
+        // расхождения по порядку событий — тот класс дефектов, который
+        // точечные тесты этого модуля пропустили при ревью.
+        let events: [(Timestamp, [FatigueSet])] = [
+            (Timestamp(hoursSinceEpoch: 0), [fatigueSet(.quads, 1.0, .hard)]),
+            (Timestamp(hoursSinceEpoch: 30), [fatigueSet(.hamstrings, 0.8)]),
+            (Timestamp(hoursSinceEpoch: 55), [fatigueSet(.quads, 0.5, .easy), fatigueSet(.erectors, 1.2)]),
+            (Timestamp(hoursSinceEpoch: 96), [fatigueSet(.biceps, 0.9, .failed)]),
+            (Timestamp(hoursSinceEpoch: 130), [fatigueSet(.quads, 1.1)]),
+            (Timestamp(hoursSinceEpoch: 175), [fatigueSet(.erectors, 0.4, .easy)])
+        ]
+
+        func fold(_ order: [(Timestamp, [FatigueSet])]) -> [MuscleSlug: FatigueState] {
+            var states: [MuscleSlug: FatigueState] = [:]
+            for (at, sets) in order {
+                states = Recovery.applying(sets, at: at, to: states)
+            }
+            return states
+        }
+
+        let chronological = fold(events)
+        XCTAssertEqual(chronological.count, 4)
+        let orders = permutations(events)
+        XCTAssertEqual(orders.count, 720)
+
+        for (n, order) in orders.enumerated() {
+            let out = fold(order)
+            XCTAssertEqual(Set(out.keys), Set(chronological.keys), "перестановка \(n)")
+            for (muscle, state) in chronological {
+                XCTAssertEqual(out[muscle]!.value, state.value, accuracy: 0.0001,
+                               "\(muscle), перестановка \(n): порядок свёртки не должен влиять на значение")
+                XCTAssertEqual(out[muscle]!.updatedAt, state.updatedAt,
+                               "\(muscle), перестановка \(n): порядок свёртки не должен влиять на updatedAt")
+            }
+        }
     }
 }

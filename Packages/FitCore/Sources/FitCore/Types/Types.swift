@@ -12,9 +12,9 @@
 //
 //  Остальные типы добавляются по мере реализации соответствующих модулей.
 //  LoadType понадобился первым — как зависимость Equipment/WeightLadder.
-//  MuscleSlug, Joint и Timestamp добавлены для Recovery: распад утомления
-//  (SPEC §8.1) считается в часах, а не в целых сутках, поэтому CalendarDay
-//  для него недостаточно точен.
+//  MuscleSlug, Joint, JointStressLevel и Timestamp добавлены для Recovery:
+//  распад утомления (SPEC §8.1) считается в часах, а не в целых сутках, поэтому
+//  CalendarDay для него недостаточно точен.
 
 /// Способ округления/квантования веса упражнения (SPEC §6.3).
 public enum LoadType: String, Sendable, Equatable, Hashable, CaseIterable {
@@ -88,11 +88,6 @@ public struct Timestamp: Sendable, Equatable, Hashable, Comparable {
         self.hoursSinceEpoch = hoursSinceEpoch
     }
 
-    /// Полночь заданного календарного дня плюс смещение в часах.
-    public init(day: CalendarDay, hour: Double = 0) {
-        self.hoursSinceEpoch = Double(day.dayNumber) * 24 + hour
-    }
-
     public static func < (lhs: Timestamp, rhs: Timestamp) -> Bool {
         lhs.hoursSinceEpoch < rhs.hoursSinceEpoch
     }
@@ -132,6 +127,11 @@ public enum MuscleSlug: String, Sendable, Equatable, Hashable, CaseIterable {
 
 /// Сустав из `user_restrictions.joint` (SPEC §3.1) / `exercise.joint_stress`
 /// (SPEC §6.2) — нужен Recovery для эскалации флага боли по суставу (SPEC §8.4).
+///
+/// Порядок объявления повторяет порядок в комментарии к `user_restrictions.joint`
+/// (§3.1) и используется как детерминированный тай-брейк в
+/// `Recovery.primaryJoint(from:)` — см. там же о том, почему тай-брейк вообще
+/// понадобился.
 public enum Joint: String, Sendable, Equatable, Hashable, CaseIterable {
     case knee
     case lowerBack = "lower_back"
@@ -140,4 +140,31 @@ public enum Joint: String, Sendable, Equatable, Hashable, CaseIterable {
     case neck
     case hip
     case ankle
+}
+
+/// Степень нагрузки на сустав — значение `exercise.joint_stress[joint]` (SPEC §6.2).
+///
+/// SPEC нигде не перечисляет допустимые значения явным списком (в отличие от
+/// `pattern`, `load_type` или колонок `user_restrictions`). Набор `low | medium |
+/// high` выведен из примера §6.2 (`{"knee": "low", "lower_back": "medium", …}`)
+/// плюс §6.3 и §14.4 («`avoid` исключает `high` и `medium`, `careful` — только
+/// `high`»), а не процитирован. Порядок `low < medium < high` там же не объявлен
+/// и тоже выведен из этой формулировки: `avoid` строже `careful` и захватывает
+/// на одну ступень больше.
+public enum JointStressLevel: String, Sendable, Equatable, Hashable, CaseIterable, Comparable {
+    case low
+    case medium
+    case high
+
+    private var rank: Int {
+        switch self {
+        case .low: return 0
+        case .medium: return 1
+        case .high: return 2
+        }
+    }
+
+    public static func < (lhs: JointStressLevel, rhs: JointStressLevel) -> Bool {
+        lhs.rank < rhs.rank
+    }
 }
