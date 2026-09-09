@@ -31,7 +31,11 @@ final class RecoveryTests: XCTestCase {
     // MARK: - Период полураспада (SPEC §8.1)
 
     func test_halfLifeGroupsMatchSpec() {
-        for m: MuscleSlug in [.gluteMax, .quads, .hamstrings, .lats, .pecs] {
+        // adductors — крупные вместе с ягодичными/бицепсом бедра (SPEC §8.1):
+        // работают как разгибатель бедра наравне с ними, а не консервативный
+        // дефолт «мелких», как остальные восемь ранее неклассифицированных
+        // мышц (см. test_musclesWithoutClinicalDifferentiationDefaultToTwentyHours).
+        for m: MuscleSlug in [.gluteMax, .quads, .hamstrings, .lats, .pecs, .adductors] {
             XCTAssertEqual(Recovery.fatigueHalfLifeHours(for: m), 30, "\(m)")
         }
         for m: MuscleSlug in [.biceps, .triceps, .sideDelts, .calves] {
@@ -40,10 +44,12 @@ final class RecoveryTests: XCTestCase {
         XCTAssertEqual(Recovery.fatigueHalfLifeHours(for: .erectors), 40)
     }
 
-    func test_unclassifiedMusclesFallBackToTwentyHours() {
-        // SPEC не относит эти мышцы ни к одной из трёх групп §8.1 — см.
-        // описание PR. Дефолт задокументирован в Recovery.fatigueHalfLifeHours.
-        for m: MuscleSlug in [.gluteMed, .adductors, .trapsMid, .trapsUpper, .rearDelts, .frontDelts, .forearms, .abs, .obliques] {
+    func test_musclesWithoutClinicalDifferentiationDefaultToTwentyHours() {
+        // SPEC §8.1 классифицирует эти 8 мышц как «мелкие» консервативным
+        // дефолтом, а не отдельным клиническим обоснованием (в отличие от
+        // adductors, вынесенных в крупные). Дефолт задокументирован в
+        // Recovery.fatigueHalfLifeHours.
+        for m: MuscleSlug in [.gluteMed, .trapsMid, .trapsUpper, .rearDelts, .frontDelts, .forearms, .abs, .obliques] {
             XCTAssertEqual(Recovery.fatigueHalfLifeHours(for: m), 20, "\(m)")
         }
     }
