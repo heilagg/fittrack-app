@@ -55,7 +55,12 @@ Types (растёт по мере необходимости)
         └─ Progression   §9    — нужен Equipment (nextAchievableWeight, roundToAchievable)
   Recovery  §8   — независим, нужен только Types
   Cycle     §11  — независим, нужен только Types
-        └─ Readiness §10 — нужен Cycle (PhasePolicy/confidence)
+        └─ Readiness §10 — нужен Cycle, но не через PhasePolicy: Readiness
+                            потребляет CycleState (фаза + confidence + личный
+                            профиль §11.4) отдельным путём в phaseTerm.
+                            PhasePolicy — канал к Planner (подбор, объём), а не
+                            к Readiness; после правки §10 фаза входит в
+                            готовность и рекомендованный вес (§9.6) напрямую
   Planner   §7   — нужен Equipment + Recovery + Cycle/Readiness + состояние Progression
 ```
 
