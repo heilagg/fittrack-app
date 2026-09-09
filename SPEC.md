@@ -1373,9 +1373,9 @@ dataFactor:        0 циклов → 0.3
                    2 цикла → 0.7
                    3+      → 1.0
 
-regularityFactor:  измерено ≥ 2 длин:  σ ≤ 2 дня  → 1.0
-                                       σ 3–5 дней → 0.7
-                                       σ > 5 дней → 0.4
+regularityFactor:  измерено ≥ 2 длин:  σ ≤ 2 дня        → 1.0
+                                       2 < σ ≤ 5 дней   → 0.7
+                                       σ > 5 дней        → 0.4
                    иначе по declared_regularity:  'regular'   → 1.0
                                                   'variable'  → 0.7
                                                   'irregular' → 0.4
