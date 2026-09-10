@@ -30,6 +30,14 @@ public enum DeclaredRegularity: String, Sendable, Equatable, Hashable {
 /// `cycle_profiles.no_phase_reason` (SPEC §11.5). Только `.lowConfidence`
 /// снимается автоматически — остальные утверждают что-то о теле или о
 /// выборе пользователя, и отменять их за неё нельзя.
+///
+/// Асимметрия между `.lowConfidence` и остальными шестью — решение SPEC
+/// §11.5, а не пробел в реализации: это единственная причина, снимаемая
+/// автоматически, потому что она единственная — утверждение о качестве НАШИХ
+/// данных, а не о теле пользовательницы или её выборе. Остальные шесть
+/// («только вручную» в таблице §11.5) намеренно не имеют пути автовыхода —
+/// `Cycle.applyingCycleClose`/`applyingClosedCycles` реагируют исключительно
+/// на `.lowConfidence`, и это не нужно расширять на другие случаи.
 public enum NoPhaseReason: String, Sendable, Equatable, Hashable {
     case contraception
     case amenorrhea

@@ -838,7 +838,7 @@ final class CycleTests: XCTestCase {
         XCTAssertEqual(profile.phaseMode, .noPhases, "исходное состояние: автоматика увела в режим без фаз")
         XCTAssertEqual(profile.lowConfidenceStreak, 3)
 
-        profile = Cycle.switchingPhaseMode(to: .phases, reason: nil, in: profile, asOf: day(109))
+        profile = Cycle.switchingToPhases(in: profile, asOf: day(109))
         XCTAssertEqual(profile.lowConfidenceStreak, 0, "серия начинается заново")
         XCTAssertNil(profile.noPhaseReason)
         XCTAssertEqual(profile.lowConfidenceCountedThrough, day(109))

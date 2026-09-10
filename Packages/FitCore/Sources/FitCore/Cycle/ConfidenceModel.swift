@@ -206,7 +206,8 @@ extension Cycle {
     /// Предел точности, оговорённый и в SPEC §11.5: отметка задним числом,
     /// РАЗРЕЗАЮЩАЯ уже учтённый интервал (28 → 14 + 14), оставляет прежний учёт
     /// как есть. Отменить его мог бы только пересчёт всей истории с нуля, а он
-    /// затирал бы ручные переключения режима (см. `switchingPhaseMode`).
+    /// затирал бы ручные переключения режима (см. `switchingToPhases`,
+    /// `switchingToNoPhases`).
     ///
     /// Почему счётчик вообще персистентный, а не свёртка по всей истории, как
     /// `Progression.rebuildStates`: пересчёт с нуля перетирал бы решение
@@ -240,27 +241,43 @@ extension Cycle {
         return updated
     }
 
-    /// SPEC §11.5: ручное переключение режима фаз («доступно в настройках в
-    /// любой момент»). Обнуляет серию и сдвигает отметку учёта на день
-    /// переключения, поэтому «три подряд» после ручного включения фаз означает
-    /// три закрытия ПОСЛЕ этого выбора.
+    /// Общая часть обоих направлений ручного переключения (SPEC §11.5,
+    /// «доступно в настройках в любой момент»): обнулить серию и сдвинуть
+    /// отметку учёта на день переключения, чтобы «три подряд» считалось
+    /// заново, а не унаследованным от состояния до переключения.
     ///
     /// Без сброса серия переживала переключение: пользовательница, которую
     /// автоматика увела в режим без фаз (серия = 3), включала фазы обратно и
     /// теряла их снова на ПЕРВОМ же плохом закрытии — одном вместо трёх.
     /// Сброс живёт здесь, а не в вызывающем коде, потому что этой машиной
     /// состояний владеет FitCore: снаружи о ней пришлось бы помнить.
-    public static func switchingPhaseMode(
-        to mode: PhaseMode,
-        reason: NoPhaseReason?,
-        in profile: CycleProfile,
-        asOf today: CalendarDay
-    ) -> CycleProfile {
+    private static func resettingStreakForModeSwitch(_ profile: CycleProfile, asOf today: CalendarDay) -> CycleProfile {
         var profile = profile
-        profile.phaseMode = mode
-        profile.noPhaseReason = mode == .phases ? nil : reason
         profile.lowConfidenceStreak = 0
         profile.lowConfidenceCountedThrough = today
+        return profile
+    }
+
+    /// Ручное включение режима `phases`. Без параметра `reason` — раньше он
+    /// был опциональным на оба направления сразу, и `.noPhases` с `reason: nil`
+    /// компилировался и создавал состояние, из которого нет автоматического
+    /// выхода: `applyingCycleClose` снимает только `.lowConfidence`, а `nil` не
+    /// входит ни в одну из семи причин SPEC §11.5. Разведение по направлению
+    /// делает эту комбинацию непредставимой, а не только недокументированной.
+    public static func switchingToPhases(in profile: CycleProfile, asOf today: CalendarDay) -> CycleProfile {
+        var profile = resettingStreakForModeSwitch(profile, asOf: today)
+        profile.phaseMode = .phases
+        profile.noPhaseReason = nil
+        return profile
+    }
+
+    /// Ручное включение режима `no_phases` — `reason` обязателен и без
+    /// значения по умолчанию: SPEC §11.5 перечисляет ровно семь причин, и у
+    /// режима без фаз не бывает состояния «без причины».
+    public static func switchingToNoPhases(reason: NoPhaseReason, in profile: CycleProfile, asOf today: CalendarDay) -> CycleProfile {
+        var profile = resettingStreakForModeSwitch(profile, asOf: today)
+        profile.phaseMode = .noPhases
+        profile.noPhaseReason = reason
         return profile
     }
 
