@@ -47,16 +47,47 @@ extension Cycle {
         }
     }
 
-    /// SPEC §11.3: `cycleDay`/`expectedLength` — текущий день цикла и прогноз
-    /// его длины. `cycleDay <= expectedLength` — в пределах ожидаемого окна.
-    public static func recencyFactor(cycleDay: Int, expectedLength: Int) -> Double {
-        let overdue = cycleDay - expectedLength
-        switch overdue {
+    /// Ступени промаха в днях, общие для `recencyFactor` (§11.3) и
+    /// `predictionMissFactor` (§11.5): 0 → 1.0, 1–3 → 0.6, 4–7 → 0.3,
+    /// дальше 0.0. В одном месте, чтобы правка ступеней не разъехалась по двум.
+    private static func missBucket(days: Int) -> Double {
+        switch days {
         case ..<1: return 1.0
         case 1...3: return 0.6
         case 4...7: return 0.3
         default: return 0.0
         }
+    }
+
+    /// SPEC §11.3: `cycleDay`/`expectedLength` — текущий день цикла и прогноз
+    /// его длины. `cycleDay <= expectedLength` — в пределах ожидаемого окна.
+    ///
+    /// Направление ОДНО, и это не оплошность: величина про ЕЩЁ ОТКРЫТЫЙ цикл,
+    /// где «раньше прогноза» не наблюдаемо в принципе — день цикла просто ещё
+    /// не дошёл до предсказанной длины. Считать здесь по модулю (как на
+    /// закрытии, `predictionMissFactor`) значило бы, что на пятый день цикла
+    /// при прогнозе 28 промах равен 23 дням: уверенность падала бы в ноль почти
+    /// у всех и почти всё время. Симметрия этих двух величин — регресс, а не
+    /// унификация (SPEC §11.5, последний абзац про закрытие).
+    public static func recencyFactor(cycleDay: Int, expectedLength: Int) -> Double {
+        missBucket(days: cycleDay - expectedLength)
+    }
+
+    /// SPEC §11.5: насколько закрывшийся цикл промахнулся мимо собственного
+    /// прогноза — по модулю, в обе стороны.
+    ///
+    /// Цикл, пришедший на две недели раньше предсказанного, говорит о
+    /// непредсказуемости ровно то же, что и задержавшийся на две недели. Тот же
+    /// принцип, по которому `regularityFactor` меряет σ, а не среднее
+    /// отклонение вверх.
+    ///
+    /// Односторонняя версия ещё и вела себя неустойчиво на тех, ради кого
+    /// правило §11.5 существует: при чередовании 20 / 45 / 20 / 45 короткие
+    /// закрытия читались как «пришло вовремя» (0.40 на третьем закрытии) и
+    /// обнуляли серию, так что режим без фаз не включался никогда — при том что
+    /// прогноз не сбылся ни разу.
+    public static func predictionMissFactor(actualLength: Int, predictedLength: Int) -> Double {
+        missBucket(days: abs(actualLength - predictedLength))
     }
 
     /// SPEC §11.3: произведение трёх множителей.
@@ -79,9 +110,8 @@ extension Cycle {
     /// SPEC §11.5 («Уверенность на закрытии считается не так, как сегодняшняя»),
     /// туда же вынесен и численный разбор.
     ///
-    /// Направление одно: `recencyFactor` меряет перебор над прогнозом, поэтому
-    /// цикл, пришедший РАНЬШЕ ожидаемого, уверенность закрытия не снижает.
-    /// Разброс в обе стороны ловит σ внутри `regularityFactor`.
+    /// Промах считается по модулю (`predictionMissFactor`): цикл, пришедший
+    /// раньше прогноза, промахнулся так же, как задержавшийся.
     static func confidenceAtClose(priorLengths: [Int], closedLength: Int, profile: CycleProfile) -> Double {
         let known = priorLengths + [closedLength]
         return cycleConfidence(
@@ -90,9 +120,9 @@ extension Cycle {
                 filteredLengths: recentFilteredLengths(known),
                 declaredRegularity: profile.declaredRegularity
             ),
-            recencyFactor: recencyFactor(
-                cycleDay: closedLength,
-                expectedLength: expectedLength(measuredLengths: priorLengths, profile: profile)
+            recencyFactor: predictionMissFactor(
+                actualLength: closedLength,
+                predictedLength: expectedLength(measuredLengths: priorLengths, profile: profile)
             )
         )
     }

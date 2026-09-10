@@ -580,6 +580,67 @@ final class CycleTests: XCTestCase {
         XCTAssertLessThan(confidences[4], 0.3)
     }
 
+    /// Ради чего промах на закрытии считается ПО МОДУЛЮ (SPEC §11.5).
+    ///
+    /// Чередование 20 / 45 / 20 / 45 — ни одного позднего цикла, но прогноз не
+    /// сбывается ни разу. Односторонняя мера (только перебор над прогнозом)
+    /// читала короткие закрытия как «пришло вовремя»: на третьем закрытии
+    /// (длина 20 при прогнозе 32) она давала 0.40, обнуляла серию, и режим без
+    /// фаз не включался НИКОГДА — при живой, ровно той самой непредсказуемости,
+    /// ради которой правило §11.5 и написано. По модулю промах там равен 12
+    /// дням → 0.0, и серия доходит до трёх.
+    ///
+    /// Тест удерживает именно это: вернуть одностороннюю версию — значит
+    /// уронить его.
+    func test_alternatingShortCyclesTripLowConfidenceMode() {
+        var profile = CycleProfile(declaredRegularity: .irregular)
+        var events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
+
+        for (i, gap) in [20, 45, 20].enumerated() {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingLatestClose(events: events, profile: profile)
+            XCTAssertEqual(profile.lowConfidenceStreak, i + 1,
+                "закрытие \(i + 1): промах мимо прогноза в любую сторону копит серию")
+        }
+        XCTAssertEqual(profile.phaseMode, .noPhases)
+        XCTAssertEqual(profile.noPhaseReason, .lowConfidence)
+
+        // Ни одно из трёх закрытий не было поздним — серия набралась целиком
+        // на коротких и на одном длинном, то есть на промахах как таковых.
+        let confidences = Cycle.confidenceAtEachClose(
+            events: events,
+            profile: CycleProfile(declaredRegularity: .irregular)
+        )
+        XCTAssertTrue(confidences.allSatisfy { $0 < 0.3 },
+            "все три закрытия ниже порога: \(confidences)")
+    }
+
+    // MARK: - Контракт: промах по модулю vs просрочка в одну сторону (SPEC §11.5, §11.3)
+
+    func test_predictionMissFactorIsSymmetric() {
+        XCTAssertEqual(Cycle.predictionMissFactor(actualLength: 28, predictedLength: 28), 1.0)
+        XCTAssertEqual(Cycle.predictionMissFactor(actualLength: 33, predictedLength: 28),
+                       Cycle.predictionMissFactor(actualLength: 23, predictedLength: 28),
+                       "промах +5 и −5 — один и тот же промах")
+        XCTAssertEqual(Cycle.predictionMissFactor(actualLength: 23, predictedLength: 28), 0.3)
+        XCTAssertEqual(Cycle.predictionMissFactor(actualLength: 30, predictedLength: 28), 0.6)
+        XCTAssertEqual(Cycle.predictionMissFactor(actualLength: 12, predictedLength: 28), 0.0)
+    }
+
+    /// Живой путь остаётся ОДНОСТОРОННИМ, и это не то, что нужно «унифицировать»
+    /// со сценарием закрытия: у ещё открытого цикла «раньше» не наблюдаемо —
+    /// день просто не дошёл до прогноза. По модулю пятый день цикла при прогнозе
+    /// 28 дал бы промах 23 дня и уверенность 0 почти у всех и почти всегда.
+    func test_recencyFactorStaysOneDirectionalForOpenCycle() {
+        XCTAssertEqual(Cycle.recencyFactor(cycleDay: 5, expectedLength: 28), 1.0,
+            "пятый день нормального цикла — это не промах")
+        XCTAssertEqual(Cycle.recencyFactor(cycleDay: 20, expectedLength: 28), 1.0)
+        XCTAssertEqual(Cycle.recencyFactor(cycleDay: 28, expectedLength: 28), 1.0)
+        // Просрочка по-прежнему считается.
+        XCTAssertEqual(Cycle.recencyFactor(cycleDay: 31, expectedLength: 28), 0.6)
+        XCTAssertEqual(Cycle.recencyFactor(cycleDay: 38, expectedLength: 28), 0.0)
+    }
+
     /// Обратная сторона того же правила: у предсказуемого цикла закрытия
     /// стабильно выше порога, и режим без фаз не включается никогда.
     func test_regularUserNeverTripsLowConfidenceMode() {
