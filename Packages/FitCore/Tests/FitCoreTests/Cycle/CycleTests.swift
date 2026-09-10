@@ -537,7 +537,7 @@ final class CycleTests: XCTestCase {
         XCTAssertEqual(profile.phaseMode, .noPhases)
     }
 
-    // MARK: - Контракт: applyingLatestClose — публичный вход механизма (SPEC §11.5)
+    // MARK: - Контракт: applyingClosedCycles — публичный вход механизма (SPEC §11.5)
 
     /// Тот же переход, что и `test_lowConfidenceStreakAutoTransition`, но через
     /// публичную точку входа: уверенность закрытия считается внутри, из
@@ -547,19 +547,19 @@ final class CycleTests: XCTestCase {
     /// Длины 45 / 20 / 44 — цикл, который каждый раз промахивается мимо
     /// собственного прогноза: 45 при ожидаемых 28, потом 44 при ожидаемых 32.
     /// Именно на такой пользовательнице правило §11.5 и должно срабатывать.
-    func test_applyingLatestCloseDrivesStreakFromEventsAlone() {
+    func test_applyingClosedCyclesDrivesStreakFromEventsAlone() {
         var profile = CycleProfile(declaredRegularity: .irregular)
 
         // Ничего ещё не закрылось — no-op, счётчик не двигается.
         let oneMark = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
-        profile = Cycle.applyingLatestClose(events: oneMark, profile: profile)
+        profile = Cycle.applyingClosedCycles(events: oneMark, profile: profile)
         XCTAssertEqual(profile.lowConfidenceStreak, 0, "одна отметка не закрывает цикл")
         XCTAssertEqual(profile.phaseMode, .phases)
 
         var events = oneMark
         for (i, gap) in [45, 20, 44].enumerated() {
             events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
-            profile = Cycle.applyingLatestClose(events: events, profile: profile)
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
             XCTAssertEqual(profile.lowConfidenceStreak, i + 1, "закрытие \(i + 1)")
         }
         XCTAssertEqual(profile.phaseMode, .noPhases, "три подряд ниже 0.3 — режим без фаз")
@@ -598,7 +598,7 @@ final class CycleTests: XCTestCase {
 
         for (i, gap) in [20, 45, 20].enumerated() {
             events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
-            profile = Cycle.applyingLatestClose(events: events, profile: profile)
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
             XCTAssertEqual(profile.lowConfidenceStreak, i + 1,
                 "закрытие \(i + 1): промах мимо прогноза в любую сторону копит серию")
         }
@@ -649,7 +649,7 @@ final class CycleTests: XCTestCase {
 
         for gap in [28, 28, 29, 27, 28, 28] {
             events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
-            profile = Cycle.applyingLatestClose(events: events, profile: profile)
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
             XCTAssertEqual(profile.lowConfidenceStreak, 0, "предсказуемый цикл не копит серию")
         }
         XCTAssertEqual(profile.phaseMode, .phases)
@@ -659,7 +659,7 @@ final class CycleTests: XCTestCase {
     /// Просрочка ЕЩЁ ОТКРЫТОГО цикла в счётчик не идёт (SPEC §11.5:
     /// «считается по закрытым циклам, а не по дням»): сегодняшний
     /// `cycleConfidence` при задержке равен нулю, но пока цикл не закрылся,
-    /// `applyingLatestClose` считает по последнему ЗАКРЫВШЕМУСЯ, а он пришёл
+    /// `applyingClosedCycles` считает по закрывшимся циклам, а он пришёл
     /// точно в прогноз.
     func test_openOverdueCycleDoesNotAdvanceStreak() {
         let events = starts([28, 28])
@@ -668,9 +668,109 @@ final class CycleTests: XCTestCase {
         let today = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(93))
         XCTAssertEqual(today.cycleConfidence!, 0, accuracy: 0.0001, "просрочка 10 дней роняет recencyFactor в 0")
 
-        let closed = Cycle.applyingLatestClose(events: events, profile: profile)
+        let closed = Cycle.applyingClosedCycles(events: events, profile: profile)
         XCTAssertEqual(closed.lowConfidenceStreak, 0, "но открытая просрочка счётчик не двигает")
         XCTAssertEqual(closed.phaseMode, .phases)
+    }
+
+    // MARK: - Контракт: каждое закрытие учитывается ровно один раз (SPEC §11.5)
+
+    /// Перерыв длиннее 90 дней не должен ничего досчитывать. `measuredLengths`
+    /// выбрасывает такой интервал (§11.3), поэтому «последний измеренный цикл»
+    /// после перерыва — это ДОперерывный, уже учтённый: раньше он попадал в
+    /// серию второй раз именно у вернувшейся после паузы пользовательницы,
+    /// ради которой правило 90 дней и написано.
+    func test_breakLongerThanNinetyDaysCountsNothingTwice() {
+        var profile = CycleProfile(declaredRegularity: .irregular)
+
+        // Один настоящий цикл: 45 дней при прогнозе 28 — промах, серия = 1.
+        var events = [
+            CycleEvent(kind: .periodStart, occurredOn: day(0)),
+            CycleEvent(kind: .periodStart, occurredOn: day(45)),
+        ]
+        profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        XCTAssertEqual(profile.lowConfidenceStreak, 1)
+        XCTAssertEqual(profile.lowConfidenceCountedThrough, day(45), "учтено по день закрытия")
+
+        // Пауза на 120 дней, потом отметка. Интервал — перерыв, не цикл.
+        events.append(CycleEvent(kind: .periodStart, occurredOn: day(165)))
+        profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        XCTAssertEqual(profile.lowConfidenceStreak, 1,
+            "перерыв не цикл: досчитывать нечего, и доперерывный цикл не считается снова")
+        XCTAssertEqual(profile.lowConfidenceCountedThrough, day(45), "отметка учёта не двигалась")
+        XCTAssertEqual(profile.phaseMode, .phases)
+    }
+
+    /// Отметка задним числом раньше отметки учёта пропускается, а не
+    /// пересчитывается. Плюс простая идемпотентность: тот же вызов на тех же
+    /// событиях второй раз не меняет ничего (§4.3 — offline-first, одно и то же
+    /// событие приходит дважды).
+    func test_backdatedMarkAndRepeatedCallCountNothingTwice() {
+        var profile = CycleProfile(declaredRegularity: .irregular)
+        let events = starts([45, 20])
+        profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        let afterFirstPass = profile
+        XCTAssertEqual(profile.lowConfidenceStreak, 2)
+
+        // Повторный вызов на тех же событиях.
+        profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        XCTAssertEqual(profile, afterFirstPass, "повторный вызов — no-op")
+
+        // Отметка задним числом ВНУТРИ уже учтённой истории.
+        let backdated = events + [CycleEvent(kind: .periodStart, occurredOn: day(20))]
+        profile = Cycle.applyingClosedCycles(events: backdated, profile: profile)
+        XCTAssertEqual(profile.lowConfidenceStreak, afterFirstPass.lowConfidenceStreak,
+            "закрытия раньше отметки учёта уже посчитаны")
+        XCTAssertEqual(profile.lowConfidenceCountedThrough, afterFirstPass.lowConfidenceCountedThrough)
+    }
+
+    /// Несколько закрытий, накопившихся между вызовами (офлайн), досчитываются
+    /// все и в хронологическом порядке — а не только последнее.
+    func test_severalPendingClosesAreAllCounted() {
+        let events = starts([45, 20, 44])
+        let profile = Cycle.applyingClosedCycles(
+            events: events,
+            profile: CycleProfile(declaredRegularity: .irregular)
+        )
+        XCTAssertEqual(profile.lowConfidenceStreak, 3, "три накопившихся закрытия учтены разом")
+        XCTAssertEqual(profile.phaseMode, .noPhases)
+        XCTAssertEqual(profile.noPhaseReason, .lowConfidence)
+    }
+
+    // MARK: - Контракт: ручное переключение режима сбрасывает серию (SPEC §11.5)
+
+    /// Пользовательница, которую автоматика увела в режим без фаз, включает
+    /// фазы обратно. Серия должна начинаться заново: одно плохое закрытие после
+    /// переключения не имеет права отменить её выбор — нужны те же три подряд.
+    func test_manualSwitchToPhasesRestartsTheStreak() {
+        var profile = CycleProfile(declaredRegularity: .irregular)
+        var events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
+        for gap in [45, 20, 44] {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        }
+        XCTAssertEqual(profile.phaseMode, .noPhases, "исходное состояние: автоматика увела в режим без фаз")
+        XCTAssertEqual(profile.lowConfidenceStreak, 3)
+
+        profile = Cycle.switchingPhaseMode(to: .phases, reason: nil, in: profile, asOf: day(109))
+        XCTAssertEqual(profile.lowConfidenceStreak, 0, "серия начинается заново")
+        XCTAssertNil(profile.noPhaseReason)
+        XCTAssertEqual(profile.lowConfidenceCountedThrough, day(109))
+
+        // Одно плохое закрытие после переключения — выбор пользовательницы держится.
+        events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: 20)))
+        profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        XCTAssertEqual(profile.lowConfidenceStreak, 1)
+        XCTAssertEqual(profile.phaseMode, .phases, "одно закрытие — не три")
+
+        // А три подряд после переключения правило по-прежнему включают: оно не
+        // отключено ручным переключением, просто отсчитывается заново.
+        for gap in [45, 20] {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        }
+        XCTAssertEqual(profile.lowConfidenceStreak, 3)
+        XCTAssertEqual(profile.phaseMode, .noPhases, "правило не выключено — просто отсчитывается заново")
     }
 
     // MARK: - Многосессионная симуляция (implement-feature §5а):

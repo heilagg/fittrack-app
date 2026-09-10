@@ -71,7 +71,7 @@ extension Cycle {
                 filteredLengths: recentFilteredLengths(lengths),
                 declaredRegularity: profile.declaredRegularity
             ),
-            recencyFactor: recencyFactor(cycleDay: day, expectedLength: expectedLen)
+            missFactor: recencyFactor(cycleDay: day, expectedLength: expectedLen)
         )
 
         return CycleState(

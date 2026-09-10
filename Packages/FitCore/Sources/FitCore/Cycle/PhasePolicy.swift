@@ -120,7 +120,7 @@ extension Cycle {
     /// `sampleSize ≥ 3` (SPEC §11.4) — до этого выборка слишком мала, чтобы
     /// профилю можно было доверять.
     public static func effectiveReadinessAdjustment(phase: Phase, profile: PhaseResponseProfile) -> Double {
-        let learned = profile.sampleSize >= 3 ? profile.adjustment : 0
+        let learned = profile.sampleSize >= phaseAdjustmentAppliesFromSampleSize ? profile.adjustment : 0
         return defaultReadinessAdjustment(for: phase) + learned
     }
 }

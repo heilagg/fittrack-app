@@ -91,8 +91,14 @@ extension Cycle {
     }
 
     /// SPEC §11.3: произведение трёх множителей.
-    public static func cycleConfidence(dataFactor: Double, regularityFactor: Double, recencyFactor: Double) -> Double {
-        dataFactor * regularityFactor * recencyFactor
+    ///
+    /// Третий назван нейтрально: на живом пути это `recencyFactor` (§11.3,
+    /// односторонний), на закрытии — `predictionMissFactor` (§11.5, по модулю).
+    /// Под именем `recencyFactor:` вызов на закрытии выглядел бы как ошибка,
+    /// которую хочется «починить» обратно — а это ровно возврат к мёртвой
+    /// арифметике, из-за которой правило §11.5 не срабатывало никогда.
+    public static func cycleConfidence(dataFactor: Double, regularityFactor: Double, missFactor: Double) -> Double {
+        dataFactor * regularityFactor * missFactor
     }
 
     /// Уверенность, зафиксированная в момент закрытия ОДНОГО цикла
@@ -120,7 +126,7 @@ extension Cycle {
                 filteredLengths: recentFilteredLengths(known),
                 declaredRegularity: profile.declaredRegularity
             ),
-            recencyFactor: predictionMissFactor(
+            missFactor: predictionMissFactor(
                 actualLength: closedLength,
                 predictedLength: expectedLength(measuredLengths: priorLengths, profile: profile)
             )
@@ -141,42 +147,91 @@ extension Cycle {
         }
     }
 
-    /// SPEC §11.5: применить к профилю закрытие ПОСЛЕДНЕГО цикла — счётчик
-    /// `low_confidence_streak` и авто-переход в/из режима без фаз. Единственная
-    /// публичная точка входа этого механизма.
+    /// SPEC §11.5: досчитать серию по всем закрытиям, которые ещё не учтены —
+    /// счётчик `low_confidence_streak` и авто-переход в/из режима без фаз.
+    /// Единственная публичная точка входа этого механизма.
     ///
-    /// **Вызывать ровно один раз на каждый НОВЫЙ закрывшийся цикл** — то есть
-    /// когда записан `period_start`, закрывший интервал. Повторный вызов на том
-    /// же закрытии досчитает счётчик второй раз; тип этого не ловит, потому что
-    /// «сколько закрытий уже учтено» живёт в вызывающем слое, а не здесь.
-    /// Пустая история (ничего ещё не закрылось) — no-op.
+    /// Учитываются измеренные циклы, закрывшиеся СТРОГО ПОЗЖЕ
+    /// `profile.lowConfidenceCountedThrough`; отметка передвигается на дату
+    /// последнего учтённого. Отсюда три свойства, которых раньше не было:
     ///
-    /// Почему счётчик персистентный и инкрементальный, а не свёртка по всей
-    /// истории, как `Progression.rebuildStates`: пересчёт с нуля перетирал бы
-    /// решение пользовательницы. Режим переключается вручную в любой момент
-    /// (SPEC §11.5), а ручное включение фаз пишет `no_phase_reason = NULL` —
-    /// от «никогда не была в режиме без фаз» это по схеме §3.1 не отличить,
-    /// и свёртка снова выставила бы `low_confidence` на первом же обращении.
+    ///  - Повторный вызов — no-op. «Ровно один раз на закрытие» больше не
+    ///    обязанность вызывающего: §4.3 offline-first доставляет одно и то же
+    ///    событие дважды, и второй раз теперь ничего не досчитывает.
+    ///  - Перерыв длиннее 90 дней не двигает ничего: он не измеренный цикл
+    ///    (§11.3), значит и закрытия в нём нет. Раньше `measuredLengths.last`
+    ///    после перерыва указывал на ДОперерывный цикл, и тот учитывался второй
+    ///    раз — у той самой пользовательницы, ради которой правило 90 дней и
+    ///    введено.
+    ///  - Отметка задним числом раньше отметки учёта пропускается, а не
+    ///    пересчитывается.
+    ///
+    /// Предел точности, оговорённый и в SPEC §11.5: отметка задним числом,
+    /// РАЗРЕЗАЮЩАЯ уже учтённый интервал (28 → 14 + 14), оставляет прежний учёт
+    /// как есть. Отменить его мог бы только пересчёт всей истории с нуля, а он
+    /// затирал бы ручные переключения режима (см. `switchingPhaseMode`).
+    ///
+    /// Почему счётчик вообще персистентный, а не свёртка по всей истории, как
+    /// `Progression.rebuildStates`: пересчёт с нуля перетирал бы решение
+    /// пользовательницы. Режим переключается вручную в любой момент (SPEC
+    /// §11.5), а ручное включение фаз пишет `no_phase_reason = NULL` — от
+    /// «никогда не была в режиме без фаз» это по схеме §3.1 не отличить.
     /// Пользователь главнее модели, поэтому источник истины — сохранённый
     /// профиль.
-    public static func applyingLatestClose(events: [CycleEvent], profile: CycleProfile) -> CycleProfile {
-        let lengths = measuredLengths(from: events)
-        guard let closed = lengths.last else { return profile }
-        return applyingCycleClose(
-            confidence: confidenceAtClose(
-                priorLengths: Array(lengths.dropLast()),
-                closedLength: closed,
-                profile: profile
-            ),
-            to: profile
-        )
+    public static func applyingClosedCycles(events: [CycleEvent], profile: CycleProfile) -> CycleProfile {
+        let cycles = measuredCycles(from: events)
+        let pendingFrom = profile.lowConfidenceCountedThrough
+            .map { watermark in cycles.firstIndex { $0.closedOn > watermark } ?? cycles.count }
+            ?? 0
+        guard pendingFrom < cycles.count else { return profile }
+
+        var updated = profile
+        let lengths = cycles.map(\.length)
+        for i in pendingFrom..<cycles.count {
+            updated = applyingCycleClose(
+                confidence: confidenceAtClose(
+                    // Прогноз, существовавший ДО этого цикла, — по всем
+                    // предшествующим измеренным, а не только по неучтённым.
+                    priorLengths: Array(lengths.prefix(i)),
+                    closedLength: cycles[i].length,
+                    profile: profile
+                ),
+                to: updated
+            )
+        }
+        updated.lowConfidenceCountedThrough = cycles[cycles.count - 1].closedOn
+        return updated
+    }
+
+    /// SPEC §11.5: ручное переключение режима фаз («доступно в настройках в
+    /// любой момент»). Обнуляет серию и сдвигает отметку учёта на день
+    /// переключения, поэтому «три подряд» после ручного включения фаз означает
+    /// три закрытия ПОСЛЕ этого выбора.
+    ///
+    /// Без сброса серия переживала переключение: пользовательница, которую
+    /// автоматика увела в режим без фаз (серия = 3), включала фазы обратно и
+    /// теряла их снова на ПЕРВОМ же плохом закрытии — одном вместо трёх.
+    /// Сброс живёт здесь, а не в вызывающем коде, потому что этой машиной
+    /// состояний владеет FitCore: снаружи о ней пришлось бы помнить.
+    public static func switchingPhaseMode(
+        to mode: PhaseMode,
+        reason: NoPhaseReason?,
+        in profile: CycleProfile,
+        asOf today: CalendarDay
+    ) -> CycleProfile {
+        var profile = profile
+        profile.phaseMode = mode
+        profile.noPhaseReason = mode == .phases ? nil : reason
+        profile.lowConfidenceStreak = 0
+        profile.lowConfidenceCountedThrough = today
+        return profile
     }
 
     /// SPEC §11.5: инкремент/сброс `low_confidence_streak` на закрытии
     /// одного цикла, и авто-переход в/из режима без фаз по этому счётчику.
     ///
-    /// Internal, а не public: наружу торчит `applyingLatestClose`, который сам
-    /// считает нужную уверенность. Голый `Double` в публичной сигнатуре
+    /// Internal, а не public: наружу торчит `applyingClosedCycles`, который сам
+    /// считает нужную уверенность и следит за тем, что уже учтено. Голый `Double` в публичной сигнатуре
     /// приглашал бы передать сюда сегодняшний `cycleConfidence` — по типу
     /// неотличимый, по смыслу другой (см. `confidenceAtClose`).
     ///

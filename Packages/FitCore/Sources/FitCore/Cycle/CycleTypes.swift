@@ -50,6 +50,11 @@ public struct CycleProfile: Sendable, Equatable {
     public var phaseMode: PhaseMode
     public var noPhaseReason: NoPhaseReason?
     public var lowConfidenceStreak: Int
+    /// SPEC §11.5: дата `period_start`, закрывшего последний УЧТЁННЫЙ в серии
+    /// цикл. `nil` — ещё ничего не учтено. Благодаря ей повторный вызов
+    /// `applyingClosedCycles` ничего не досчитывает: «ровно один раз на
+    /// закрытие» — свойство состояния, а не обязанность вызывающего кода.
+    public var lowConfidenceCountedThrough: CalendarDay?
 
     public init(
         typicalCycleLengthDays: Int? = nil,
@@ -57,7 +62,8 @@ public struct CycleProfile: Sendable, Equatable {
         declaredRegularity: DeclaredRegularity? = nil,
         phaseMode: PhaseMode = .phases,
         noPhaseReason: NoPhaseReason? = nil,
-        lowConfidenceStreak: Int = 0
+        lowConfidenceStreak: Int = 0,
+        lowConfidenceCountedThrough: CalendarDay? = nil
     ) {
         self.typicalCycleLengthDays = typicalCycleLengthDays
         self.typicalPeriodLengthDays = typicalPeriodLengthDays
@@ -65,6 +71,7 @@ public struct CycleProfile: Sendable, Equatable {
         self.phaseMode = phaseMode
         self.noPhaseReason = noPhaseReason
         self.lowConfidenceStreak = lowConfidenceStreak
+        self.lowConfidenceCountedThrough = lowConfidenceCountedThrough
     }
 }
 

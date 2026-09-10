@@ -21,17 +21,27 @@ extension Cycle {
         Array(Set(events.filter { $0.kind == .periodStart }.map(\.occurredOn))).sorted()
     }
 
-    /// Все измеренные длины циклов за всё время, за вычетом перерывов
-    /// (SPEC §11.3, §19a). Порядок — хронологический (от старого к новому);
-    /// нужен и для `dataFactor` (весь список), и как источник окна для
-    /// `regularityFactor`/`LengthEstimator` (последние 6, см. `CycleWindow`).
-    public static func measuredLengths(from events: [CycleEvent]) -> [Int] {
+    /// Все измеренные циклы за всё время, за вычетом перерывов (SPEC §11.3,
+    /// §19a), каждый со своей длиной и датой ЗАКРЫТИЯ — той отметкой
+    /// `period_start`, что его завершила. Порядок хронологический.
+    ///
+    /// Дата закрытия нужна счётчику §11.5: по ней он понимает, какие закрытия
+    /// уже учтены (`lowConfidenceCountedThrough`). По одной длине этого не
+    /// понять — перерыв длиннее 90 дней выпадает из списка, и «последний
+    /// элемент» после него указывает на цикл, учтённый в прошлый раз.
+    public static func measuredCycles(from events: [CycleEvent]) -> [(closedOn: CalendarDay, length: Int)] {
         let starts = periodStartDays(from: events)
         guard starts.count >= 2 else { return [] }
         return zip(starts, starts.dropFirst()).compactMap { start, next in
             let length = start.days(until: next)
-            return length <= breakThresholdDays ? length : nil
+            return length <= breakThresholdDays ? (closedOn: next, length: length) : nil
         }
+    }
+
+    /// Только длины — вход для `dataFactor` (весь список) и окна
+    /// `regularityFactor`/`LengthEstimator` (последние 6).
+    public static func measuredLengths(from events: [CycleEvent]) -> [Int] {
+        measuredCycles(from: events).map(\.length)
     }
 
     /// SPEC §11.1: `menstrualEnd` для ТЕКУЩЕГО (последнего начатого) цикла —
