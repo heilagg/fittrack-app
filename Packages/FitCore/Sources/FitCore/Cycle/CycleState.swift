@@ -68,7 +68,7 @@ extension Cycle {
         let confidence = cycleConfidence(
             dataFactor: dataFactor(measuredCount: lengths.count),
             regularityFactor: regularityFactor(
-                filteredLengths: recentFilteredLengths(lengths),
+                window: recentWindow(lengths),
                 declaredRegularity: profile.declaredRegularity
             ),
             missFactor: recencyFactor(cycleDay: day, expectedLength: expectedLen)

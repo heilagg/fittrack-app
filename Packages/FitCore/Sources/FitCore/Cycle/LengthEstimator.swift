@@ -21,24 +21,50 @@ extension Cycle {
         return values[lower] + (h - Double(lower)) * (values[upper] - values[lower])
     }
 
+    /// Окно измеренных длин, на котором работают и `expectedLength`, и
+    /// `regularityFactor` (SPEC §11.3, «Область подсчёта»), вместе с фактом,
+    /// который нужен только второму: был ли из окна исключён выброс.
+    ///
+    /// Факт живёт здесь, а не отдельным аргументом `regularityFactor`, потому
+    /// что забыть его при вызове означало бы молча вернуть прежнее поведение —
+    /// «окно с выбросом читается как идеально регулярное».
+    public struct CycleWindow: Sendable, Equatable {
+        public var lengths: [Int]
+        public var excludedOutlier: Bool
+
+        public init(lengths: [Int], excludedOutlier: Bool) {
+            self.lengths = lengths
+            self.excludedOutlier = excludedOutlier
+        }
+    }
+
     /// SPEC §11.3, worked example: {27,28,28,29,45} → Q1=28, Q3=29,
-    /// границы [26.5, 30.5], 45 отбрасывается, 27 остаётся.
-    static func rejectingOutliers(_ values: [Int]) -> [Int] {
-        guard values.count > 1 else { return values }
+    /// границы [26, 30.5] (нижняя расширена полом, см. ниже), 45 отбрасывается,
+    /// 27 остаётся.
+    ///
+    /// Полоса никогда не уже медианы ± `regularSigmaDays` (SPEC §11.3). Без
+    /// пола 1.5×IQR вырождается на почти одинаковых окнах: при IQR = 0 границы
+    /// схлопываются в медиану, и у истории 28, 28, 29, 27, 28, 28 выбросами
+    /// объявляются и 27, и 29 — то есть разброс в один день, который та же
+    /// §11.3 называет регулярным.
+    public static func rejectingOutliers(_ values: [Int]) -> CycleWindow {
+        guard values.count > 1 else { return CycleWindow(lengths: values, excludedOutlier: false) }
         let sorted = values.map(Double.init).sorted()
         let q1 = quantile(0.25, of: sorted)
         let q3 = quantile(0.75, of: sorted)
+        let median = quantile(0.5, of: sorted)
         let iqr = q3 - q1
-        let lower = q1 - 1.5 * iqr
-        let upper = q3 + 1.5 * iqr
-        return values.filter { Double($0) >= lower && Double($0) <= upper }
+        let lower = min(q1 - 1.5 * iqr, median - regularSigmaDays)
+        let upper = max(q3 + 1.5 * iqr, median + regularSigmaDays)
+        let kept = values.filter { Double($0) >= lower && Double($0) <= upper }
+        return CycleWindow(lengths: kept, excludedOutlier: kept.count < values.count)
     }
 
     /// Последние `recentCyclesWindow` измеренных длин (хронологически, от
     /// старого к новому — `measuredLengths` уже в этом порядке) с
     /// отброшенными выбросами. Общий вход для `regularityFactor` и
     /// `expectedLength`.
-    static func recentFilteredLengths(_ measuredLengths: [Int]) -> [Int] {
+    public static func recentWindow(_ measuredLengths: [Int]) -> CycleWindow {
         rejectingOutliers(Array(measuredLengths.suffix(recentCyclesWindow)))
     }
 
@@ -47,7 +73,7 @@ extension Cycle {
     /// онбординге длина; иначе 28 (правка, закрывшая этот пробел до
     /// реализации — см. SPEC §11.1).
     public static func expectedLength(measuredLengths: [Int], profile: CycleProfile) -> Int {
-        let filtered = recentFilteredLengths(measuredLengths)
+        let filtered = recentWindow(measuredLengths).lengths
         guard !filtered.isEmpty else {
             return profile.typicalCycleLengthDays ?? 28
         }

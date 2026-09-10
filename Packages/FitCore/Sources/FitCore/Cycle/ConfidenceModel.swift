@@ -31,20 +31,41 @@ extension Cycle {
         return variance.squareRoot()
     }
 
-    /// SPEC §11.3: `filteredLengths` — то же отфильтрованное окно, что и
+    /// Ступени σ из таблицы §11.3. Названы, потому что `regularSigmaDays`
+    /// переиспользуется полом полосы отбрасывания в `rejectingOutliers`: это
+    /// один и тот же порог «регулярно», а не два совпавших литерала.
+    public static let regularSigmaDays = 2.0
+    public static let variableSigmaDays = 5.0
+    /// Средняя ступень таблицы — и потолок для окна с исключённым выбросом.
+    public static let variableRegularityFactor = 0.7
+
+    /// SPEC §11.3: `window` — то же отфильтрованное окно, что и у
     /// `LengthEstimator.expectedLength` (последние 6, минус выбросы).
-    public static func regularityFactor(filteredLengths: [Int], declaredRegularity: DeclaredRegularity?) -> Double {
-        if filteredLengths.count >= 2 {
-            let sigma = standardDeviation(of: filteredLengths)
-            if sigma <= 2 { return 1.0 }
-            if sigma <= 5 { return 0.7 }
-            return 0.4
+    ///
+    /// Потолок при исключённом выбросе применяется к РЕЗУЛЬТАТУ, после любой из
+    /// веток: окно может отфильтроваться до одной длины и уйти в ветку
+    /// declared_regularity, а принцип «окно с выбросом не бывает максимально
+    /// регулярным» (SPEC §11.3) не зависит от того, чем посчитана база.
+    ///
+    /// Зачем потолок вообще: σ после фильтра не просто низкая, а близкая к
+    /// нулю — выброшенное значение делает остаток теснее обычного. У истории
+    /// 28, 28, 28, 28, 28, 40 остаются пять одинаковых циклов и σ = 0.00,
+    /// неотличимо от той, у кого цикл не сдвигался ни на день.
+    public static func regularityFactor(window: CycleWindow, declaredRegularity: DeclaredRegularity?) -> Double {
+        let base: Double
+        if window.lengths.count >= 2 {
+            let sigma = standardDeviation(of: window.lengths)
+            if sigma <= regularSigmaDays { base = 1.0 }
+            else if sigma <= variableSigmaDays { base = variableRegularityFactor }
+            else { base = 0.4 }
+        } else {
+            switch declaredRegularity {
+            case .regular, .none: base = 1.0
+            case .variable: base = variableRegularityFactor
+            case .irregular: base = 0.4
+            }
         }
-        switch declaredRegularity {
-        case .regular, .none: return 1.0
-        case .variable: return 0.7
-        case .irregular: return 0.4
-        }
+        return window.excludedOutlier ? min(base, variableRegularityFactor) : base
     }
 
     /// Ступени промаха в днях, общие для `recencyFactor` (§11.3) и
@@ -123,7 +144,7 @@ extension Cycle {
         return cycleConfidence(
             dataFactor: dataFactor(measuredCount: known.count),
             regularityFactor: regularityFactor(
-                filteredLengths: recentFilteredLengths(known),
+                window: recentWindow(known),
                 declaredRegularity: profile.declaredRegularity
             ),
             missFactor: predictionMissFactor(
