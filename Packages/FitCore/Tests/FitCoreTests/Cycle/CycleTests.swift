@@ -32,7 +32,7 @@ final class CycleTests: XCTestCase {
     func test_scenario15_zeroMeasuredCyclesRegularDeclared() {
         let events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
         let profile = CycleProfile(declaredRegularity: .regular)
-        let state = Cycle.state(events: events, profile: profile, asOf: day(0))
+        let state = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(0))
 
         XCTAssertEqual(state.cycleConfidence!, 0.30, accuracy: 0.0001)
         XCTAssertGreaterThanOrEqual(state.cycleConfidence!, Cycle.categoricalConfidenceThreshold,
@@ -43,7 +43,7 @@ final class CycleTests: XCTestCase {
     func test_scenario15_zeroMeasuredCyclesIrregularDeclared() {
         let events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
         let profile = CycleProfile(declaredRegularity: .irregular)
-        let state = Cycle.state(events: events, profile: profile, asOf: day(0))
+        let state = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(0))
 
         XCTAssertEqual(state.cycleConfidence!, 0.12, accuracy: 0.0001)
         XCTAssertLessThan(state.cycleConfidence!, Cycle.categoricalConfidenceThreshold,
@@ -57,7 +57,7 @@ final class CycleTests: XCTestCase {
     // MARK: - Сценарий 15a: опорной даты нет вовсе
 
     func test_scenario15a_noAnchorAtAll() {
-        let state = Cycle.state(events: [], profile: CycleProfile(), asOf: day(0))
+        let state = Cycle.state(events: [], profile: CycleProfile(), responseProfiles: [:], asOf: day(0))
 
         XCTAssertEqual(state.phaseMode, .phases, "режим остаётся phases")
         XCTAssertFalse(state.hasAnchor)
@@ -80,8 +80,8 @@ final class CycleTests: XCTestCase {
     func test_scenario16_threeDayDelayContinuousDegradation() {
         let events = starts([28, 28]) // expectedLength = 28 (среднее по 2 циклам)
         let profile = CycleProfile()
-        let onTime = Cycle.state(events: events, profile: profile, asOf: day(56 + 27))
-        let delayed = Cycle.state(events: events, profile: profile, asOf: day(56 + 30))
+        let onTime = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(56 + 27))
+        let delayed = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(56 + 30))
 
         XCTAssertEqual(Cycle.recencyFactor(cycleDay: 31, expectedLength: 28), 0.6)
         XCTAssertLessThan(delayed.cycleConfidence!, onTime.cycleConfidence!)
@@ -95,7 +95,7 @@ final class CycleTests: XCTestCase {
     func test_scenario17_tenDayDelayZeroesRecency() {
         XCTAssertEqual(Cycle.recencyFactor(cycleDay: 38, expectedLength: 28), 0.0)
         let events = starts([28, 28])
-        let state = Cycle.state(events: events, profile: CycleProfile(), asOf: day(56 + 37))
+        let state = Cycle.state(events: events, profile: CycleProfile(), responseProfiles: [:], asOf: day(56 + 37))
         XCTAssertEqual(state.cycleConfidence!, 0, accuracy: 0.0001)
         XCTAssertNotNil(state.phase, "PhaseResolver не отказывает, confidence отдельно гасит показ")
     }
@@ -159,17 +159,17 @@ final class CycleTests: XCTestCase {
     func test_scenario20_switchingModesPreservesHistory() {
         let events = starts([28, 28])
         var profile = CycleProfile()
-        let before = Cycle.state(events: events, profile: profile, asOf: day(60))
+        let before = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(60))
 
         profile.phaseMode = .noPhases
         profile.noPhaseReason = .userChoice
-        let inNoPhases = Cycle.state(events: events, profile: profile, asOf: day(60))
+        let inNoPhases = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(60))
         XCTAssertNil(inNoPhases.phase)
         XCTAssertTrue(inNoPhases.hasAnchor, "события никуда не делись")
 
         profile.phaseMode = .phases
         profile.noPhaseReason = nil
-        let after = Cycle.state(events: events, profile: profile, asOf: day(60))
+        let after = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(60))
         XCTAssertEqual(after.phase, before.phase)
         XCTAssertEqual(after.cycleConfidence!, before.cycleConfidence!, accuracy: 0.0001,
             "тот же результат, что и до переключения — ничего не потеряно")
@@ -184,8 +184,8 @@ final class CycleTests: XCTestCase {
         let backdated = [inOrder[3], inOrder[1], inOrder[2], inOrder[0]]
 
         let profile = CycleProfile()
-        let a = Cycle.state(events: inOrder, profile: profile, asOf: day(90))
-        let b = Cycle.state(events: backdated, profile: profile, asOf: day(90))
+        let a = Cycle.state(events: inOrder, profile: profile, responseProfiles: [:], asOf: day(90))
+        let b = Cycle.state(events: backdated, profile: profile, responseProfiles: [:], asOf: day(90))
 
         XCTAssertEqual(a.phase, b.phase)
         XCTAssertEqual(a.cycleConfidence!, b.cycleConfidence!, accuracy: 0.0001)
@@ -219,14 +219,35 @@ final class CycleTests: XCTestCase {
         // состояниях (no_phases, нет опорной даты), и оба уже проверены в
         // 15a/20 — здесь фиксируется сам факт, что «фаза известна» имеет
         // единственный источник истины (CycleState.phase), а не отдельный флаг.
-        let noAnchor = Cycle.state(events: [], profile: CycleProfile(), asOf: day(0))
+        let noAnchor = Cycle.state(events: [], profile: CycleProfile(), responseProfiles: [:], asOf: day(0))
         XCTAssertNil(noAnchor.phase, "оверрайд в этот день не может обучить ни один профиль")
 
         var noPhaseProfile = CycleProfile()
         noPhaseProfile.phaseMode = .noPhases
         noPhaseProfile.noPhaseReason = .contraception
-        let noPhases = Cycle.state(events: starts([28]), profile: noPhaseProfile, asOf: day(35))
+        let noPhases = Cycle.state(events: starts([28]), profile: noPhaseProfile, responseProfiles: [:], asOf: day(35))
         XCTAssertNil(noPhases.phase)
+    }
+
+    func test_scenario23a_overrideWithoutPhaseNeverTrainsTheProfile() {
+        // Тот же оверрайд, что обучал бы профиль в фазе, в день без фазы
+        // (режим без фаз или нет опорной даты) не делает ничего: ни сдвига,
+        // ни sampleSize. Сигнатура `rebuildingProfiles` принимает `Phase?`
+        // именно потому, что её источник — `CycleState.phase` — опционален.
+        let learned = Cycle.rebuildingProfiles(from: [
+            (phase: nil, override: .push),
+            (phase: nil, override: .ease),
+        ])
+        XCTAssertTrue(learned.isEmpty, "дни без фазы в обучение не идут вовсе")
+
+        // А смешанная история учит ровно те дни, у которых фаза есть.
+        let mixed = Cycle.rebuildingProfiles(from: [
+            (phase: .lateLuteal, override: .push),
+            (phase: nil, override: .push),
+            (phase: .lateLuteal, override: .push),
+        ])
+        XCTAssertEqual(mixed[.lateLuteal]?.sampleSize, 2, "день без фазы не досчитался")
+        XCTAssertEqual(mixed[.lateLuteal]?.adjustment ?? 0, 0.04, accuracy: 0.0001)
     }
 
     // MARK: - Сценарий 23b: push, затем ease в тот же день — сдвиг один раз, по итогу
@@ -257,6 +278,8 @@ final class CycleTests: XCTestCase {
         let effective = Cycle.effectiveReadinessAdjustment(phase: .earlyLuteal, profile: profile)
         XCTAssertEqual(effective, 0.00 + 0.08, accuracy: 0.0001, "лютеиновую больше не режет — сдвинута вверх")
     }
+
+    // MARK: - Контракт: потолок clamp профиля (SPEC §11.4), не входит в номерные сценарии
 
     func test_clampNeverExceedsFifteenHundredths() {
         var profile = PhaseResponseProfile()
@@ -289,7 +312,7 @@ final class CycleTests: XCTestCase {
         var profile = CycleProfile()
         profile.phaseMode = .noPhases
         profile.noPhaseReason = .pregnancy
-        let state = Cycle.state(events: starts([28]), profile: profile, asOf: day(35))
+        let state = Cycle.state(events: starts([28]), profile: profile, responseProfiles: [:], asOf: day(35))
         XCTAssertNil(state.phase)
         XCTAssertNil(state.periodization)
         XCTAssertEqual(state.noPhaseReason, .pregnancy)
@@ -403,6 +426,79 @@ final class CycleTests: XCTestCase {
         }
     }
 
+    /// SPEC §11.2: `exerciseBias` — величина НЕПРЕРЫВНАЯ, как объём и RIR, а не
+    /// категория, поэтому порог 0.3 к ней не применяется вовсе. Тест смотрит
+    /// именно ПОД порогом: выше него отличить «масштабируется» от «гейтится»
+    /// нельзя, а копипаста гейта из `effectiveBlockType` (он рядом, в том же
+    /// файле) — самый вероятный способ это сломать.
+    func test_exerciseBiasScalesBelowCategoricalThresholdInsteadOfGating() {
+        let low = Cycle.exerciseBias(phase: .ovulatory, cycleConfidence: 0.12, impact: .high)
+        XCTAssertEqual(low.value, -0.3 * 0.12, accuracy: 0.0001,
+            "0.12 < 0.3, но штраф масштабируется, а не обнуляется")
+        XCTAssertNotNil(low.reason, "причина выдаётся и под порогом — показывать её решает слой представления")
+
+        // Непрерывность в самой точке порога: соседние значения отличаются на
+        // столько же, на сколько отличаются сами уверенности, без скачка.
+        let below = Cycle.exerciseBias(phase: .ovulatory, cycleConfidence: 0.29, impact: .high).value
+        let above = Cycle.exerciseBias(phase: .ovulatory, cycleConfidence: 0.31, impact: .high).value
+        XCTAssertNotEqual(below, 0, "под порогом штраф не исчезает")
+        XCTAssertEqual(above / below, 0.31 / 0.29, accuracy: 0.0001,
+            "отношение равно отношению уверенностей — значит скачка в точке 0.3 нет")
+    }
+
+    // MARK: - Контракт: холодный старт, состояние «один измеренный цикл»
+    //
+    // Четыре состояния холодного старта (cycle-phase-domain, SPEC §11.3):
+    // опорной даты нет (сценарий 15a), ноль измеренных циклов (15/15b),
+    // ОДИН измеренный цикл (здесь), просрочка (16/17). Своего номера в §18 у
+    // этого состояния нет, поэтому тест контрактный, а не `test_scenarioN`.
+
+    /// Один измеренный цикл — это ДВЕ отметки `period_start`, и он отличается
+    /// от «ноля измеренных» (одна отметка, сценарий 15b) значением
+    /// `dataFactor`, но НЕ источником регулярности: σ на одной длине не
+    /// существует, поэтому регулярность всё ещё заявленная.
+    ///
+    /// Проверяется через полный конвейер (события → `Cycle.state`), а не
+    /// вызовом `dataFactor(measuredCount: 1)` с числом на руках: подстановка
+    /// готового числа не поймала бы ошибку в самой связке
+    /// событие → интервал → счёт.
+    func test_oneMeasuredCycleUsesDeclaredRegularityAndHalfDataFactor() {
+        let events = starts([28])
+        XCTAssertEqual(Cycle.measuredLengths(from: events).count, 1,
+            "две отметки = один измеренный цикл")
+
+        let profile = CycleProfile(declaredRegularity: .variable)
+        let state = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(35))
+
+        // dataFactor 0.5 (один цикл) × regularityFactor 0.7 (заявленная
+        // 'variable', потому что σ на одной длине не существует) × recency 1.0.
+        XCTAssertEqual(state.cycleConfidence!, 0.5 * 0.7, accuracy: 0.0001)
+        XCTAssertNotEqual(state.cycleConfidence!, 0.3 * 0.7, accuracy: 0.0001,
+            "это НЕ ноль измеренных циклов")
+        XCTAssertNotEqual(state.cycleConfidence!, 0.5 * 1.0, accuracy: 0.0001,
+            "и НЕ σ-ветка: на одной длине σ не существует")
+    }
+
+    // MARK: - Контракт: period_end — последний день кровотечения (SPEC §11.1)
+
+    func test_menstrualEndCountsPeriodEndDayInclusively() {
+        let start = CycleEvent(kind: .periodStart, occurredOn: day(0))
+        let end = CycleEvent(kind: .periodEnd, occurredOn: day(3))
+        let profile = CycleProfile(typicalPeriodLengthDays: 5)
+
+        XCTAssertEqual(Cycle.menstrualEnd(events: [start, end], profile: profile), 4,
+            "день 0 по день 3 включительно — четыре дня кровотечения, а не три")
+        XCTAssertEqual(Cycle.menstrualEnd(events: [start], profile: profile), 5,
+            "без события period_end — заявленная длительность")
+        XCTAssertEqual(Cycle.menstrualEnd(events: [start], profile: CycleProfile()), 5,
+            "без события и без заявленной — дефолт 5")
+
+        // Граница фаз съезжает вместе с menstrualEnd: фолликулярная начинается
+        // на следующий день после конца менструации (SPEC §11.1).
+        XCTAssertEqual(Cycle.phase(forDay: 4, expectedLength: 28, menstrualEnd: 4), .menstrual)
+        XCTAssertEqual(Cycle.phase(forDay: 5, expectedLength: 28, menstrualEnd: 4), .follicular)
+    }
+
     // MARK: - Контракт: low_confidence_streak — переход в режим без фаз и обратно (SPEC §11.5)
 
     func test_lowConfidenceStreakAutoTransition() {
@@ -439,6 +535,81 @@ final class CycleTests: XCTestCase {
         profile = Cycle.applyingCycleClose(confidence: 0.9, to: profile)
         XCTAssertEqual(profile.noPhaseReason, .contraception, "и хорошее закрытие тоже не снимает ручную причину")
         XCTAssertEqual(profile.phaseMode, .noPhases)
+    }
+
+    // MARK: - Контракт: applyingLatestClose — публичный вход механизма (SPEC §11.5)
+
+    /// Тот же переход, что и `test_lowConfidenceStreakAutoTransition`, но через
+    /// публичную точку входа: уверенность закрытия считается внутри, из
+    /// событий, а не подставляется вызывающим. Это и есть проверка того, что
+    /// механизм §11.5 подключён, а не собирается из двух функций вручную.
+    ///
+    /// Длины 45 / 20 / 44 — цикл, который каждый раз промахивается мимо
+    /// собственного прогноза: 45 при ожидаемых 28, потом 44 при ожидаемых 32.
+    /// Именно на такой пользовательнице правило §11.5 и должно срабатывать.
+    func test_applyingLatestCloseDrivesStreakFromEventsAlone() {
+        var profile = CycleProfile(declaredRegularity: .irregular)
+
+        // Ничего ещё не закрылось — no-op, счётчик не двигается.
+        let oneMark = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
+        profile = Cycle.applyingLatestClose(events: oneMark, profile: profile)
+        XCTAssertEqual(profile.lowConfidenceStreak, 0, "одна отметка не закрывает цикл")
+        XCTAssertEqual(profile.phaseMode, .phases)
+
+        var events = oneMark
+        for (i, gap) in [45, 20, 44].enumerated() {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingLatestClose(events: events, profile: profile)
+            XCTAssertEqual(profile.lowConfidenceStreak, i + 1, "закрытие \(i + 1)")
+        }
+        XCTAssertEqual(profile.phaseMode, .noPhases, "три подряд ниже 0.3 — режим без фаз")
+        XCTAssertEqual(profile.noPhaseReason, .lowConfidence)
+    }
+
+    /// Регрессия на мёртвое правило: при `recencyFactor = 1` на закрытии серия
+    /// не могла дойти до трёх ВООБЩЕ (с третьего цикла dataFactor = 1.0,
+    /// regularityFactor ≥ 0.4, произведение ≥ 0.40). Тест фиксирует, что
+    /// достижимо именно закрытие ниже порога при полной истории — то, чего
+    /// старая формула не допускала.
+    func test_closeConfidenceCanFallBelowThresholdWithFullHistory() {
+        let events = starts([45, 20, 44, 21, 46])
+        let confidences = Cycle.confidenceAtEachClose(events: events, profile: CycleProfile(declaredRegularity: .irregular))
+
+        XCTAssertEqual(confidences.count, 5)
+        XCTAssertLessThan(confidences[2], 0.3, "третье закрытие — с полным dataFactor = 1.0 — обязано быть достижимо ниже порога")
+        XCTAssertLessThan(confidences[4], 0.3)
+    }
+
+    /// Обратная сторона того же правила: у предсказуемого цикла закрытия
+    /// стабильно выше порога, и режим без фаз не включается никогда.
+    func test_regularUserNeverTripsLowConfidenceMode() {
+        var profile = CycleProfile(declaredRegularity: .regular)
+        var events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
+
+        for gap in [28, 28, 29, 27, 28, 28] {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingLatestClose(events: events, profile: profile)
+            XCTAssertEqual(profile.lowConfidenceStreak, 0, "предсказуемый цикл не копит серию")
+        }
+        XCTAssertEqual(profile.phaseMode, .phases)
+        XCTAssertNil(profile.noPhaseReason)
+    }
+
+    /// Просрочка ЕЩЁ ОТКРЫТОГО цикла в счётчик не идёт (SPEC §11.5:
+    /// «считается по закрытым циклам, а не по дням»): сегодняшний
+    /// `cycleConfidence` при задержке равен нулю, но пока цикл не закрылся,
+    /// `applyingLatestClose` считает по последнему ЗАКРЫВШЕМУСЯ, а он пришёл
+    /// точно в прогноз.
+    func test_openOverdueCycleDoesNotAdvanceStreak() {
+        let events = starts([28, 28])
+        let profile = CycleProfile()
+
+        let today = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: day(93))
+        XCTAssertEqual(today.cycleConfidence!, 0, accuracy: 0.0001, "просрочка 10 дней роняет recencyFactor в 0")
+
+        let closed = Cycle.applyingLatestClose(events: events, profile: profile)
+        XCTAssertEqual(closed.lowConfidenceStreak, 0, "но открытая просрочка счётчик не двигает")
+        XCTAssertEqual(closed.phaseMode, .phases)
     }
 
     // MARK: - Многосессионная симуляция (implement-feature §5а):
