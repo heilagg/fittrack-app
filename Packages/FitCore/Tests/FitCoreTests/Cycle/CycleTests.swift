@@ -341,22 +341,22 @@ final class CycleTests: XCTestCase {
 
     func test_regularityFactorSigmaBoundaries() {
         // σ = 0 при постоянной длине.
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [28, 28, 28], excludedOutlier: false), declaredRegularity: nil), 1.0)
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [28, 28, 28], unfiltered: [28, 28, 28]), declaredRegularity: nil), 1.0)
         // σ ровно на границе 2 включена в верхний бакет.
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [26, 30], excludedOutlier: false), declaredRegularity: nil), 1.0,
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [26, 30], unfiltered: [26, 30]), declaredRegularity: nil), 1.0,
             "σ([26,30]) = 2 ровно")
         // σ в открытом раньше промежутке (2,3] — закрытая правка.
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [25, 31], excludedOutlier: false), declaredRegularity: nil), 0.7,
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [25, 31], unfiltered: [25, 31]), declaredRegularity: nil), 0.7,
             "σ([25,31]) = 3")
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [15, 45], excludedOutlier: false), declaredRegularity: nil), 0.4,
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [15, 45], unfiltered: [15, 45]), declaredRegularity: nil), 0.4,
             "σ([15,45]) = 15 > 5")
     }
 
     func test_regularityFactorFallsBackToDeclaredBelowTwoMeasuredLengths() {
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [], excludedOutlier: false), declaredRegularity: .regular), 1.0)
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [28], excludedOutlier: false), declaredRegularity: .variable), 0.7)
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [28], excludedOutlier: false), declaredRegularity: .irregular), 0.4)
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [], excludedOutlier: false), declaredRegularity: nil), 1.0,
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [], unfiltered: []), declaredRegularity: .regular), 1.0)
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [28], unfiltered: [28]), declaredRegularity: .variable), 0.7)
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [28], unfiltered: [28]), declaredRegularity: .irregular), 0.4)
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: [], unfiltered: []), declaredRegularity: nil), 1.0,
             "регулярность не заявлена → 1.0")
     }
 
@@ -391,7 +391,6 @@ final class CycleTests: XCTestCase {
         // пределами последних 6), IQR здесь даже не успевает сработать.
         let window = Cycle.recentWindow(lengths)
         XCTAssertEqual(window.lengths, [28, 28, 28, 28, 28, 28], "выброс вне окна из 6 самых свежих")
-        XCTAssertFalse(window.excludedOutlier, "он не отфильтрован, а просто вне окна — потолок не применяется")
         XCTAssertEqual(Cycle.regularityFactor(window: window, declaredRegularity: nil), 1.0,
             "корректное окно — регулярность идеальная, выброс не виден вовсе")
 
@@ -406,46 +405,58 @@ final class CycleTests: XCTestCase {
         // 8 значениям ≈2.32 — ровно в промежутке (2,3], который закрыла
         // правка SPEC 5e0e466). Расхождение 1.0 → 0.7 — то самое молчаливое
         // расхождение, о которое эта функция обязана не спотыкаться.
-        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: lengths, excludedOutlier: false), declaredRegularity: nil), 0.7,
+        XCTAssertEqual(Cycle.regularityFactor(window: Cycle.CycleWindow(lengths: lengths, unfiltered: lengths), declaredRegularity: nil), 0.7,
             "если бы окна не различались — другой, заниженный результат")
     }
 
-    // MARK: - Контракт: потолок для окна с исключённым выбросом (SPEC §11.3)
+    // MARK: - Контракт: потолок регулярности по σ всего набора (SPEC §11.3)
 
-    /// Вырожденный случай, ради которого потолок и введён: пять одинаковых
-    /// циклов и один сильный выброс. После фильтра остаётся ПЯТЬ ОДИНАКОВЫХ
-    /// значений, то есть σ = 0.00 — арифметический максимум регулярности,
-    /// неотличимый от той, у кого цикл не сдвигался ни на день. Без потолка
-    /// приложение говорило бы уверенно ровно после промаха на двенадцать дней.
-    func test_windowWithExcludedOutlierIsNeverMaximallyRegular() {
+    /// Ради чего потолок и введён: пять одинаковых циклов и один сильный
+    /// выброс. После фильтра остаются ПЯТЬ ОДИНАКОВЫХ значений, то есть σ = 0.00
+    /// — арифметический максимум регулярности, неотличимый от той, у кого цикл
+    /// не сдвигался ни на день. Потолок ловит это по σ всего набора.
+    func test_dispersedWindowIsNeverMaximallyRegular() {
         let window = Cycle.recentWindow([28, 28, 28, 28, 28, 40])
         XCTAssertEqual(window.lengths, [28, 28, 28, 28, 28], "40 отброшен как выброс")
-        XCTAssertTrue(window.excludedOutlier)
         XCTAssertEqual(Cycle.standardDeviation(of: window.lengths), 0, accuracy: 0.0001,
             "механизм: остаток теснее обычного, σ ровно ноль")
+        XCTAssertGreaterThan(Cycle.standardDeviation(of: window.unfiltered), Cycle.regularSigmaDays,
+            "но σ всего набора за границей регулярного — на неё потолок и смотрит")
 
-        XCTAssertEqual(Cycle.regularityFactor(window: window, declaredRegularity: nil), 0.7,
-            "потолок: окно с выбросом не бывает максимально регулярным")
-        // Без потолка та же σ дала бы верхнюю ступень — вот с чем сравниваем.
+        XCTAssertEqual(Cycle.regularityFactor(window: window, declaredRegularity: nil), 0.7)
+        // Тот же отфильтрованный остаток без разброса в наборе — верхняя ступень.
         XCTAssertEqual(
             Cycle.regularityFactor(
-                window: Cycle.CycleWindow(lengths: window.lengths, excludedOutlier: false),
+                window: Cycle.CycleWindow(lengths: window.lengths, unfiltered: window.lengths),
                 declaredRegularity: nil
             ),
             1.0,
-            "та же σ без исключённого выброса — по-прежнему 1.0"
+            "потолок держится на разбросе набора, а не на самом факте фильтрации"
         )
     }
 
+    /// Потолок НЕ ключуется на факте исключения. Единственный цикл, ушедший на
+    /// 3 дня, полосой отбрасывается — но σ всего набора 1.12, и таблица §11.3
+    /// зовёт такую историю регулярной. Раньше здесь был 0.7, и это было
+    /// расхождение потолка с той самой таблицей, которую он ограничивает.
+    func test_singleMildDeviationIsExcludedButNotCapped() {
+        let window = Cycle.recentWindow([28, 28, 28, 28, 28, 31])
+        XCTAssertFalse(window.lengths.contains(31), "31 действительно выбывает из окна")
+        XCTAssertLessThanOrEqual(Cycle.standardDeviation(of: window.unfiltered), Cycle.regularSigmaDays,
+            "σ всего набора внутри «регулярного» — 1.12")
+        XCTAssertEqual(Cycle.regularityFactor(window: window, declaredRegularity: nil), 1.0,
+            "исключение из окна само по себе потолка не даёт")
+    }
+
     /// Пол полосы: при почти одинаковом окне IQR = 0, и без пола границы
-    /// схлопывались бы в медиану — 27 и 29 объявлялись бы выбросами, хотя
-    /// разброс в один день §11.3 называет регулярным.
-    func test_rejectionBandIsNeverNarrowerThanMedianPlusMinusTwo() {
+    /// схлопывались бы в медиану — 27 и 29 объявлялись бы выбросами и не
+    /// доезжали бы даже до среднего.
+    func test_rejectionBandIsNeverNarrowerThanMedianPlusMinusFloor() {
         let window = Cycle.recentWindow([28, 28, 29, 27, 28, 28])
         XCTAssertEqual(window.lengths, [28, 28, 29, 27, 28, 28], "ничего не отброшено")
-        XCTAssertFalse(window.excludedOutlier, "полоса не схлопнулась на медиану")
-        XCTAssertEqual(Cycle.regularityFactor(window: window, declaredRegularity: nil), 1.0,
-            "потолок не применяется — применять его тут было бы наказанием за регулярность")
+        XCTAssertTrue(window.lengths.contains(27) && window.lengths.contains(29),
+            "обычный разброс в день остаётся в окне и участвует в среднем")
+        XCTAssertEqual(Cycle.regularityFactor(window: window, declaredRegularity: nil), 1.0)
     }
 
     /// Контрольные случаи: каждая история на своей ступени, и ровно по той
@@ -454,22 +465,12 @@ final class CycleTests: XCTestCase {
         func factor(_ lengths: [Int]) -> Double {
             Cycle.regularityFactor(window: Cycle.recentWindow(lengths), declaredRegularity: nil)
         }
-
-        // Ничего не исключено — работает σ.
-        XCTAssertFalse(Cycle.recentWindow([28, 31, 27, 30, 28, 29]).excludedOutlier)
         XCTAssertEqual(factor([28, 31, 27, 30, 28, 29]), 1.0, "мягкая вариативность")
-
-        XCTAssertFalse(Cycle.recentWindow([45, 20, 44, 21, 46, 19]).excludedOutlier)
         XCTAssertEqual(factor([45, 20, 44, 21, 46, 19]), 0.4,
-            "по-настоящему нерегулярная: разброс так широк, что выбросов нет — σ сама доносит")
-
-        // Исключён выброс — работает потолок.
-        XCTAssertTrue(Cycle.recentWindow([27, 28, 28, 29, 45]).excludedOutlier)
+            "по-настоящему нерегулярная: σ доносит сама, потолок ничего не добавляет")
         XCTAssertEqual(factor([27, 28, 28, 29, 45]), 0.7, "пример из SPEC §11.3")
-
-        XCTAssertTrue(Cycle.recentWindow([45, 20, 44, 41]).excludedOutlier)
-        XCTAssertEqual(factor([45, 20, 44, 41]), 0.7,
-            "случай из вчерашнего фикса: 20 отброшен, остаток 45/44/41 читался как σ≈1.7")
+        XCTAssertEqual(factor([45, 20, 44, 41]), 0.7, "случай из вчерашнего фикса")
+        XCTAssertEqual(factor([28, 28, 28, 28, 28, 31]), 1.0, "одиночное мягкое отклонение")
     }
 
     // MARK: - Контракт: exerciseBias (овуляторное ограничение, SPEC §11.2)
@@ -798,6 +799,28 @@ final class CycleTests: XCTestCase {
         XCTAssertEqual(profile.lowConfidenceStreak, 3, "три накопившихся закрытия учтены разом")
         XCTAssertEqual(profile.phaseMode, .noPhases)
         XCTAssertEqual(profile.noPhaseReason, .lowConfidence)
+    }
+
+    /// Композиция множителей §11.5: один аномальный цикл не должен штрафоваться
+    /// дважды — и потолком регулярности, и `predictionMissFactor`. Пока потолок
+    /// ключевался на факте исключения, у дрейфующей 28/28/28/32/33/34/28
+    /// набирались три закрытия подряд ниже 0.3, режим фаз выключался, а на
+    /// следующем хорошем закрытии включался обратно.
+    ///
+    /// Проверка ПОШАГОВАЯ: по конечному состоянию этот дефект не виден — она
+    /// возвращалась в `.phases` сама, и именно так он и проскочил ревью.
+    func test_driftingCycleNeverLosesPhasesToASingleAnomaly() {
+        var profile = CycleProfile(declaredRegularity: .regular)
+        var events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
+
+        for gap in [28, 28, 28, 32, 33, 34, 28] {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+            XCTAssertEqual(profile.phaseMode, .phases,
+                "дрейф не должен выключать фазы; серия на этом шаге = \(profile.lowConfidenceStreak)")
+            XCTAssertNil(profile.noPhaseReason)
+        }
+        XCTAssertLessThan(profile.lowConfidenceStreak, 3)
     }
 
     // MARK: - Контракт: ручное переключение режима сбрасывает серию (SPEC §11.5)
