@@ -37,6 +37,10 @@ extension Cycle {
     /// SPEC §11.1: `menstrualEnd` для ТЕКУЩЕГО (последнего начатого) цикла —
     /// период по `period_end` после последнего `period_start`, если он есть;
     /// иначе заявленная длительность менструации; иначе 5.
+    ///
+    /// `period_end` — ПОСЛЕДНИЙ ДЕНЬ КРОВОТЕЧЕНИЯ, а не первый чистый, отсюда
+    /// `+ 1` (SPEC §11.1, оговорено там явно: обратное прочтение сдвинуло бы
+    /// все последующие границы фаз на день, а по самому полю их не различить).
     public static func menstrualEnd(events: [CycleEvent], profile: CycleProfile) -> Int {
         guard let lastStart = periodStartDays(from: events).last else {
             return profile.typicalPeriodLengthDays ?? 5

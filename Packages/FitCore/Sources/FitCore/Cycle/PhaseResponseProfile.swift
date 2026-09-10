@@ -11,7 +11,8 @@
 //  `phase_response_profile` копится по дням через одну и ту же операцию
 //  (delta → clamp → sampleSize += 1), поэтому это ровно тот случай свёртки
 //  по сессиям, для которого implement-feature §5а требует многосессионную
-//  симуляцию — см. `PhaseResponseProfileTests.test_simulation30Sessions`.
+//  симуляцию — см. `CycleTests.test_simulation30DaysPhaseResponseProfile
+//  NeverDriftsBeyondClamp`.
 extension Cycle {
 
     /// SPEC §11.4: сдвиг за один день оверрайда, до clamp. `nil` — день не
@@ -53,14 +54,24 @@ extension Cycle {
 
     /// Полная свёртка по журналу дней (SPEC §4.3: пересчёт из истории решает
     /// конфликт синхронизации так же, как `rebuildStates` у Progression) —
-    /// `days` в хронологическом порядке, один элемент на день с известной
-    /// фазой. Профиль для фазы, ни разу не встретившейся в `days`, отсутствует
-    /// в результате (эквивалентно `PhaseResponseProfile()`).
-    public static func rebuildingProfiles(from days: [(phase: Phase, override: Override?)]) -> [Phase: PhaseResponseProfile] {
+    /// `days` в хронологическом порядке, один элемент на день. Профиль для
+    /// фазы, ни разу не встретившейся в `days`, отсутствует в результате
+    /// (эквивалентно `PhaseResponseProfile()`).
+    ///
+    /// `phase` опциональна, потому что опционален её единственный источник —
+    /// `CycleState.phase` (nil в режиме без фаз и когда опорной даты нет).
+    /// День без фазы ПРОПУСКАЕТСЯ целиком: ни сдвига, ни `sampleSize`
+    /// (SPEC §11.4 учится, только «если фаза P известна»; SPEC §18, сценарий
+    /// 23a: оверрайд без фазы действует на готовность, но в обучение не идёт).
+    /// Отнести его к «последней известной» фазе было бы хуже, чем потерять:
+    /// это приписало бы нажатие фазе, в которой пользовательница уже не
+    /// отслеживается.
+    public static func rebuildingProfiles(from days: [(phase: Phase?, override: Override?)]) -> [Phase: PhaseResponseProfile] {
         var profiles: [Phase: PhaseResponseProfile] = [:]
         for day in days {
-            let current = profiles[day.phase] ?? PhaseResponseProfile()
-            profiles[day.phase] = applyingOverride(day.override, to: current).profile
+            guard let phase = day.phase else { continue }
+            let current = profiles[phase] ?? PhaseResponseProfile()
+            profiles[phase] = applyingOverride(day.override, to: current).profile
         }
         return profiles
     }

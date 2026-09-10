@@ -64,28 +64,91 @@ extension Cycle {
         dataFactor * regularityFactor * recencyFactor
     }
 
-    /// Уверенность, зафиксированная в момент закрытия цикла (SPEC §11.5,
-    /// `low_confidence_streak`) — по одной на каждый измеренный цикл, в
-    /// хронологическом порядке. `recencyFactor` в момент закрытия равен 1:
-    /// свежий `period_start` по определению не просрочен, просрочка —
-    /// понятие для ЕЩЁ ОТКРЫТОГО цикла (см. `recencyFactor` выше), а не для
-    /// того, что только что завершился день в день.
-    public static func confidenceAtEachClose(events: [CycleEvent], profile: CycleProfile) -> [Double] {
+    /// Уверенность, зафиксированная в момент закрытия ОДНОГО цикла
+    /// (SPEC §11.5, `low_confidence_streak`).
+    ///
+    /// `priorLengths` — история ДО этого цикла, `closedLength` — фактическая
+    /// длина только что закрывшегося. `dataFactor`/`regularityFactor` считаются
+    /// по истории ВКЛЮЧАЯ его, а `recencyFactor` — сравнением его фактической
+    /// длины с прогнозом, который существовал ДО его начала.
+    ///
+    /// Почему не `recencyFactor = 1` (свежая менструация ведь не просрочена):
+    /// тогда правило §11.5 не срабатывает никогда. С третьего измеренного цикла
+    /// `dataFactor` = 1.0, `regularityFactor` ≥ 0.4, произведение ≥ 0.40 — серия
+    /// обнуляется на каждом третьем закрытии и до трёх не доходит. Разобрано в
+    /// SPEC §11.5 («Уверенность на закрытии считается не так, как сегодняшняя»),
+    /// туда же вынесен и численный разбор.
+    ///
+    /// Направление одно: `recencyFactor` меряет перебор над прогнозом, поэтому
+    /// цикл, пришедший РАНЬШЕ ожидаемого, уверенность закрытия не снижает.
+    /// Разброс в обе стороны ловит σ внутри `regularityFactor`.
+    static func confidenceAtClose(priorLengths: [Int], closedLength: Int, profile: CycleProfile) -> Double {
+        let known = priorLengths + [closedLength]
+        return cycleConfidence(
+            dataFactor: dataFactor(measuredCount: known.count),
+            regularityFactor: regularityFactor(
+                filteredLengths: recentFilteredLengths(known),
+                declaredRegularity: profile.declaredRegularity
+            ),
+            recencyFactor: recencyFactor(
+                cycleDay: closedLength,
+                expectedLength: expectedLength(measuredLengths: priorLengths, profile: profile)
+            )
+        )
+    }
+
+    /// Те же величины по одной на каждый измеренный цикл, в хронологическом
+    /// порядке — история счётчика, а не текущее состояние.
+    static func confidenceAtEachClose(events: [CycleEvent], profile: CycleProfile) -> [Double] {
         let lengths = measuredLengths(from: events)
         guard !lengths.isEmpty else { return [] }
-        return (1...lengths.count).map { i in
-            let prefix = Array(lengths.prefix(i))
-            let df = dataFactor(measuredCount: prefix.count)
-            let rf = regularityFactor(
-                filteredLengths: recentFilteredLengths(prefix),
-                declaredRegularity: profile.declaredRegularity
+        return lengths.indices.map { i in
+            confidenceAtClose(
+                priorLengths: Array(lengths.prefix(i)),
+                closedLength: lengths[i],
+                profile: profile
             )
-            return cycleConfidence(dataFactor: df, regularityFactor: rf, recencyFactor: 1.0)
         }
+    }
+
+    /// SPEC §11.5: применить к профилю закрытие ПОСЛЕДНЕГО цикла — счётчик
+    /// `low_confidence_streak` и авто-переход в/из режима без фаз. Единственная
+    /// публичная точка входа этого механизма.
+    ///
+    /// **Вызывать ровно один раз на каждый НОВЫЙ закрывшийся цикл** — то есть
+    /// когда записан `period_start`, закрывший интервал. Повторный вызов на том
+    /// же закрытии досчитает счётчик второй раз; тип этого не ловит, потому что
+    /// «сколько закрытий уже учтено» живёт в вызывающем слое, а не здесь.
+    /// Пустая история (ничего ещё не закрылось) — no-op.
+    ///
+    /// Почему счётчик персистентный и инкрементальный, а не свёртка по всей
+    /// истории, как `Progression.rebuildStates`: пересчёт с нуля перетирал бы
+    /// решение пользовательницы. Режим переключается вручную в любой момент
+    /// (SPEC §11.5), а ручное включение фаз пишет `no_phase_reason = NULL` —
+    /// от «никогда не была в режиме без фаз» это по схеме §3.1 не отличить,
+    /// и свёртка снова выставила бы `low_confidence` на первом же обращении.
+    /// Пользователь главнее модели, поэтому источник истины — сохранённый
+    /// профиль.
+    public static func applyingLatestClose(events: [CycleEvent], profile: CycleProfile) -> CycleProfile {
+        let lengths = measuredLengths(from: events)
+        guard let closed = lengths.last else { return profile }
+        return applyingCycleClose(
+            confidence: confidenceAtClose(
+                priorLengths: Array(lengths.dropLast()),
+                closedLength: closed,
+                profile: profile
+            ),
+            to: profile
+        )
     }
 
     /// SPEC §11.5: инкремент/сброс `low_confidence_streak` на закрытии
     /// одного цикла, и авто-переход в/из режима без фаз по этому счётчику.
+    ///
+    /// Internal, а не public: наружу торчит `applyingLatestClose`, который сам
+    /// считает нужную уверенность. Голый `Double` в публичной сигнатуре
+    /// приглашал бы передать сюда сегодняшний `cycleConfidence` — по типу
+    /// неотличимый, по смыслу другой (см. `confidenceAtClose`).
     ///
     /// Счётчик копится независимо от текущей причины режима без фаз (это
     /// бухгалтерия качества данных, SPEC не оговаривает исключений), но сам
@@ -93,7 +156,7 @@ extension Cycle {
     /// (никогда не подменяет собой ручную причину вроде `.contraception`),
     /// выключается только когда текущая причина — именно `.lowConfidence`
     /// (SPEC §11.5: «только low_confidence снимается сам»).
-    public static func applyingCycleClose(confidence: Double, to profile: CycleProfile) -> CycleProfile {
+    static func applyingCycleClose(confidence: Double, to profile: CycleProfile) -> CycleProfile {
         var profile = profile
         if confidence >= 0.3 {
             profile.lowConfidenceStreak = 0

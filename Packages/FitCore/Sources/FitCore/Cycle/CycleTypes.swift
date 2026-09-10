@@ -119,8 +119,13 @@ public struct PhaseResponseProfile: Sendable, Equatable {
 }
 
 /// Итог конвейера Cycle на конкретный день (SPEC §11) — вход для Readiness
-/// (`effectivePhaseAdjustment`, `cycleConfidence`, `override`) и Planner
-/// (`periodization`).
+/// (`effectivePhaseAdjustment`, `cycleConfidence`) и Planner (`periodization`).
+///
+/// Оверрайда здесь нет и не должно быть. `daily_checkins.override` — сырой
+/// ввод, а не производная цикла: Readiness читает его напрямую и подставляет
+/// ВМЕСТО фазовой поправки (SPEC §10, `phaseTerm`), а Cycle получает его
+/// отдельно, в `applyingOverride` для обучения профиля (SPEC §11.4). Прокинуть
+/// его через это значение означало бы завести второй путь к тому же полю.
 ///
 /// `phase`/`cycleConfidence`/`periodization`/`effectivePhaseAdjustment` — все
 /// вместе `nil`, когда фаза не вычисляется: опорной даты нет (SPEC §11.3) или

@@ -19,10 +19,17 @@ extension Cycle {
     /// `responseProfiles` — личный профиль по фазам (SPEC §11.4), обычно
     /// результат `rebuildingProfiles(from:)`; пустой словарь эквивалентен
     /// «профиль ещё не набрал sampleSize ≥ 3 ни по одной фазе».
+    ///
+    /// Дефолта у `responseProfiles` намеренно нет — как и у состояния в
+    /// `Recovery.applying(_:at:to:)` и `Progression.rebuildStates(from:…)`.
+    /// Забытый аргумент здесь неотличим по поведению от «профиль пуст»: обе
+    /// пользовательницы получат дефолт популяции, но одна из них потеряет
+    /// месяцы обучения (SPEC §11.4) без единого сигнала. Пусть лучше не
+    /// компилируется.
     public static func state(
         events: [CycleEvent],
         profile: CycleProfile,
-        responseProfiles: [Phase: PhaseResponseProfile] = [:],
+        responseProfiles: [Phase: PhaseResponseProfile],
         asOf today: CalendarDay
     ) -> CycleState {
         let day = cycleDay(events: events, asOf: today)
