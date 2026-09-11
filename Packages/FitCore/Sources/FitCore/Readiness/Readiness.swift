@@ -41,3 +41,90 @@
 //  числа (объём и RIR, §8.2: «не блокирует»), и готовность не может поднять
 //  срезанное; варианты отсекает только флаг боли (§8.4). Поэтому push не снимает
 //  защиту утомления (сценарий 25).
+//
+//  Границы теста с SPEC §18: этот модуль закрывает 23, 23a (часть — «на
+//  готовность действует»), 23b (часть — сама формула замены), 24a, 25, 25a,
+//  25b, 25c — см. doc-комментарий Cycle.swift о разделении. 24b/24c проверены
+//  в CycleTests: это чистая функция фазы × уверенность без чек-ина/оверрайда,
+//  формула §10 им не нужна.
+public enum Readiness {}
+
+extension Readiness {
+
+    /// SPEC §10: границы `clamp` итоговой готовности.
+    public static let range = 0.75...1.10
+
+    /// SPEC §10: `push`/`ease` → числовая поправка `phaseTerm`. `rest`
+    /// численно приравнен к `ease` — если пользователь всё же начинает
+    /// тренировку в день `rest`, готовность обязана на что-то опереться, хотя
+    /// планировщик в этот день предлагает растяжку, а не тренировку.
+    static func overrideAdjustment(_ override: Override) -> Double {
+        switch override {
+        case .push: return 0.08
+        case .ease, .rest: return -0.10
+        }
+    }
+
+    /// SPEC §10: `checkinAdjustment` — отсутствующий компонент нейтрален
+    /// (эквивалентен ответу 3), поэтому пропущенный чек-ин или строка без
+    /// него дают 0, а не штраф.
+    static func checkinAdjustment(_ checkin: DailyCheckin) -> Double {
+        Double((checkin.energy ?? 3) - 3) * 0.020
+            + Double(3 - (checkin.soreness ?? 3)) * 0.015
+            + Double((checkin.sleepQuality ?? 3) - 3) * 0.015
+            + Double(3 - (checkin.stress ?? 3)) * 0.010
+    }
+
+    /// SPEC §10: `phaseUnknown` — режим без фаз или отсутствие опорной даты
+    /// в режиме `phases`. Оба состояния возвращают `CycleState` с
+    /// `periodization == nil`, но проверка идёт по `phaseMode`/`hasAnchor`
+    /// напрямую — так же, как это сделано в `CycleState`, а не по `nil`
+    /// производного поля, которое могло бы стать `nil` по другой причине.
+    static func phaseUnknown(_ cycleState: CycleState) -> Bool {
+        cycleState.phaseMode == .noPhases || !cycleState.hasAnchor
+    }
+
+    /// SPEC §10: `checkinScale` — растёт по мере падения уверенности; режим
+    /// без фаз и отсутствие опорной даты (`phaseUnknown`) — предельный
+    /// случай той же формулы (`confidence → 0`), а не отдельная ветка
+    /// (сценарий 24a).
+    static func checkinScale(cycleState: CycleState) -> Double {
+        phaseUnknown(cycleState)
+            ? 1.6
+            : 1.0 + 0.6 * (1 - (cycleState.cycleConfidence ?? 0))
+    }
+
+    /// SPEC §10: сводное число готовности на день.
+    ///
+    /// `recoveryAdjustment` (HRV, сон — SPEC §15, v2) — не параметр: в MVP
+    /// данных HealthKit ещё нет, добавлять пустой аргумент под будущую
+    /// функциональность значило бы держать в публичном API вход, который
+    /// сегодня ничего не может передать, кроме 0.
+    public static func value(
+        cycleState: CycleState,
+        override: Override?,
+        checkin: DailyCheckin
+    ) -> Double {
+        let phaseUnknown = phaseUnknown(cycleState)
+
+        let phaseTerm: Double
+        if let override {
+            // §11.4: оверрайд ЗАМЕНЯЕТ фазовую поправку, не складывается с
+            // ней, и проверяется раньше phaseUnknown — он действует и без
+            // опорной даты, и в режиме без фаз (сценарий 23a).
+            phaseTerm = overrideAdjustment(override)
+        } else if phaseUnknown {
+            phaseTerm = 0
+        } else {
+            phaseTerm = (cycleState.effectivePhaseAdjustment ?? 0) * (cycleState.cycleConfidence ?? 0)
+        }
+
+        let recoveryAdjustment = 0.0 // v2, SPEC §15 — HealthKit ещё не подключён
+        let raw = 1.0
+            + phaseTerm
+            + checkinAdjustment(checkin) * checkinScale(cycleState: cycleState)
+            + recoveryAdjustment
+
+        return min(range.upperBound, max(range.lowerBound, raw))
+    }
+}
