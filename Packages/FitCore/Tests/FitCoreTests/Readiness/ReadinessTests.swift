@@ -175,6 +175,59 @@ final class ReadinessTests: XCTestCase {
         XCTAssertNil(target, "единственное упражнение сессии утомлено — +1 не даётся вовсе")
     }
 
+    /// Усиление сценария 25: тест выше проверяет только зафиксированные числа
+    /// на одном примере (push). Здесь — то же fatigue-состояние под push,
+    /// ease и «не нажимали» одновременно: срез от утомления обязан остаться
+    /// НЕИЗМЕННЫМ, независимо от того, куда override и чек-ин двигают
+    /// readiness. Так проверяется сам порядок композиции (готовность первой,
+    /// утомление — на её результат, а не наоборот), а не совпадение чисел
+    /// на одном частном случае.
+    func test_scenario25_fatigueProtectionInvariantAcrossOverride() {
+        let state = phaseState(phase: .earlyLuteal, cycleConfidence: 1.0) // rirShift = 0, не мешает интерпретации
+        let notRecovered = RecoveryAdjustment(targetRIRDelta: 1, volumeMultiplier: 0.7)
+
+        let readinessByOverride: [Override?: Double] = [
+            .push: Readiness.value(cycleState: state, override: .push, checkin: DailyCheckin()),
+            .ease: Readiness.value(cycleState: state, override: .ease, checkin: DailyCheckin()),
+            nil: Readiness.value(cycleState: state, override: nil, checkin: DailyCheckin())
+        ]
+
+        for (override, readiness) in readinessByOverride {
+            let label = override.map { "\($0)" } ?? "nil"
+
+            // RIR: разница между «с утомлением» и «без утомления» на ОДНОМ и
+            // том же readiness обязана равняться ровно надбавке утомления —
+            // она не растворяется и не усиливается фазой/готовностью,
+            // независимо от того, что дало это readiness.
+            let rirWithFatigue = Readiness.targetRIR(
+                baseRIR: 2, readiness: readiness, cycleState: state, fatigueRIRBump: notRecovered.targetRIRDelta)
+            let rirWithoutFatigue = Readiness.targetRIR(
+                baseRIR: 2, readiness: readiness, cycleState: state, fatigueRIRBump: 0)
+            XCTAssertEqual(rirWithFatigue - rirWithoutFatigue, notRecovered.targetRIRDelta,
+                "override = \(label): надбавка утомления к RIR не зависит от readiness")
+
+            // Объём: план не читает override вовсе (не параметр
+            // plannedVolumeFactor) — срез утомления одинаков для любого override.
+            let planned = Readiness.plannedVolumeFactor(cycleState: state, isDeloadWeek: false)
+            let volume = Readiness.volumeFactor(plannedFactor: planned, fatigueFactor: notRecovered.volumeMultiplier)
+            XCTAssertEqual(volume, 0.7, accuracy: 0.0001,
+                "override = \(label): срез объёма от утомления одинаков независимо от override")
+
+            // Вес: срез сверху 1.0 держится при ЛЮБОМ readiness, включая
+            // readiness < 1.0 (ease/nil), где срезать по факту нечего —
+            // формула не «включается только при push», а действует всегда.
+            let weight = Readiness.weightReadiness(readiness: readiness, contributingMuscleAdjustments: [notRecovered])
+            XCTAssertLessThanOrEqual(weight, 1.0, "override = \(label): вес на невосстановленной мышце не выше 1.0")
+            XCTAssertEqual(weight, min(readiness, 1.0), accuracy: 0.0001,
+                "override = \(label): срез — это ровно min(readiness, 1.0), не отдельная ветка под push")
+
+            // +1/−1 на сессию: какое бы readiness ни дал override, утомлённое
+            // единственное упражнение сессии никогда не получает +1.
+            XCTAssertNil(Readiness.exerciseForSessionSetIncrease(hasFatiguedMuscle: [true]),
+                "override = \(label): +1 не ложится на утомлённое упражнение ни при каком readiness")
+        }
+    }
+
     // MARK: - Сценарий 25a: RIR — сумма с потолком +1, утомление сверх
 
     func test_scenario25a_lateLutealPlusLowReadiness_cappedAtPlusOne() {
@@ -346,6 +399,17 @@ final class ReadinessTests: XCTestCase {
 
     func test_exerciseForSessionSetDecrease_fallsBackToLastWhenNoneFatigued() {
         XCTAssertEqual(Readiness.exerciseForSessionSetDecrease(worstVolumeMultiplier: [1.0, 1.0, 1.0]), 2)
+    }
+
+    func test_exerciseForSessionSetDecrease_tiedMostFatigued_picksFirst() {
+        // Индексы 1 и 2 равно утомлены (оба — минимум 0.7 в сессии). Правило
+        // зеркалит exerciseForSessionSetIncrease («первый из равнозначных»,
+        // не «любой»): −1 достаётся ПЕРВОМУ из них, индекс 1, а не 2 — важно
+        // зафиксировать явно, а не полагаться на то, что `min(by:)` и
+        // `max(by:)` в Swift ломают тай-брейк по-разному (это ровно тот класс
+        // бага, который уже путал направления в WeightLadder/Progression).
+        XCTAssertEqual(Readiness.exerciseForSessionSetDecrease(worstVolumeMultiplier: [1.0, 0.7, 0.7, 0.9]), 1,
+            "среди нескольких равно-утомлённых упражнений −1 достаётся первому по порядку сессии")
     }
 
     func test_exerciseForSessionSetDecrease_emptySessionReturnsNil() {
