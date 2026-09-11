@@ -36,7 +36,8 @@ description: Процедура реализации одного модуля F
    комментарий (например §9 для Progression). Не только сам раздел, но и
    псевдокод в нём: он обычно фиксирует сигнатуры функций.
 3. SPEC §18 — какие пронумерованные сценарии относятся к этому модулю
-   (Progression = 1–14, Cycle = 15–26, Planner = 27–33, Sync = 34–37). Часть
+   (Progression = 1–14, Cycle и Readiness = 15–26 — раскладка между ними в
+   doc-комментарии `Cycle.swift`, Planner = 27–33, Sync = 34–37). Часть
    могла уже закрыться предыдущим модулем — сверить с его doc-комментарием
    (`WeightLadder` закрыл 1–3, 14 из "прогрессии", Progression'у остаются
    4–13).
@@ -55,12 +56,15 @@ Types (растёт по мере необходимости)
         └─ Progression   §9    — нужен Equipment (nextAchievableWeight, roundToAchievable)
   Recovery  §8   — независим, нужен только Types
   Cycle     §11  — независим, нужен только Types
-        └─ Readiness §10 — нужен Cycle, но не через PhasePolicy: Readiness
-                            потребляет CycleState (фаза + confidence + личный
-                            профиль §11.4) отдельным путём в phaseTerm.
-                            PhasePolicy — канал к Planner (подбор, объём), а не
-                            к Readiness; после правки §10 фаза входит в
-                            готовность и рекомендованный вес (§9.6) напрямую
+        └─ Readiness §10 — нужен Cycle и Recovery. От Cycle — CycleState: phaseTerm
+                            (effectivePhaseAdjustment × confidence) и периодизация
+                            (PhasePeriodization: объём, RIR) для композиций §10.
+                            От Recovery — готовый RecoveryAdjustment по мышцам,
+                            параметром, как Progression принимает readiness;
+                            функций Recovery Readiness не вызывает. Композиции
+                            §10 (итоговый RIR, volumeFactor, ±1 подход, срез
+                            надбавки к весу) живут в Readiness — Planner их
+                            вызывает, а не реализует заново.
   Planner   §7   — нужен Equipment + Recovery + Cycle/Readiness + состояние Progression
 ```
 
