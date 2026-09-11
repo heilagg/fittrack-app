@@ -15,6 +15,13 @@
 //  MuscleSlug, Joint, JointStressLevel и Timestamp добавлены для Recovery:
 //  распад утомления (SPEC §8.1) считается в часах, а не в целых сутках, поэтому
 //  CalendarDay для него недостаточно точен.
+//  Phase, PhaseMode, Override и ExerciseImpact добавлены для Cycle (SPEC §11):
+//  все четыре пересекают границу модуля — Readiness читает Phase/PhaseMode/
+//  Override для phaseTerm (§10), Planner читает Phase/PhaseMode для недельного
+//  среза объёма (§10, plannedFactor) и ExerciseImpact для оверуляторного
+//  ограничения (§11.2). ReasonCode тоже добавлен здесь: причина фазового
+//  происхождения обязана нести cycleConfidence (SPEC §14.6), и этот контракт
+//  общий для любого будущего источника причин, не только Cycle.
 
 /// Способ округления/квантования веса упражнения (SPEC §6.3).
 public enum LoadType: String, Sendable, Equatable, Hashable, CaseIterable {
@@ -167,4 +174,52 @@ public enum JointStressLevel: String, Sendable, Equatable, Hashable, CaseIterabl
     public static func < (lhs: JointStressLevel, rhs: JointStressLevel) -> Bool {
         lhs.rank < rhs.rank
     }
+}
+
+/// Фаза цикла (SPEC §11.1). Порядок объявления — порядок разрешения границ
+/// на коротких циклах (Cycle/PhaseResolver.swift): менструальная выигрывает
+/// всегда, фолликулярная схлопывается первой.
+public enum Phase: String, Sendable, Equatable, Hashable, CaseIterable {
+    case menstrual
+    case follicular
+    case ovulatory
+    case earlyLuteal = "early_luteal"
+    case lateLuteal = "late_luteal"
+}
+
+/// `cycle_profiles.phase_mode` (SPEC §3.1, §11.5).
+public enum PhaseMode: String, Sendable, Equatable, Hashable {
+    case phases
+    case noPhases = "no_phases"
+}
+
+/// Ручной оверрайд готовности на день (SPEC §11.4, `daily_checkins.override`).
+public enum Override: String, Sendable, Equatable, Hashable {
+    case push
+    case ease
+    case rest
+}
+
+/// Ударная нагрузка упражнения при приземлении (SPEC §6.3, `exercise.impact`).
+/// Единственный источник для овуляторного ограничения §11.2.
+public enum ExerciseImpact: String, Sendable, Equatable, Hashable, CaseIterable {
+    case none
+    case low
+    case high
+}
+
+/// Причина, стоящая за рекомендацией или её изменением. Русские формулировки
+/// живут в App/FitTrack/Localization, не здесь — этот тип несёт только код
+/// причины и то, что нужно слою представления для решения, как её показать.
+///
+/// SPEC §14.6: причина фазового происхождения обязана нести `cycleConfidence`,
+/// при котором она выдана — мягкость формулировки в локализации не может быть
+/// единственной защитой от утвердительного тона, потому что строку меняет
+/// кто угодно и когда угодно.
+public enum ReasonCode: Sendable, Equatable {
+    /// Фаза сдвинула недельный объём, целевой RIR и/или тип блока (SPEC §11.2).
+    case phasePeriodization(phase: Phase, cycleConfidence: Double)
+    /// Овуляторное ограничение: понижен приоритет высокоударного упражнения
+    /// (SPEC §11.2, `impact = high`).
+    case ovulatoryImpactCaution(cycleConfidence: Double)
 }
