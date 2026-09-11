@@ -859,6 +859,138 @@ final class CycleTests: XCTestCase {
         XCTAssertEqual(profile.phaseMode, .noPhases, "правило не выключено — просто отсчитывается заново")
     }
 
+    // MARK: - Контракт: закрытие между отметкой учёта и переключением режима (SPEC §11.5)
+
+    /// Закрытие, упавшее между отметкой учёта и переключением и ещё не
+    /// пропущенное через `applyingClosedCycles`, в новую серию не идёт — это
+    /// SPEC §11.5 («три закрытия ПОСЛЕ переключения»), а не потеря.
+    ///
+    /// Тест же отвечает и на вопрос «не досчитать ли сначала накопившееся»:
+    /// досчёт перед переключением даёт ровно тот же профиль, потому что всё, что
+    /// он может изменить, переключение перезаписывает. Раньше это было
+    /// рассуждением в ревью — теперь проверяемый факт.
+    func test_closeBetweenWatermarkAndSwitchDoesNotEnterTheNewStreak() {
+        // Не отслеживала фазы; учтено всё по 28-й день включительно.
+        let before = CycleProfile(
+            declaredRegularity: .regular,
+            phaseMode: .noPhases,
+            noPhaseReason: .userChoice,
+            lowConfidenceCountedThrough: day(28)
+        )
+        // Цикл закрылся на 50-й день (22 дня при прогнозе 28 — промах), но
+        // досчитать его никто не успел; фазы включают на 60-й.
+        var events = starts([28, 22])
+
+        let flushed = Cycle.applyingClosedCycles(events: events, profile: before)
+        XCTAssertNotEqual(flushed, before,
+            "досчёт здесь не пустой (серия 0 → 1, отметка 28 → 50) — иначе равенство ниже ничего бы не доказывало")
+
+        let switched = Cycle.switchingToPhases(in: before, asOf: day(60))
+        let flushedFirst = Cycle.switchingToPhases(in: flushed, asOf: day(60))
+        XCTAssertEqual(switched, flushedFirst,
+            "досчитать перед переключением — то же самое: переключение перезаписывает всё, что досчёт меняет")
+
+        let afterwards = Cycle.applyingClosedCycles(events: events, profile: switched)
+        XCTAssertEqual(afterwards, switched, "закрытие 50-го дня — до переключения, в новую серию не идёт")
+
+        // Закрытие ПОСЛЕ переключения считается: 30 дней при прогнозе 25.
+        events.append(CycleEvent(kind: .periodStart, occurredOn: day(80)))
+        let next = Cycle.applyingClosedCycles(events: events, profile: switched)
+        XCTAssertEqual(next.lowConfidenceStreak, 1, "первое закрытие после переключения учтено")
+        XCTAssertEqual(next.lowConfidenceCountedThrough, day(80))
+    }
+
+    /// Почему отметка — день переключения, а не последнее записанное закрытие:
+    /// период, случившийся ДО переключения, но внесённый задним числом ПОСЛЕ
+    /// него (или пришедший с опозданием, §4.3), не должен попасть в новую
+    /// серию. Отметка на последнем записанном закрытии (28-й день) его бы
+    /// пропустила внутрь.
+    func test_backdatedCloseBeforeSwitchStaysOutOfTheNewStreak() {
+        let before = CycleProfile(
+            declaredRegularity: .irregular,
+            phaseMode: .noPhases,
+            noPhaseReason: .userChoice,
+            lowConfidenceCountedThrough: day(28)
+        )
+        let switched = Cycle.switchingToPhases(in: before, asOf: day(70))
+
+        // Забытый период 55-го дня внесён уже после переключения на 70-й.
+        let backdated = starts([28, 27])
+        let after = Cycle.applyingClosedCycles(events: backdated, profile: switched)
+        XCTAssertEqual(after.lowConfidenceStreak, 0, "закрытие 55-го дня случилось до переключения")
+        XCTAssertEqual(after.lowConfidenceCountedThrough, day(70))
+    }
+
+    // MARK: - Контракт: вызов, который ничего не меняет, — не переключение (SPEC §11.5)
+
+    /// Экран настроек пересохраняет неизменённый переключатель «фазы: вкл».
+    /// Это не переключение: серия, набранная до этого, остаётся, и отметка учёта
+    /// не прыгает вперёд. Иначе пересохранение обнуляло бы серию, а закрытие,
+    /// пришедшее позже с датой между старой отметкой и пересохранением, так и
+    /// не было бы учтено — это и есть настоящая форма «потерянного закрытия».
+    func test_resavingTheCurrentModeIsNotASwitch() {
+        var profile = CycleProfile(declaredRegularity: .irregular)
+        var events = [CycleEvent(kind: .periodStart, occurredOn: day(0))]
+        for gap in [45, 20] {
+            events.append(CycleEvent(kind: .periodStart, occurredOn: events.last!.occurredOn.adding(days: gap)))
+            profile = Cycle.applyingClosedCycles(events: events, profile: profile)
+        }
+        XCTAssertEqual(profile.lowConfidenceStreak, 2, "два промаха подряд, фазы ещё включены")
+        XCTAssertEqual(profile.lowConfidenceCountedThrough, day(65))
+
+        // Пересохранение на 120-й: ничего не меняется.
+        let resaved = Cycle.switchingToPhases(in: profile, asOf: day(120))
+        XCTAssertEqual(resaved, profile, "повторное включение уже включённых фаз — no-op")
+
+        // Период 109-го дня был, но синхронизировался только после пересохранения.
+        events.append(CycleEvent(kind: .periodStart, occurredOn: day(109)))
+        let after = Cycle.applyingClosedCycles(events: events, profile: resaved)
+        XCTAssertEqual(after.lowConfidenceStreak, 3, "опоздавшее закрытие учтено: переключения не было")
+        XCTAssertEqual(after.phaseMode, .noPhases, "третий промах подряд по-прежнему включает правило")
+        XCTAssertEqual(after.noPhaseReason, .lowConfidence)
+    }
+
+    // MARK: - Контракт: switchingToNoPhases (SPEC §11.5)
+
+    func test_switchingToNoPhasesAppliesOnlyOnARealChange() {
+        let tracking = CycleProfile(declaredRegularity: .regular, lowConfidenceStreak: 2, lowConfidenceCountedThrough: day(65))
+
+        let off = Cycle.switchingToNoPhases(reason: .userChoice, in: tracking, asOf: day(70))
+        XCTAssertEqual(off.phaseMode, .noPhases)
+        XCTAssertEqual(off.noPhaseReason, .userChoice)
+        XCTAssertEqual(off.lowConfidenceStreak, 0)
+        XCTAssertEqual(off.lowConfidenceCountedThrough, day(70))
+
+        XCTAssertEqual(Cycle.switchingToNoPhases(reason: .userChoice, in: off, asOf: day(80)), off,
+            "та же причина ещё раз — не переключение")
+
+        let other = Cycle.switchingToNoPhases(reason: .contraception, in: off, asOf: day(90))
+        XCTAssertEqual(other.noPhaseReason, .contraception, "другая причина — переключение")
+        XCTAssertEqual(other.lowConfidenceCountedThrough, day(90))
+    }
+
+    /// Смена одной лишь причины обязана применяться, а не пропускаться как
+    /// «режим тот же»: автоматическая `.lowConfidence` снимается хорошим
+    /// закрытием сама, а явная `.userChoice` — только вручную.
+    func test_replacingLowConfidenceWithUserChoiceStopsTheAutoReturn() {
+        let auto = CycleProfile(
+            declaredRegularity: .regular,
+            phaseMode: .noPhases,
+            noPhaseReason: .lowConfidence,
+            lowConfidenceCountedThrough: day(28)
+        )
+        let chosen = Cycle.switchingToNoPhases(reason: .userChoice, in: auto, asOf: day(30))
+        XCTAssertEqual(chosen.noPhaseReason, .userChoice)
+
+        // Хорошее закрытие на 56-й: 28 дней при прогнозе 28.
+        let events = starts([28, 28])
+        XCTAssertEqual(Cycle.applyingClosedCycles(events: events, profile: auto).phaseMode, .phases,
+            "с причиной low_confidence хорошее закрытие вернуло бы фазы само")
+        let kept = Cycle.applyingClosedCycles(events: events, profile: chosen)
+        XCTAssertEqual(kept.phaseMode, .noPhases, "с причиной user_choice — нет: её выбор снимается только вручную")
+        XCTAssertEqual(kept.noPhaseReason, .userChoice)
+    }
+
     // MARK: - Многосессионная симуляция (implement-feature §5а):
     // phase_response_profile копится по дням — точечных тестов недостаточно.
 

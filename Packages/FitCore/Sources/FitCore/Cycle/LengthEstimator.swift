@@ -88,7 +88,6 @@ extension Cycle {
         guard !filtered.isEmpty else {
             return profile.typicalCycleLengthDays ?? 28
         }
-        let mean = Double(filtered.reduce(0, +)) / Double(filtered.count)
-        return Int(mean.rounded())
+        return Int(mean(of: filtered).rounded())
     }
 }

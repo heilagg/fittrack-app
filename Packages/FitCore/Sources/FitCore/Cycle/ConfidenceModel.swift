@@ -25,10 +25,17 @@ extension Cycle {
     /// популяцию) — задокументированный выбор, см. описание PR.
     static func standardDeviation(of values: [Int]) -> Double {
         guard values.count > 1 else { return 0 }
-        let doubles = values.map(Double.init)
-        let mean = doubles.reduce(0, +) / Double(doubles.count)
-        let variance = doubles.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(doubles.count)
+        let center = mean(of: values)
+        let variance = values.reduce(0.0) { $0 + (Double($1) - center) * (Double($1) - center) } / Double(values.count)
         return variance.squareRoot()
+    }
+
+    /// Среднее по окну длин — общее для `standardDeviation` и
+    /// `LengthEstimator.expectedLength`, чтобы σ и прогноз всегда описывали
+    /// один и тот же центр одного и того же окна. `values` не пуст: оба
+    /// вызывающих проверяют это до вызова.
+    static func mean(of values: [Int]) -> Double {
+        Double(values.reduce(0, +)) / Double(values.count)
     }
 
     /// Ступени σ из таблицы §11.3 — разброс ВСЕГО набора. Не путать с
@@ -170,18 +177,29 @@ extension Cycle {
         )
     }
 
-    /// Те же величины по одной на каждый измеренный цикл, в хронологическом
-    /// порядке — история счётчика, а не текущее состояние.
-    static func confidenceAtEachClose(events: [CycleEvent], profile: CycleProfile) -> [Double] {
-        let lengths = measuredLengths(from: events)
-        guard !lengths.isEmpty else { return [] }
-        return lengths.indices.map { i in
+    /// Уверенность на закрытии для измеренных циклов с индекса `start` и
+    /// дальше, в хронологическом порядке. Единственное место, где перебираются
+    /// закрытия: и `confidenceAtEachClose`, и `applyingClosedCycles` идут
+    /// через него, чтобы понятие «измеренное закрытие» и нарезка
+    /// `priorLengths` не разошлись между двумя копиями цикла.
+    ///
+    /// Прогноз для каждого закрытия — по ВСЕМ предшествующим измеренным, а не
+    /// только по тем, что начинаются со `start`: судим цикл по прогнозу,
+    /// который существовал на момент его начала.
+    static func confidencesAtClose(lengths: [Int], from start: Int, profile: CycleProfile) -> [Double] {
+        (start..<lengths.count).map { i in
             confidenceAtClose(
                 priorLengths: Array(lengths.prefix(i)),
                 closedLength: lengths[i],
                 profile: profile
             )
         }
+    }
+
+    /// Те же величины по одной на каждый измеренный цикл, в хронологическом
+    /// порядке — история счётчика, а не текущее состояние.
+    static func confidenceAtEachClose(events: [CycleEvent], profile: CycleProfile) -> [Double] {
+        confidencesAtClose(lengths: measuredLengths(from: events), from: 0, profile: profile)
     }
 
     /// SPEC §11.5: досчитать серию по всем закрытиям, которые ещё не учтены —
@@ -223,36 +241,53 @@ extension Cycle {
             ?? 0
         guard pendingFrom < cycles.count else { return profile }
 
-        var updated = profile
-        let lengths = cycles.map(\.length)
-        for i in pendingFrom..<cycles.count {
-            updated = applyingCycleClose(
-                confidence: confidenceAtClose(
-                    // Прогноз, существовавший ДО этого цикла, — по всем
-                    // предшествующим измеренным, а не только по неучтённым.
-                    priorLengths: Array(lengths.prefix(i)),
-                    closedLength: cycles[i].length,
-                    profile: profile
-                ),
-                to: updated
-            )
-        }
+        var updated = confidencesAtClose(lengths: cycles.map(\.length), from: pendingFrom, profile: profile)
+            .reduce(profile) { applyingCycleClose(confidence: $1, to: $0) }
         updated.lowConfidenceCountedThrough = cycles[cycles.count - 1].closedOn
         return updated
     }
 
     /// Общая часть обоих направлений ручного переключения (SPEC §11.5,
-    /// «доступно в настройках в любой момент»): обнулить серию и сдвинуть
-    /// отметку учёта на день переключения, чтобы «три подряд» считалось
-    /// заново, а не унаследованным от состояния до переключения.
+    /// «доступно в настройках в любой момент»): выставить режим, обнулить
+    /// серию и сдвинуть отметку учёта на день переключения, чтобы «три подряд»
+    /// считалось заново, а не унаследованным от состояния до переключения.
     ///
     /// Без сброса серия переживала переключение: пользовательница, которую
     /// автоматика увела в режим без фаз (серия = 3), включала фазы обратно и
     /// теряла их снова на ПЕРВОМ же плохом закрытии — одном вместо трёх.
     /// Сброс живёт здесь, а не в вызывающем коде, потому что этой машиной
     /// состояний владеет FitCore: снаружи о ней пришлось бы помнить.
-    private static func resettingStreakForModeSwitch(_ profile: CycleProfile, asOf today: CalendarDay) -> CycleProfile {
+    ///
+    /// **Вызов, который ничего не меняет, — не переключение.** Если режим и
+    /// причина уже те, что просят, профиль возвращается как есть. Иначе экран
+    /// настроек, пересохраняющий неизменённый переключатель, обнулял бы
+    /// набирающуюся серию и сдвигал отметку учёта вперёд — а закрытие, пришедшее
+    /// позже с датой между старой отметкой и этим пересохранением, так и не было
+    /// бы учтено, хотя никакого переключения не было и считаться оно должно.
+    ///
+    /// **Закрытия до переключения в новую серию не идут — даже не пропущенные
+    /// через `applyingClosedCycles`.** Это не потеря, а SPEC §11.5: «три подряд»
+    /// после переключения — это три закрытия ПОСЛЕ него. Поэтому здесь нет
+    /// параметра `events` и не нужно сначала досчитывать накопившееся: всё, что
+    /// такой досчёт может изменить (серию, режим через автопереход, отметку),
+    /// переключение тут же перезаписывает, так что результат совпадает
+    /// побитово — это закреплено тестом, а не только этим абзацем.
+    ///
+    /// Отметка — именно ДЕНЬ переключения, а не дата последнего записанного
+    /// закрытия. Только так отсекается закрытие задним числом или пришедшее с
+    /// опозданием (§4.3), случившееся до переключения: при отметке на последнем
+    /// записанном закрытии период 62-го дня, внесённый после переключения на
+    /// 70-й, вошёл бы в новую серию.
+    private static func switchingMode(
+        to mode: PhaseMode,
+        reason: NoPhaseReason?,
+        in profile: CycleProfile,
+        asOf today: CalendarDay
+    ) -> CycleProfile {
+        guard profile.phaseMode != mode || profile.noPhaseReason != reason else { return profile }
         var profile = profile
+        profile.phaseMode = mode
+        profile.noPhaseReason = reason
         profile.lowConfidenceStreak = 0
         profile.lowConfidenceCountedThrough = today
         return profile
@@ -264,21 +299,21 @@ extension Cycle {
     /// выхода: `applyingCycleClose` снимает только `.lowConfidence`, а `nil` не
     /// входит ни в одну из семи причин SPEC §11.5. Разведение по направлению
     /// делает эту комбинацию непредставимой, а не только недокументированной.
+    /// Семантику сброса и почему повторный вызов — no-op, см. `switchingMode`.
     public static func switchingToPhases(in profile: CycleProfile, asOf today: CalendarDay) -> CycleProfile {
-        var profile = resettingStreakForModeSwitch(profile, asOf: today)
-        profile.phaseMode = .phases
-        profile.noPhaseReason = nil
-        return profile
+        switchingMode(to: .phases, reason: nil, in: profile, asOf: today)
     }
 
     /// Ручное включение режима `no_phases` — `reason` обязателен и без
     /// значения по умолчанию: SPEC §11.5 перечисляет ровно семь причин, и у
     /// режима без фаз не бывает состояния «без причины».
+    ///
+    /// Смена одной лишь причины — переключение: автоматическая `.lowConfidence`
+    /// → явная `.userChoice` переводит её из самоснимаемого состояния в
+    /// снимаемое только вручную. Сброс серии там безвреден — в режиме без фаз
+    /// её никто не читает.
     public static func switchingToNoPhases(reason: NoPhaseReason, in profile: CycleProfile, asOf today: CalendarDay) -> CycleProfile {
-        var profile = resettingStreakForModeSwitch(profile, asOf: today)
-        profile.phaseMode = .noPhases
-        profile.noPhaseReason = reason
-        return profile
+        switchingMode(to: .noPhases, reason: reason, in: profile, asOf: today)
     }
 
     /// SPEC §11.5: инкремент/сброс `low_confidence_streak` на закрытии
