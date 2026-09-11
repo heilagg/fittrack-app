@@ -122,12 +122,12 @@ final class ProgressionTests: XCTestCase {
         let heldSet = SetResult(prescribedKg: nil, actualKg: nil, actualReps: 9, feedback: .ok)  // в диапазоне, не у верха, не под rep_min
 
         var sessions = [
-            ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(0), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
                                     SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok)])
         ]
         for n in 1...6 {
-            sessions.append(ExerciseSession(performedAt: day(n), readiness: 1.0, isCalibration: false, sets: [heldSet]))
+            sessions.append(ExerciseSession(performedAt: day(n), weightReadiness: 1.0, isCalibration: false, sets: [heldSet]))
         }
 
         // После трёх застойных сессий (n=1..3): deload −10%.
@@ -160,12 +160,12 @@ final class ProgressionTests: XCTestCase {
     func test_scenario10_userEnteredHeavierWeightRaisesBaseline() {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 12]))
         let sessions = [
-            ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(0), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok),
                                     SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok)]),
             // Пользователь сам взял 12 кг (не 10, следующую по лестнице
             // ступень от 8) и отработал верх диапазона нормально.
-            ExerciseSession(performedAt: day(1), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(1), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: 8, actualKg: 12, actualReps: 12, feedback: .ok)]),
         ]
 
@@ -180,12 +180,12 @@ final class ProgressionTests: XCTestCase {
     func test_scenario11_userEnteredLighterWeightLowersBaselineAccountingForOverride() {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
         let sessions = [
-            ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(0), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
                                     SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok)]),
             // Пользователь сам снизил вес до 6 (на две ступени от 10, минуя
             // 8) и всё равно было тяжело.
-            ExerciseSession(performedAt: day(1), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(1), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: 10, actualKg: 6, actualReps: 9, feedback: .hard)]),
         ]
 
@@ -201,11 +201,11 @@ final class ProgressionTests: XCTestCase {
     func test_scenario12_lowReadinessDampensBaselineUpdate() {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
         let sessions = [
-            ExerciseSession(performedAt: day(0), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(0), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
                                     SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok)]),
-            // Предписано 8 (baseline 10 × readiness 0.8, §9.6), взято 6 — оверрайд вниз.
-            ExerciseSession(performedAt: day(1), readiness: 0.8, isCalibration: false,
+            // Предписано 8 (baseline 10 × weightReadiness 0.8, §9.6), взято 6 — оверрайд вниз.
+            ExerciseSession(performedAt: day(1), weightReadiness: 0.8, isCalibration: false,
                              sets: [SetResult(prescribedKg: 8, actualKg: 6, actualReps: 9, feedback: .hard)]),
         ]
 
@@ -280,7 +280,7 @@ final class ProgressionTests: XCTestCase {
     func test_calibrationExitsAfterTwoConsecutiveQualifyingSets() {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10]))
         let session = ExerciseSession(
-            performedAt: day(0), readiness: 1.0, isCalibration: true,
+            performedAt: day(0), weightReadiness: 1.0, isCalibration: true,
             sets: [
                 SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok),
                 SetResult(prescribedKg: 8, actualKg: 8, actualReps: 9, feedback: .ok),
@@ -295,14 +295,14 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [6, 8, 10]))
         let sessions = [
             ExerciseSession(
-                performedAt: day(0), readiness: 1.0, isCalibration: true,
+                performedAt: day(0), weightReadiness: 1.0, isCalibration: true,
                 sets: [
                     SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
                     SetResult(prescribedKg: 10, actualKg: 10, actualReps: 9, feedback: .ok),
                 ]
             ),
             // 60 дней спустя — перерыв > 45 дней.
-            ExerciseSession(performedAt: day(60), readiness: 1.0, isCalibration: false,
+            ExerciseSession(performedAt: day(60), weightReadiness: 1.0, isCalibration: false,
                              sets: [SetResult(prescribedKg: nil, actualKg: nil, actualReps: 9, feedback: .ok)]),
         ]
 
@@ -321,12 +321,12 @@ final class ProgressionTests: XCTestCase {
     /// Хелпер: сессия из подходов вида (предписано, фактически, повторы, фидбэк).
     private func session(
         _ dayOffset: Int,
-        readiness: Double = 1.0,
+        weightReadiness: Double = 1.0,
         isCalibration: Bool = false,
         _ sets: [(Double?, Double?, Int, Feedback)]
     ) -> ExerciseSession {
         ExerciseSession(
-            performedAt: day(dayOffset), readiness: readiness, isCalibration: isCalibration,
+            performedAt: day(dayOffset), weightReadiness: weightReadiness, isCalibration: isCalibration,
             sets: sets.map { SetResult(prescribedKg: $0.0, actualKg: $0.1, actualReps: $0.2, feedback: $0.3) }
         )
     }
@@ -354,7 +354,7 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
         let sessions = [
             session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
-            session(2, readiness: 0.8, [(8, 8, 9, .hard)]),
+            session(2, weightReadiness: 0.8, [(8, 8, 9, .hard)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
@@ -369,7 +369,7 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [10, 12]))
         let sessions = [
             session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
-            session(2, readiness: 1.10, [(12, 12, 12, .ok)]),
+            session(2, weightReadiness: 1.10, [(12, 12, 12, .ok)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
@@ -525,7 +525,7 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 12]))
         let sessions = [
             session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
-            session(2, readiness: 1.10, [(12, 10, 12, .hard)]),
+            session(2, weightReadiness: 1.10, [(12, 10, 12, .hard)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
@@ -537,7 +537,7 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10, 11, 12]))
         let sessions = [
             session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
-            session(2, readiness: 1.10, [(12, 11, 9, .hard)]),
+            session(2, weightReadiness: 1.10, [(12, 11, 9, .hard)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
@@ -632,7 +632,7 @@ final class ProgressionTests: XCTestCase {
             ("детренированность 60д", [session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]), session(60, [(10, 10, 9, .ok)])], normal),
             ("baseline выше максимума лестницы", [session(0, [(20, 20, 9, .ok), (20, 20, 9, .ok)]), session(1, [(20, 25, 12, .ok)])], sparse),
             ("baseline ниже минимума лестницы", [session(0, [(3, 3, 9, .ok), (3, 3, 9, .ok)]), session(1, [(3, 1, 9, .hard)])], sparse),
-            ("отказ от надбавки готовности", [session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]), session(2, readiness: 1.10, [(12, 10, 12, .hard)])], normal),
+            ("отказ от надбавки готовности", [session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]), session(2, weightReadiness: 1.10, [(12, 10, 12, .hard)])], normal),
             ("исчерпанная лестница", [session(0, [(8, 8, 9, .ok), (8, 8, 9, .ok)]), session(1, [(8, 8, 20, .easy)]), session(2, [(8, 8, 20, .easy)]), session(3, [(8, 8, 20, .easy)])], single),
             ("калибровочная первой", [session(0, isCalibration: true, [(10, 10, 5, .hard)]), session(1, [(10, 10, 5, .hard)])], normal),
             // Калибровка теперь двигает базовую линию, значит у неё есть ход,
@@ -717,7 +717,7 @@ final class ProgressionTests: XCTestCase {
         let sessions = [
             session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
             // readiness 0.75 → предписано 6, принято как есть: оверрайда нет.
-            session(1, readiness: 0.75, [(6, 6, 4, .failed), (6, 6, 4, .failed)]),
+            session(1, weightReadiness: 0.75, [(6, 6, 4, .failed), (6, 6, 4, .failed)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         // Шаг вниз от базовой линии (10 → 8), демпфированный ×0.4: 10 + (8−10)×0.4.
@@ -732,7 +732,7 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [2, 4, 6, 8, 10]))
         let sessions = [
             session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
-            session(1, readiness: 0.75, [(6, 4, 9, .hard)]),
+            session(1, weightReadiness: 0.75, [(6, 4, 9, .hard)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
         // Цель — её собственные 4, демпфированные: 10 + (4−10)×0.4 = 7.6.
@@ -828,7 +828,7 @@ final class ProgressionTests: XCTestCase {
                 prior = feedback
             }
 
-            log.append(ExerciseSession(performedAt: day(workout * 2), readiness: 1.0, isCalibration: true, sets: sets))
+            log.append(ExerciseSession(performedAt: day(workout * 2), weightReadiness: 1.0, isCalibration: true, sets: sets))
             state = Progression.rebuildStates(from: log, baseRange: hypertrophyRange, ladder: ladder)
             baselineByWorkout.append(state.baselineKg)
         }
@@ -955,7 +955,7 @@ final class ProgressionTests: XCTestCase {
                 prior = feedback
             }
 
-            log.append(ExerciseSession(performedAt: day(n * 2), readiness: 1.0,
+            log.append(ExerciseSession(performedAt: day(n * 2), weightReadiness: 1.0,
                                        isCalibration: isCalibration, sets: sets))
             state = Progression.rebuildStates(from: log, baseRange: hypertrophyRange, ladder: ladder)
             path.append(state.baselineKg)

@@ -438,6 +438,36 @@ final class ReadinessTests: XCTestCase {
             1.05, accuracy: 0.0001)
     }
 
+    // MARK: - Контракт: срез готовности для веса не задевает демпфирование §9.6
+
+    func test_weightReadiness_neverChangesBaselineDamping() {
+        // SPEC §10: «Демпфирование §9.6 это не задевает — срез не опускает
+        // готовность ниже 1.0, а демпфирование включается ниже 0.95». Держится
+        // на соотношении двух порогов из разных модулей, и ни один из них про
+        // другой не знает: срез ниже 0.95 или порог демпфирования выше 1.0 —
+        // и утомление начало бы молча менять реакцию базовой линии на фидбэк.
+        // Свип по всему `Readiness.range` через целые тысячные — без
+        // накопления ошибки и с точной границей 0.95.
+        let fatigueCases: [[RecoveryAdjustment]] = [
+            [],
+            [RecoveryAdjustment(targetRIRDelta: 0, volumeMultiplier: 0.85)],   // 0.8...1.8
+            [RecoveryAdjustment(targetRIRDelta: 1, volumeMultiplier: 0.7)],    // > 1.8
+            [RecoveryAdjustment(targetRIRDelta: 0, volumeMultiplier: 0.85),
+             RecoveryAdjustment(targetRIRDelta: 1, volumeMultiplier: 0.7)],
+        ]
+        let lower = Int((Readiness.range.lowerBound * 1000).rounded())
+        let upper = Int((Readiness.range.upperBound * 1000).rounded())
+        for milli in lower...upper {
+            let readiness = Double(milli) / 1000
+            for adjustments in fatigueCases {
+                let weight = Readiness.weightReadiness(readiness: readiness, contributingMuscleAdjustments: adjustments)
+                XCTAssertEqual(BaselineUpdater.dampingFactor(readiness: weight),
+                               BaselineUpdater.dampingFactor(readiness: readiness),
+                               "readiness \(readiness), мышц с надбавкой RIR: \(adjustments.filter { $0.targetRIRDelta > 0 }.count)")
+            }
+        }
+    }
+
     // MARK: - Контракт: override.rest численно равен ease на уровне слагаемого
 
     func test_overrideAdjustment_restEqualsEase() {

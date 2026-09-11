@@ -161,14 +161,14 @@ extension Progression {
                     break
                 case .mildDecay:
                     move(.lower(to: baseline * 0.92, reason: .detraining),
-                         openingWeight: firstSet.actualKg, readiness: session.readiness)
+                         openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                 case .moderateDecay:
                     move(.lower(to: baseline * 0.85, reason: .detraining),
-                         openingWeight: firstSet.actualKg, readiness: session.readiness)
+                         openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                     state.repExtension = 0
                 case .restartCalibration:
                     move(.lower(to: baseline * 0.75, reason: .detraining),
-                         openingWeight: firstSet.actualKg, readiness: session.readiness)
+                         openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                     state.isInCalibration = true
                     // Срез обязан пережить свою собственную сессию. Она уже
                     // помечена калибровочной (строкой выше), и без этого флага
@@ -305,7 +305,7 @@ extension Progression {
                         target > current + centEpsilonKg ? .raise(to: target, reason: .calibration)
                       : target < current - centEpsilonKg ? .lower(to: target, reason: .calibration)
                       : .hold
-                    move(intent, openingWeight: firstSet.actualKg, readiness: session.readiness)
+                    move(intent, openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                 }
                 // hadNoBaseline пропускается намеренно: сидирование выше уже
                 // записало ровно это значение, и повторный ход дал бы
@@ -353,7 +353,7 @@ extension Progression {
             let failedCount = feedbacks.filter { $0 == .failed }.count
             let allAtTop = reps.allSatisfy { $0 >= effectiveUpper }
             let anyEasyOrOk = feedbacks.contains(.easy) || feedbacks.contains(.ok)
-            let readiness = session.readiness
+            let weightReadiness = session.weightReadiness
 
             // Опорный вес — вес ОТКРЫВАЮЩЕГО подхода (см. правило 1 в шапке).
             let refWeight = firstSet.actualKg ?? baseline
@@ -385,7 +385,7 @@ extension Progression {
                         ladder: ladder
                     ) {
                         move(.lower(to: target, reason: override == .down ? .userOverride : .ladderStep),
-                             openingWeight: firstSet.actualKg, readiness: readiness)
+                             openingWeight: firstSet.actualKg, readiness: weightReadiness)
                     }
                     // nil — понижать некуда (лестница исчерпана снизу). Это
                     // законная ситуация, а не аномалия: базовая линия просто
@@ -404,7 +404,7 @@ extension Progression {
                     // применяется.
                     let before = state.baselineKg
                     move(.raise(to: target, reason: .userOverride),
-                         openingWeight: firstSet.actualKg, readiness: readiness)
+                         openingWeight: firstSet.actualKg, readiness: weightReadiness)
                     if state.baselineKg != before {
                         state.repExtension = 0
                         raisedWeight = true
@@ -425,7 +425,7 @@ extension Progression {
                         if isWeighted {
                             let before = state.baselineKg
                             move(.raise(to: next, reason: .ladderStep),
-                                 openingWeight: firstSet.actualKg, readiness: readiness)
+                                 openingWeight: firstSet.actualKg, readiness: weightReadiness)
                             raisedWeight = state.baselineKg != before
                         }
                         state.repExtension = 0
@@ -497,7 +497,7 @@ extension Progression {
                     if state.stallCount == 1 {
                         if isWeighted {
                             move(.lower(to: baseline * 0.90, reason: .stallDeload),
-                                 openingWeight: firstSet.actualKg, readiness: readiness)
+                                 openingWeight: firstSet.actualKg, readiness: weightReadiness)
                         }
                         state.repExtension = 0
                     }
@@ -572,7 +572,7 @@ extension Progression {
     /// `prescribed_kg`, но и относительно базовой линии.
     ///
     /// Второе условие — не перестраховка, а суть. Предписанный вес это
-    /// `baseline × readiness` (§9.6), и readiness доходит до 1.10 (§10),
+    /// `baseline × weightReadiness` (§9.6), а она доходит до 1.10 (§10),
     /// поэтому предписание бывает ВЫШЕ базовой линии. Отказ от такой
     /// надбавки (взяла меньше предписанного, но не меньше своей базовой
     /// линии) — это не заявление «мне тяжело на моём рабочем весе», и читать
