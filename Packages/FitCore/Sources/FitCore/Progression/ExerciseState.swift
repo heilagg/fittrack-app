@@ -41,13 +41,13 @@ public struct ExerciseState: Sendable, Equatable {
 public struct SetResult: Sendable, Equatable {
     /// Вес, который был показан пользователю на этот подход, кг
     /// (`sets.prescribed_kg`). Для открывающего подхода это
-    /// `baseline_kg × readiness` после округления (SPEC §9.6), для
+    /// `baseline_kg × weightReadiness` после округления (SPEC §9.6, §10), для
     /// последующих — то, что назначила внутрисессионная реакция (SPEC §9.3).
     ///
     /// Нужен, чтобы отличить «пользователь сам изменил вес» от «алгоритм
     /// изменил вес»: сравнение `actualKg` с `baseline_kg` для этого не
     /// годится, потому что предписание уже промодулировано готовностью, и
-    /// принятое как есть предписание в день с readiness ≠ 1.0 выглядело бы
+    /// принятое как есть предписание при `weightReadiness` ≠ 1.0 выглядело бы
     /// оверрайдом в обе стороны. Код-ревью feature/progression, 2026-09-07.
     ///
     /// `nil` — вес не предписывался (упражнение без веса) либо не записан;
@@ -71,17 +71,21 @@ public struct SetResult: Sendable, Equatable {
 /// обязан быть хронологическим (от старой к новой) — свёртка не сортирует.
 public struct ExerciseSession: Sendable, Equatable {
     public var performedAt: CalendarDay
-    /// Множитель готовности в день сессии (SPEC §9.6), для демпфирования.
-    public var readiness: Double
+    /// Готовность, применённая к весу этого упражнения в этой сессии —
+    /// `Readiness.weightReadiness` (SPEC §9.6, §10), а не дневное
+    /// `Readiness.value()`. Из журнала — `workout_exercises.weight_readiness`
+    /// (SPEC §7.6), дневное `workouts.readiness` не подставляется. Читается
+    /// только демпфированием §9.6.
+    public var weightReadiness: Double
     /// Калибровочная сессия (SPEC §9.8): её подходы не идут в модель
     /// прогрессии между сессиями, но всё ещё дают исходный `baselineKg`,
     /// если состояние ещё не инициализировано.
     public var isCalibration: Bool
     public var sets: [SetResult]
 
-    public init(performedAt: CalendarDay, readiness: Double, isCalibration: Bool, sets: [SetResult]) {
+    public init(performedAt: CalendarDay, weightReadiness: Double, isCalibration: Bool, sets: [SetResult]) {
         self.performedAt = performedAt
-        self.readiness = readiness
+        self.weightReadiness = weightReadiness
         self.isCalibration = isCalibration
         self.sets = sets
     }
