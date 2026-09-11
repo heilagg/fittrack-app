@@ -91,13 +91,19 @@ Planner не начинается, пока все пункты не закры�
       живёт в его папке); `Pattern` и `ExperienceLevel` — в `Types.swift`, который
       сам называет их своими. Библиотека передаётся целиком, жёсткие ограничения
       проверяет Planner.
-- [ ] **7. `ExerciseSession.readiness` в Progression — per-exercise `weightReadiness`,
+- [x] **7. `ExerciseSession.readiness` в Progression — per-exercise `weightReadiness`,
       не сырой дневной `Readiness.value()`.** Сейчас три места говорят об этом
       по-разному: §9.6 — «готовность, применённая к весу этого упражнения»;
       doc-комментарий `Readiness.swift` — Planner передаёт в Progression результат
       `weightReadiness`; doc-комментарий самого поля (`ExerciseState.swift`) —
       «множитель готовности в день сессии». Зафиксировать в §7 как контракт
       Planner → Progression.
+      **Закрыт:** SPEC §7.6 (плюс §3.1, §9.6), `bcac0e3`. Значение хранится —
+      `workout_exercises.weight_readiness`, пишется тем же расчётом, что
+      `prescribed_kg`; пересчёт (§4.3) читает его и не подставляет
+      `workouts.readiness`. Поле — `ExerciseSession.weightReadiness`
+      (`13a9d1d`). За Planner остаётся тест: у каждого сгенерированного
+      упражнения `prescribed_kg = roundToAchievable(baseline × weight_readiness)`.
 - [ ] **8. `extraSetsAdded` (§9.5) — где персистится.** Унаследованный открытый
       вопрос §19.2 п.7: колонки нет, из журнала подходов не восстанавливается,
       шаг 2 каскада §9.5 фактически не работает (TODO в `RebuildStates.swift`,
