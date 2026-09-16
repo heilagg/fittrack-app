@@ -30,11 +30,10 @@ extension Progression {
     }
 
     /// `extraSetsAdded` — сколько дополнительных рабочих подходов (сверх
-    /// базового количества, максимум 2) уже добавлено на этом упражнении.
-    /// Не персистится в `exercise_states` (в схеме нет такого столбца:
-    /// количество подходов — поле `workout_exercises.target_sets`, которым
-    /// владеет Planner) — вызывающий код передаёт его как текущий факт, а не
-    /// как состояние, которым владеет этот модуль.
+    /// базового количества, максимум 2) уже добавлено на этом упражнении —
+    /// `ExerciseState.extraSetsAdded`, колонка `exercise_states.extra_sets_added`
+    /// (SPEC §3.1, §9.5). Состояние прогрессии, как `repExtension`; Planner
+    /// только прибавляет его к `target_sets` (SPEC §7.3).
     public static func planProgression(
         baselineKg: Double,
         baseRange: ClosedRange<Int>,
