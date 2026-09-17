@@ -466,6 +466,29 @@ final class PlannerTests: XCTestCase {
         XCTAssertTrue(planAfter.sessions["day1"]!.reasons.contains { if case .phasePeriodization(.menstrual, _) = $0 { return true }; return false })
     }
 
+    // MARK: - Оверрайд rest — растяжка решается внутри планировщика (ревью, находка 2)
+
+    /// Оверрайд `rest` заменяет сегодняшний день растяжкой (§7.1, §11.4) при любом
+    /// `status`: планировщик не ждёт, пока вызывающая сторона отметит день
+    /// заменённым. Знаменатель `S_эфф` и завтрашний день не меняются.
+    func test_restOverride_todayBecomesStretch_regardlessOfStatus() {
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
+        XCTAssertEqual(week[0].status, .planned, "фикстура: день ещё не отмечен заменённым")
+        let plain = Planner.planRemainingDays(F.context(week: week))
+        let rest = Planner.planRemainingDays(F.context(week: week, override: .rest))
+        XCTAssertNotNil(plain.sessions["day0"])
+        XCTAssertNil(rest.sessions["day0"], "в день rest силовой тренировки нет")
+        XCTAssertEqual(rest.stretchDayIDs, ["day0"])
+        XCTAssertTrue(plain.stretchDayIDs.isEmpty)
+        var replaced = week
+        replaced[0].status = .replaced
+        XCTAssertEqual(Planner.planRemainingDays(F.context(week: replaced, override: .rest)).stretchDayIDs, ["day0"],
+                       "и после отметки replaced — тот же результат")
+        XCTAssertTrue(Planner.planRemainingDays(F.context(week: week, today: F.day(0), override: .rest)).sessions["day1"] != nil)
+        XCTAssertEqual(rest.sessions["day1"], plain.sessions["day1"], "завтрашний день не изменился")
+        XCTAssertEqual(rest.sessions["day1"]?.scale, plain.sessions["day1"]?.scale)
+    }
+
     // MARK: - Сценарий 31a: равномерная плановая поправка — состав тот же, меняются target_sets
 
     func test_scenario31a_uniformPlannedCut_sameCompositionFewerSets() {

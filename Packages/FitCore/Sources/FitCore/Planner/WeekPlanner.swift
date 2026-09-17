@@ -96,6 +96,11 @@ public struct WeekPlan: Sendable, Equatable {
     public var sessions: [String: BuiltSession]
     /// Строки статуса недели (§7.1): потеря от пропусков, недобор по времени.
     public var statusLines: [ReasonCode]
+    /// Дни, которые оверрайд `rest` заменил растяжкой (§7.1, §11.4). Решение
+    /// принимает сам планировщик по `todayOverride`, не дожидаясь отметки
+    /// `replaced` в `planned_days`: иначе между оверрайдом и отметкой план
+    /// показывал бы силовую тренировку.
+    public var stretchDayIDs: [String]
 }
 
 extension Planner {
@@ -119,8 +124,17 @@ extension Planner {
 
         var sessions: [String: BuiltSession] = [:]
         var shortfall: [MuscleSlug: Double] = [:]
+        var stretchDayIDs: [String] = []
         for (i, day) in week.enumerated()
-        where day.isStrength && day.status == .planned && day.date >= ctx.today && !ctx.startedDayIDs.contains(day.id) {
+        where day.isStrength && day.date >= ctx.today && !ctx.startedDayIDs.contains(day.id) {
+            // Оверрайд rest: сегодняшний не начатый день — растяжка, при статусе
+            // planned и replaced одинаково. `status` не трогается, поэтому
+            // знаменатель S_эфф прежний (§7.3), а недобора по времени у дня нет.
+            if day.date == ctx.today, ctx.todayOverride == .rest, day.status == .planned || day.status == .replaced {
+                stretchDayIDs.append(day.id)
+                continue
+            }
+            guard day.status == .planned else { continue }
             let cycleState = Cycle.state(events: ctx.cycle.events, profile: ctx.cycle.profile,
                                          responseProfiles: ctx.cycle.responseProfiles, asOf: day.date)
             let isToday = day.date == ctx.today
@@ -158,7 +172,7 @@ extension Planner {
             let sets = Int((shortfall[m] ?? 0).rounded())
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }
         }
-        return WeekPlan(sessions: sessions, statusLines: lines)
+        return WeekPlan(sessions: sessions, statusLines: lines, stretchDayIDs: stretchDayIDs)
     }
 
     /// «План обновлён» (§7.1) — только если у дней, которые были в прошлом
