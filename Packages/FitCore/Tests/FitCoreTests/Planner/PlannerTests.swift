@@ -405,6 +405,24 @@ final class PlannerTests: XCTestCase {
         XCTAssertTrue(session.reasons.contains(.patternMinimumRelaxedByLimit(fitted: patterns(session, in: library).count, limit: .family)))
     }
 
+    // MARK: - Сценарий 29c (уточнение ревью, находка 5): недобор — только по мышцам вектора дня
+
+    /// Побочные вклады вне вектора (разгибатели в тяге, пресс в кубковом
+    /// приседе) — не недобор: день их не просил, и строка «выйдет меньше по
+    /// разгибателям» была бы ложной.
+    func test_scenario29c_shortfallOnlyForVectorMuscles() {
+        var sawVectorLine = false
+        for minutes in [8, 10, 12, 15, 20] {
+            let plan = Planner.planRemainingDays(F.context(week: twoGluteDays, minutes: minutes))
+            for line in plan.statusLines {
+                guard case .weekShortfallByTime(let muscle, _) = line else { continue }
+                XCTAssertNotNil(F.lowerGlutes[muscle], "\(minutes) минут: строка недобора по мышце вне вектора — \(muscle)")
+                sawVectorLine = true
+            }
+        }
+        XCTAssertTrue(sawVectorLine, "фикстура: бюджет ограничивает хотя бы в одном случае")
+    }
+
     // MARK: - Сценарий 30: травма колена — низ из шарнирных движений
 
     func test_scenario30_kneeInjury_lowerFromHinges() {

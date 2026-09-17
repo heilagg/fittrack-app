@@ -145,8 +145,10 @@ extension Planner {
 
             input.sessionMinutes = nil
             if let unbounded = buildSession(input) {
-                for (m, v) in unbounded.effectiveVolume {
-                    shortfall[m, default: 0] += max(0, v - (built.effectiveVolume[m] ?? 0))
+                // Только мышцы вектора дня: побочные вклады вне него (разгибатели
+                // в тяге) день не просил, и недобором они не являются (§7.1).
+                for (m, share) in day.vector where share > 0 {
+                    shortfall[m, default: 0] += max(0, (unbounded.effectiveVolume[m] ?? 0) - (built.effectiveVolume[m] ?? 0))
                 }
             }
         }
