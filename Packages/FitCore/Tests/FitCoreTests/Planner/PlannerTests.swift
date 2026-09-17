@@ -489,6 +489,51 @@ final class PlannerTests: XCTestCase {
         XCTAssertEqual(rest.sessions["day1"]?.scale, plain.sessions["day1"]?.scale)
     }
 
+    // MARK: - Статус дня — один источник для сборки, потерь и строки «План обновлён» (ревью 2, находки 1–2)
+
+    private func lossMuscles(_ plan: WeekPlan) -> [MuscleSlug] {
+        plan.statusLines.compactMap { (line: ReasonCode) -> MuscleSlug? in
+            if case .weekLossFromSkips(let m, _, _) = line { return m }
+            return nil
+        }
+    }
+
+    /// День, заменённый оверрайдом `rest`, теряет свой плановый объём так же, как
+    /// пропущенный: знаменатель `S_эфф` его сохраняет (§7.3), а неделя выходит
+    /// легче — и обязана это сказать (§7.1).
+    func test_restOverrideDayCountsAsLostVolume() {
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
+        let rest = Planner.planRemainingDays(F.context(week: week, override: .rest))
+        XCTAssertTrue(lossMuscles(rest).contains(.gluteMax), "строка потери по ягодичным за день отдыха")
+        XCTAssertTrue(rest.statusLines.contains { if case .weekLossFromSkips(_, _, .restOverride) = $0 { return true }; return false },
+                      "причина — оверрайд отдыха, не пропуск")
+
+        var skipped = week
+        skipped[0].status = .skipped
+        let skippedPlan = Planner.planRemainingDays(F.context(week: skipped, today: F.day(1)))
+        XCTAssertEqual(Set(lossMuscles(rest)), Set(lossMuscles(skippedPlan)), "та же потеря, что у пропуска")
+    }
+
+    /// Статус `replaced` (день уже отмечен заменённым) — тот же потерянный объём.
+    func test_replacedDayCountsAsLostVolume() {
+        var week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
+        week[0].status = .replaced
+        let plan = Planner.planRemainingDays(F.context(week: week, today: F.day(1)))
+        XCTAssertTrue(lossMuscles(plan).contains(.gluteMax))
+    }
+
+    /// День, исчезнувший из плана (оверрайд `rest` заменил тренировку растяжкой),
+    /// — изменение плана: молчаливой замены §7.1 не допускает.
+    func test_rebuildNoticeSeesDayLeavingThePlan() {
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
+        let before = Planner.planRemainingDays(F.context(week: week))
+        let after = Planner.planRemainingDays(F.context(week: week, override: .rest))
+        XCTAssertNotNil(Planner.rebuildNotice(previous: before, current: after, cause: .override),
+                        "тренировка заменена растяжкой — строка обязана быть")
+        XCTAssertNil(Planner.rebuildNotice(previous: before, current: before, cause: .override),
+                     "ничего не изменилось — строки нет")
+    }
+
     // MARK: - Сценарий 31a: равномерная плановая поправка — состав тот же, меняются target_sets
 
     /// Равномерный срез — разгрузочная неделя и фаза ниже порога 0.3, где тип
@@ -600,7 +645,7 @@ final class PlannerTests: XCTestCase {
         let fresh = Planner.planRemainingDays(F.context(week: week, today: F.day(3)))
         XCTAssertEqual(plan.sessions["day3"]?.composition, fresh.sessions["day3"]?.composition,
                        "без утомления и выполненного объёма последний день тот же, что и без пропусков")
-        XCTAssertTrue(plan.statusLines.contains(.weekLossFromSkips(muscle: .gluteMax, sets: 8)))
+        XCTAssertTrue(plan.statusLines.contains(.weekLossFromSkips(muscle: .gluteMax, sets: 8, cause: .skipped)))
     }
 
     // MARK: - Сценарий 32a: пропущен день другого типа — дни низа не изменились
@@ -613,7 +658,7 @@ final class PlannerTests: XCTestCase {
         let after = Planner.planRemainingDays(F.context(week: skipped, today: F.day(2)))
         XCTAssertEqual(after.sessions["day2"]?.composition, before.sessions["day2"]?.composition)
         XCTAssertNil(Planner.rebuildNotice(previous: before, current: after, cause: .workoutSkipped))
-        XCTAssertFalse(after.statusLines.contains { if case .weekLossFromSkips(.gluteMax, _) = $0 { return true }; return false })
+        XCTAssertFalse(after.statusLines.contains { if case .weekLossFromSkips(.gluteMax, _, _) = $0 { return true }; return false })
     }
 
     // MARK: - Сценарий 32b: пропущен последний день — пересобирать нечего, статус показан
@@ -626,7 +671,7 @@ final class PlannerTests: XCTestCase {
         let after = Planner.planRemainingDays(F.context(week: week, today: F.day(1)))
         XCTAssertTrue(after.sessions.isEmpty)
         XCTAssertNil(Planner.rebuildNotice(previous: before, current: after, cause: .workoutSkipped))
-        XCTAssertTrue(after.statusLines.contains(.weekLossFromSkips(muscle: .gluteMax, sets: 8)))
+        XCTAssertTrue(after.statusLines.contains(.weekLossFromSkips(muscle: .gluteMax, sets: 8, cause: .skipped)))
     }
 
     // MARK: - Сценарий 32c: пропуск в конце недели W — S_эфф недели W+1 не изменился

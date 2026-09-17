@@ -117,17 +117,30 @@ extension Planner {
 
     // MARK: - Статус недели §7.1
 
-    /// `потеря[m] = Σ по пропущенным (S_эфф × доля[m])`, округлённая до целого;
-    /// нули не печатаются.
-    public static func weekLossFromSkips(week: [PlannedDay], level: ExperienceLevel) -> [ReasonCode] {
+    /// `потеря[m] = Σ по дням с потерянным объёмом (S_эфф × доля[m])`,
+    /// округлённая до целого; нули не печатаются. Какие дни теряют объём,
+    /// решает `DayOutcome.losesPlannedVolume` (DayOutcome.swift), а не проверка
+    /// статуса здесь: пропуск, оверрайд `rest` и замена теряют его одинаково.
+    public static func weekLostVolume(
+        outcomes: [String: DayOutcome],
+        week: [PlannedDay],
+        level: ExperienceLevel
+    ) -> [ReasonCode] {
         var loss: [MuscleSlug: Double] = [:]
-        for (i, day) in week.enumerated() where day.isStrength && day.status == .skipped {
+        var causes: [MuscleSlug: DayOutcome.Cause] = [:]
+        for (i, day) in week.enumerated() where day.isStrength && (outcomes[day.id]?.losesPlannedVolume ?? false) {
             guard let scale = sessionScale(dayIndex: i, week: week, level: level)?.scale else { continue }
-            for (m, share) in day.vector { loss[m, default: 0] += scale * share }
+            for (m, share) in day.vector {
+                loss[m, default: 0] += scale * share
+                // Причина — от дня, потерявшего больше всех: строка называет один
+                // день («вторник пропущен» / «сегодня вы выбрали отдых»).
+                if causes[m] == nil { causes[m] = outcomes[day.id]?.cause }
+            }
         }
         return MuscleSlug.allCases.compactMap { m in
             let sets = Int((loss[m] ?? 0).rounded())
-            return sets > 0 ? .weekLossFromSkips(muscle: m, sets: sets) : nil
+            guard sets > 0 else { return nil }
+            return .weekLossFromSkips(muscle: m, sets: sets, cause: causes[m] ?? .skipped)
         }
     }
 }

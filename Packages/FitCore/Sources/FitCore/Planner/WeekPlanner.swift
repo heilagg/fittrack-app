@@ -97,15 +97,21 @@ public struct WeekContext: Sendable {
 }
 
 public struct WeekPlan: Sendable, Equatable {
-    /// Собранные не начатые дни по `PlannedDay.id`.
-    public var sessions: [String: BuiltSession]
-    /// Строки статуса недели (§7.1): потеря от пропусков, недобор по времени.
+    /// Итог каждого дня недели по `PlannedDay.id` — один источник статуса для
+    /// потерь, «Плана обновлён» и показа (DayOutcome.swift).
+    public var days: [String: DayOutcome]
+    /// Строки статуса недели (§7.1): потеря объёма, недобор по времени.
     public var statusLines: [ReasonCode]
-    /// Дни, которые оверрайд `rest` заменил растяжкой (§7.1, §11.4). Решение
-    /// принимает сам планировщик по `todayOverride`, не дожидаясь отметки
-    /// `replaced` в `planned_days`: иначе между оверрайдом и отметкой план
-    /// показывал бы силовую тренировку.
-    public var stretchDayIDs: [String]
+
+    /// Собранные тренировки — срез `days` для тех, кому нужен только план.
+    public var sessions: [String: BuiltSession] {
+        days.compactMapValues(\.session)
+    }
+
+    /// Дни, которые идут растяжкой: сетка §7.2 либо оверрайд `rest` (§11.4).
+    public var stretchDayIDs: [String] {
+        days.values.filter { $0.kind == .stretching }.map(\.dayID).sorted()
+    }
 }
 
 extension Planner {
@@ -128,19 +134,13 @@ extension Planner {
         let previous = ctx.completed.max { $0.performedAt < $1.performedAt }.map { Set($0.setsBySlug.keys) } ?? []
         let states = exerciseStates(history: ctx.exerciseHistory, library: ctx.library, goal: ctx.goal, equipment: ctx.equipment)
 
-        var sessions: [String: BuiltSession] = [:]
+        var outcomes: [String: DayOutcome] = [:]
         var shortfall: [MuscleSlug: Double] = [:]
-        var stretchDayIDs: [String] = []
-        for (i, day) in week.enumerated()
-        where day.isStrength && day.date >= ctx.today && !ctx.startedDayIDs.contains(day.id) {
-            // Оверрайд rest: сегодняшний не начатый день — растяжка, при статусе
-            // planned и replaced одинаково. `status` не трогается, поэтому
-            // знаменатель S_эфф прежний (§7.3), а недобора по времени у дня нет.
-            if day.date == ctx.today, ctx.todayOverride == .rest, day.status == .planned || day.status == .replaced {
-                stretchDayIDs.append(day.id)
-                continue
-            }
-            guard day.status == .planned else { continue }
+        for (i, day) in week.enumerated() {
+            var outcome = classify(day: day, ctx: ctx)
+            defer { outcomes[day.id] = outcome }
+            guard outcome.kind == .session else { continue }
+
             let cycleState = Cycle.state(events: ctx.cycle.events, profile: ctx.cycle.profile,
                                          responseProfiles: ctx.cycle.responseProfiles, asOf: day.date)
             let isToday = day.date == ctx.today
@@ -161,7 +161,7 @@ extension Planner {
                 weights: ctx.weights
             )
             guard let built = buildSession(input) else { continue }
-            sessions[day.id] = built
+            outcome.session = built
 
             input.sessionMinutes = nil
             if let unbounded = buildSession(input) {
@@ -173,12 +173,32 @@ extension Planner {
             }
         }
 
-        var lines = weekLossFromSkips(week: week, level: ctx.safety.level)
+        var lines = weekLostVolume(outcomes: outcomes, week: week, level: ctx.safety.level)
         for m in MuscleSlug.allCases {
             let sets = Int((shortfall[m] ?? 0).rounded())
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }
         }
-        return WeekPlan(sessions: sessions, statusLines: lines, stretchDayIDs: stretchDayIDs)
+        return WeekPlan(days: outcomes, statusLines: lines)
+    }
+
+    /// Изменение плана — то, что пользователь видит на экране «Сегодня»:
+    /// другой состав собранной тренировки либо смена судьбы дня по РЕШЕНИЮ
+    /// планировщика (оверрайд `rest` заменил тренировку растяжкой и обратно).
+    ///
+    /// Уход дня из плана по ФАКТУ исполнения — пропуск, старт, выполнение,
+    /// наступление следующего дня — изменением не считается: пересобирать там
+    /// нечего, и §7.1 прямо требует молчания (сценарий 32b, пропущен последний
+    /// день недели). То же правило, что делит §7.3 плановые решения и факты
+    /// исполнения, только здесь оно решает, печатать ли строку.
+    static func isPlanChange(before: DayOutcome, after: DayOutcome) -> Bool {
+        func factOfExecution(_ outcome: DayOutcome) -> Bool {
+            outcome.kind == .notBuilt
+                && (outcome.cause == .skipped || outcome.cause == .started
+                    || outcome.cause == .done || outcome.cause == .past)
+        }
+        if factOfExecution(after) { return false }
+        if before.kind != after.kind || before.cause != after.cause { return true }
+        return before.session?.composition != after.session?.composition
     }
 
     /// Состояние прогрессии каждого упражнения среза — свёртка журнала
@@ -209,9 +229,9 @@ extension Planner {
     /// показе и остались в этом, изменился состав или объём. Пересборка, которая
     /// ничего не изменила, строки не печатает.
     public static func rebuildNotice(previous: WeekPlan, current: WeekPlan, cause: RebuildCause) -> ReasonCode? {
-        let changed = current.sessions.contains { id, session in
-            guard let before = previous.sessions[id] else { return false }
-            return before.composition != session.composition
+        let changed = Set(previous.days.keys).union(current.days.keys).contains { id in
+            guard let before = previous.days[id], let now = current.days[id] else { return true }
+            return isPlanChange(before: before, after: now)
         }
         return changed ? .planRebuilt(cause: cause) : nil
     }
