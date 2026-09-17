@@ -705,6 +705,23 @@ final class PlannerTests: XCTestCase {
         XCTAssertNotEqual(Planner.daySeed(userSeed: 1, day: F.day(3)), Planner.daySeed(userSeed: 1, day: F.day(4)))
     }
 
+    // MARK: - Контракт: порядок дней недели — забота сборки (ревью 2, находка 4)
+
+    /// `remaining[m]` слагаемого w11 считает сессии «от текущей включительно», и
+    /// раньше это молча предполагало, что вызывающая сторона отсортировала
+    /// неделю по дате. Сортировка — часть контракта `buildSession`.
+    func test_contract_buildSessionSortsWeekByDate() {
+        let vector = F.flatFullBody
+        let byDate = F.week(Array(repeating: (.fullBody, nil, vector), count: 4))
+        for target in byDate.indices {
+            let inCreationOrder = [byDate[target]] + byDate.enumerated().filter { $0.offset != target }.map(\.element)
+            let sorted = build(F.input(week: byDate, dayIndex: target, minutes: 20))
+            let shuffled = build(F.input(week: inCreationOrder, dayIndex: 0, minutes: 20))
+            XCTAssertEqual(shuffled.composition, sorted.composition, "день \(target): порядок массива не должен влиять")
+            XCTAssertEqual(shuffled.effectiveVolume, sorted.effectiveVolume)
+        }
+    }
+
     // MARK: - Контракт: ранг ничьих не зависит от остальной библиотеки (ревью, находка 3)
 
     /// Ранг — hash(seed, slug) для каждого упражнения отдельно. Перетасовка всего

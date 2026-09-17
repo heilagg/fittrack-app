@@ -133,6 +133,17 @@ extension Planner {
     public static func buildSession(_ input: SessionInput) -> BuiltSession? {
         let day = input.week[input.dayIndex]
         guard day.isStrength else { return nil }
+        // Порядок дней — забота сборки, а не вызывающей стороны: `remaining[m]`
+        // слагаемого w11 («сессий недели от текущей включительно», §7.3) читает
+        // неделю по датам, и массив в другом порядке молча менял бы вес
+        // покрытия. Неделя сортируется здесь, день находится по `id`.
+        var input = input
+        if !input.week.indices.dropFirst().allSatisfy({ input.week[$0 - 1].date <= input.week[$0].date }) {
+            let sorted = input.week.sorted { $0.date < $1.date }
+            guard let index = sorted.firstIndex(where: { $0.id == day.id }) else { return nil }
+            input.week = sorted
+            input.dayIndex = index
+        }
         if input.cycleState.noPhaseReason == .pregnancy {
             return BuiltSession(dayID: day.id, exercises: [], estimatedSeconds: 0, effectiveVolume: [:],
                                 leadingMuscle: nil, scale: 0, reasons: [.workoutGenerationDisabled])
