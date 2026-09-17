@@ -142,6 +142,19 @@ extension Planner {
         return session
     }
 
+    /// Куда ложится +1 подход готовности (§10): выбор делает
+    /// `Readiness.exerciseForSessionSetIncrease`; упражнение, которое подход не
+    /// приняло (`tryAdd` вернул false — потолок или бюджет), исключается, и
+    /// выбор повторяется. Возвращает индекс, получивший подход, или nil.
+    static func placeSessionSetIncrease(hasFatiguedMuscle: [Bool], tryAdd: (Int) -> Bool) -> Int? {
+        var excluded = hasFatiguedMuscle
+        while let k = Readiness.exerciseForSessionSetIncrease(hasFatiguedMuscle: excluded) {
+            if tryAdd(k) { return k }
+            excluded[k] = true
+        }
+        return nil
+    }
+
     // MARK: - Упражнение: классы для w8/w9 и порядка
 
     static let compoundPatterns: Set<Pattern> = [.squat, .hinge, .lunge, .pushH, .pushV, .pullH, .pullV]
@@ -636,15 +649,19 @@ private struct Builder {
         // Шаг 5: ±1 подход на сессию по дневной готовности (§10).
         switch Readiness.sessionSetDelta(readiness: input.readiness) {
         case 1:
-            if let k = Readiness.exerciseForSessionSetIncrease(hasFatiguedMuscle: ordered.map { pool[$0].hasFatiguedMuscle }) {
+            // Подходящие упражнения перебираются тем же выбором Readiness: не
+            // принявшее подход (потолок пяти или бюджет) маскируется, и выбор
+            // повторяется. +1 пропадает, только если подходящих не осталось (§10).
+            // Потолок пяти подходов держится и здесь — задокументированный
+            // выбор: шаг 5 SPEC называет только бюджет, но потолок §7.3
+            // сформулирован для упражнения, а не для шагов 2 и 4.
+            _ = Planner.placeSessionSetIncrease(hasFatiguedMuscle: ordered.map { pool[$0].hasFatiguedMuscle }) { k in
                 let p = ordered[k]
-                // Потолок пяти подходов держится и здесь — задокументированный
-                // выбор: шаг 5 SPEC называет только бюджет, но потолок §7.3
-                // сформулирован для упражнения, а не для шагов 2 и 4.
-                if setsBy[p]! < Planner.maxSetsPerExercise {
-                    setsBy[p]! += 1
-                    if !fits(ordered, orderedSets()) { setsBy[p]! -= 1 }
-                }
+                guard setsBy[p]! < Planner.maxSetsPerExercise else { return false }
+                setsBy[p]! += 1
+                if fits(ordered, orderedSets()) { return true }
+                setsBy[p]! -= 1
+                return false
             }
         case -1:
             if let k = Readiness.exerciseForSessionSetDecrease(worstVolumeMultiplier: ordered.map { pool[$0].worstVolumeMultiplier }) {

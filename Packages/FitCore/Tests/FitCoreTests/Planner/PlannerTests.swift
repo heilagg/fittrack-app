@@ -776,6 +776,43 @@ final class PlannerTests: XCTestCase {
         XCTAssertEqual(extra.exercises.first { $0.slug == first }?.targetSets, min(before + 2, Planner.maxSetsPerExercise))
     }
 
+    // MARK: - Контракт: +1 готовности перебирает подходящие упражнения (ревью, находка 6)
+
+    private func totalSets(_ s: BuiltSession) -> Int { s.exercises.reduce(0) { $0 + $1.targetSets } }
+
+    /// Первое подходящее упражнение уже на потолке пяти подходов — +1 ложится на
+    /// следующее подходящее, а не пропадает (§10: +1 не даётся, только если
+    /// подходящего упражнения нет вовсе).
+    func test_contract_plusOneSkipsCappedExercise() {
+        let plain = build(F.input(week: twoGluteDays, minutes: 180))
+        var states = F.familiar
+        let first = plain.exercises[0].slug
+        states[first]!.extraSetsAdded = Planner.maxSetsPerExercise - plain.exercises[0].targetSets
+        let capped = build(F.input(week: twoGluteDays, minutes: 180, states: states))
+        XCTAssertEqual(capped.exercises.first { $0.slug == first }?.targetSets, Planner.maxSetsPerExercise,
+                       "фикстура: первое упражнение на потолке")
+        let ready = build(F.input(week: twoGluteDays, minutes: 180, states: states, readiness: 1.08))
+        XCTAssertEqual(F.slugs(ready), F.slugs(capped), "фикстура: состав тот же")
+        XCTAssertEqual(totalSets(ready), totalSets(capped) + 1, "+1 лёг на следующее подходящее упражнение")
+        XCTAssertEqual(ready.exercises.first { $0.slug == first }?.targetSets, Planner.maxSetsPerExercise)
+    }
+
+    /// Первое подходящее упражнение не влезает в бюджет — +1 пробуется на
+    /// следующем подходящем; утомлённое не получает его никогда.
+    func test_contract_plusOneSkipsExerciseOverBudget() {
+        var tried: [Int] = []
+        let placed = Planner.placeSessionSetIncrease(hasFatiguedMuscle: [false, true, false, false]) { k in
+            tried.append(k)
+            return k == 2          // 0 не влезает в бюджет, 1 утомлено, 2 принимает
+        }
+        XCTAssertEqual(placed, 2)
+        XCTAssertEqual(tried, [0, 2])
+        XCTAssertNil(Planner.placeSessionSetIncrease(hasFatiguedMuscle: [false, true]) { _ in false },
+                     "никто не принял — +1 не даётся")
+        XCTAssertNil(Planner.placeSessionSetIncrease(hasFatiguedMuscle: [true, true]) { _ in true },
+                     "подходящих нет — +1 не даётся")
+    }
+
     // MARK: - Симуляция: шесть недель по пять дней ягодиц (implement-feature §5а)
 
     /// Тридцать тренировочных дней подряд; каждый собирается от состояния, которое
