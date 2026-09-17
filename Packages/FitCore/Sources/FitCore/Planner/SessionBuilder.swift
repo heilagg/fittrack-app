@@ -89,6 +89,9 @@ public struct BuiltSession: Sendable, Equatable {
     public var leadingMuscle: MuscleSlug?
     public var scale: Double
     public var reasons: [ReasonCode]
+    /// Диагностика для тестов: упражнения, снятые шагом 3 (§7.3) против цели
+    /// без равномерного среза. Наружу не публикуется.
+    var removedAtMinimum: [String] = []
 
     /// Состав и объём — то, по чему §7.1 решает, печатать ли «План обновлён».
     public var composition: [String: Int] {
@@ -624,10 +627,22 @@ private struct Builder {
             current = b.score
         }
 
-        // Целые подходы по цели С плановым срезом (шаги 1–3).
+        // Шаг 3 — снятие упражнений на минимуме — против цели БЕЗ равномерного
+        // среза (фаза, разгрузочная неделя), как и весь подбор состава. Утомление
+        // в этой цели есть, и глубокий неравномерный срез упражнение снять
+        // вправе (§8.3, п.3); равномерный — нет: он уже режет подходы ниже, и
+        // снятие упражнения учло бы тот же срез второй раз (сценарий 31a).
+        // SPEC §7.3 не называет, против какой цели работает шаг 3, —
+        // задокументированный выбор.
+        var removedAtMinimum: [String] = []
+        if let pruned = allocate(sel, target: compositionTarget, requiredPatterns: achieved) {
+            removedAtMinimum = sel.filter { !pruned.sel.contains($0) }.map { pool[$0].candidate.slug }
+            sel = pruned.sel
+        }
+
+        // Целые подходы по цели С плановым срезом (шаги 1–2), состав уже зафиксирован.
         var sets: [Int] = []
-        if let a = allocate(sel, target: setTarget, requiredPatterns: achieved) {
-            sel = a.sel
+        if let a = allocate(sel, target: setTarget, requiredPatterns: nil) {
             sets = a.sets
         } else {
             sel = []
@@ -720,7 +735,8 @@ private struct Builder {
             effectiveVolume: Planner.effectiveVolume(volumeItems),
             leadingMuscle: nil,
             scale: scale,
-            reasons: reasons
+            reasons: reasons,
+            removedAtMinimum: removedAtMinimum
         )
     }
 }

@@ -491,15 +491,51 @@ final class PlannerTests: XCTestCase {
 
     // MARK: - Сценарий 31a: равномерная плановая поправка — состав тот же, меняются target_sets
 
+    /// Равномерный срез — разгрузочная неделя и фаза ниже порога 0.3, где тип
+    /// блока нейтральный, — меняет только подходы. Менструальная фаза при полной
+    /// уверенности включает восстановительный блок (w8), и состав менять вправе;
+    /// прежняя версия теста проверяла её на «тот же состав» и проходила только
+    /// потому, что шаг 3 снимал упражнение против срезанной цели (находка 4).
     func test_scenario31a_uniformPlannedCut_sameCompositionFewerSets() {
         let base = build(F.input(week: twoGluteDays))
         let deload = build(F.input(week: twoGluteDays, isDeloadWeek: true))
-        let menstrual = build(F.input(week: twoGluteDays, cycleState: F.phaseState(.menstrual, confidence: 1.0)))
+        let lowConfidence = F.phaseState(.menstrual, confidence: 0.29)
+        XCTAssertEqual(lowConfidence.periodization?.blockType, .neutral, "фикстура: ниже порога блок нейтральный")
+        let menstrualLow = build(F.input(week: twoGluteDays, cycleState: lowConfidence))
         XCTAssertEqual(F.slugs(deload), F.slugs(base))
-        XCTAssertEqual(F.slugs(menstrual), F.slugs(base))
-        func total(_ s: BuiltSession) -> Int { s.exercises.reduce(0) { $0 + $1.targetSets } }
-        XCTAssertLessThan(total(deload), total(base))
-        XCTAssertLessThan(total(menstrual), total(base))
+        XCTAssertEqual(F.slugs(menstrualLow), F.slugs(base))
+        XCTAssertLessThan(totalSets(deload), totalSets(base))
+        XCTAssertLessThanOrEqual(totalSets(menstrualLow), totalSets(base))
+        XCTAssertTrue(deload.removedAtMinimum.isEmpty && menstrualLow.removedAtMinimum.isEmpty)
+    }
+
+    // MARK: - Шаг 3 (снятие упражнений) — против цели ДО равномерного среза (ревью, находка 4)
+
+    /// Разгрузочная неделя режет все мышцы одинаково и состав менять не вправе
+    /// (31a). Раньше шаг 3 снимал упражнение против цели с разгрузочным срезом:
+    /// в неделе из трёх дней «низ с акцентом» при 30 минутах со штангой из сборки
+    /// уходил ягодичный мост — срез учитывался дважды, в подходах и в составе.
+    func test_step3_uniformCutDoesNotRemoveExercises() {
+        let week = F.week(Array(repeating: (.lower, .gluteMax, F.lowerGlutes), count: 3))
+        let base = build(F.input(week: week, minutes: 30))
+        let deload = build(F.input(week: week, minutes: 30, isDeloadWeek: true))
+        XCTAssertTrue(F.slugs(base).contains("hip_thrust_barbell"), "фикстура: мост в обычной неделе есть")
+        XCTAssertEqual(F.slugs(deload), F.slugs(base), "разгрузочная неделя — тот же состав")
+        XCTAssertLessThanOrEqual(totalSets(deload), totalSets(base))
+    }
+
+    /// Путь снятия жив: глубокий НЕравномерный срез — утомление на ведущей мышце —
+    /// снимает упражнение на минимуме, не ломая минимум паттернов и не опускаясь
+    /// ниже трёх упражнений (§7.3, шаг 3; §8.3, п.3).
+    func test_step3_deepFatigueCutRemovesAtMinimum() {
+        let week = F.week(Array(repeating: (.lower, .gluteMax, F.lowerGlutes), count: 3))
+        let tired = build(F.input(week: week, safety: SafetyProfile(level: .advanced), minutes: 45, fatigue: [.gluteMax: 2.5]))
+        XCTAssertFalse(tired.removedAtMinimum.isEmpty, "шаг 3 сработал")
+        XCTAssertTrue(tired.removedAtMinimum.allSatisfy { !F.slugs(tired).contains($0) })
+        XCTAssertGreaterThanOrEqual(tired.exercises.count, 3)
+        XCTAssertGreaterThanOrEqual(patterns(tired).count, 3)
+        let fresh = build(F.input(week: week, safety: SafetyProfile(level: .advanced), minutes: 45))
+        XCTAssertTrue(fresh.removedAtMinimum.isEmpty, "без утомления снимать нечего")
     }
 
     // MARK: - Сценарий 31b: будущий день от замороженного состояния
