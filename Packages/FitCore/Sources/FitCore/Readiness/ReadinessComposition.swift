@@ -36,8 +36,9 @@ extension Readiness {
 
     /// Плановый недельный срез объёма мышцы — ровно один источник:
     /// фаза (`phases`, с опорной датой), 3+1 без фаз, либо 1.0, когда
-    /// срезать нечем (без опорной даты). `isDeloadWeek` — решение
-    /// планировщика (счётчик недель накопления/разгрузки), не этого модуля.
+    /// срезать нечем (без опорной даты). `isDeloadWeek` не считают ни этот
+    /// модуль, ни Planner: признак передаёт вызывающая сторона, правило счёта
+    /// открыто (SPEC §11.5, §19.2 п.4).
     public static func plannedVolumeFactor(cycleState: CycleState, isDeloadWeek: Bool) -> Double {
         switch cycleState.phaseMode {
         case .noPhases:
