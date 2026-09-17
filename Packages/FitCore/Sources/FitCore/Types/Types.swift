@@ -22,6 +22,10 @@
 //  ограничения (§11.2). ReasonCode тоже добавлен здесь: причина фазового
 //  происхождения обязана нести cycleConfidence (SPEC §14.6), и этот контракт
 //  общий для любого будущего источника причин, не только Cycle.
+//  Pattern, ExperienceLevel и Goal добавлены для Planner (SPEC §7): паттерн и
+//  skill_level — поля среза ExerciseCandidate (§7.5), уровень и цель — вход
+//  сборки (§7.4, §9.1). Причины планировщика (ослабление паттернов, пересборка,
+//  статус недели) — новые случаи ReasonCode, по тому же контракту §14.6.
 
 /// Способ округления/квантования веса упражнения (SPEC §6.3).
 public enum LoadType: String, Sendable, Equatable, Hashable, CaseIterable {
@@ -222,4 +226,75 @@ public enum ReasonCode: Sendable, Equatable {
     /// Овуляторное ограничение: понижен приоритет высокоударного упражнения
     /// (SPEC §11.2, `impact = high`).
     case ovulatoryImpactCaution(cycleConfidence: Double)
+    /// Минимум трёх паттернов ослаблен: столько разных паттернов, работающих на
+    /// мышцы дня, на этом инвентаре и с этими ограничениями нет (SPEC §7.3,
+    /// сценарий 30a). Пользователь этого изменить не может.
+    case patternMinimumRelaxedUnavailable(available: Int)
+    /// Минимум трёх паттернов ослаблен по времени: не помещается в
+    /// `session_minutes` (SPEC §7.3, сценарий 29a). Меняется одним тапом.
+    case patternMinimumRelaxedByTime(fitted: Int)
+    /// «План обновлён» (SPEC §7.1) — печатается, только если у оставшихся дней
+    /// изменился состав или объём.
+    case planRebuilt(cause: RebuildCause)
+    /// Статус недели: выйдет меньше подходов из-за пропусков (SPEC §7.1).
+    case weekLossFromSkips(muscle: MuscleSlug, sets: Int)
+    /// Статус недели: недобор по времени (SPEC §7.1, сценарий 29c).
+    case weekShortfallByTime(muscle: MuscleSlug, sets: Int)
+    /// Генератор тренировок отключён (SPEC §14.3, сценарий 26).
+    case workoutGenerationDisabled
+}
+
+/// Что вызвало пересборку (SPEC §7.1, таблица триггеров). Фазовые причины несут
+/// `cycleConfidence` по тому же правилу §14.6, что и `ReasonCode`.
+public enum RebuildCause: Sendable, Equatable {
+    case phaseChanged(phase: Phase?, cycleConfidence: Double?)
+    case cycleConfidenceChanged(cycleConfidence: Double?)
+    case workoutSkipped
+    case workoutCompleted
+    case override
+    case dayEdited
+    case equipmentChanged
+}
+
+/// `exercise.pattern` (SPEC §6.3).
+public enum Pattern: String, Sendable, Equatable, Hashable, CaseIterable {
+    case squat
+    case hinge
+    case lunge
+    case pushH = "push_h"
+    case pushV = "push_v"
+    case pullH = "pull_h"
+    case pullV = "pull_v"
+    case carry
+    case core
+    case isolation
+}
+
+/// `profiles.experience_level` и `exercise.skill_level` (SPEC §3.1, §6.3) —
+/// одна шкала: правило §7.3 сравнивает их напрямую.
+public enum ExperienceLevel: String, Sendable, Equatable, Hashable, CaseIterable, Comparable {
+    case novice
+    case intermediate
+    case advanced
+
+    private var rank: Int {
+        switch self {
+        case .novice: return 0
+        case .intermediate: return 1
+        case .advanced: return 2
+        }
+    }
+
+    public static func < (lhs: ExperienceLevel, rhs: ExperienceLevel) -> Bool {
+        lhs.rank < rhs.rank
+    }
+}
+
+/// `profiles.goal` (SPEC §3.1, §9.1).
+public enum Goal: String, Sendable, Equatable, Hashable, CaseIterable {
+    case strength
+    case hypertrophy
+    case toning
+    case endurance
+    case general
 }
