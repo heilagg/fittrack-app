@@ -520,6 +520,21 @@ private struct Builder {
         return ra != rb ? ra < rb : pool[a].candidate.slug < pool[b].candidate.slug
     }
 
+    /// Почему ремонт не добрал паттерны. Время — если хоть один кандидат нового
+    /// паттерна проходит семейный лимит, но не влезает в бюджет: тогда тап по
+    /// session_minutes помогает. Иначе — семь упражнений, иначе — семьи.
+    func patternShortfallReason(_ sel: [Int], fitted: Int) -> ReasonCode {
+        let have = Set(sel.filter { pool[$0].serving }.map { pool[$0].candidate.pattern })
+        let fresh = pool.indices.filter { !sel.contains($0) && pool[$0].serving && !have.contains(pool[$0].candidate.pattern) }
+        if sel.count < Planner.maxExercises, fresh.contains(where: { familyAllows(sel, adding: $0) }) {
+            return .patternMinimumRelaxedByTime(fitted: fitted)
+        }
+        if sel.count >= Planner.maxExercises {
+            return .patternMinimumRelaxedByLimit(fitted: fitted, limit: .exerciseCount)
+        }
+        return .patternMinimumRelaxedByLimit(fitted: fitted, limit: .family)
+    }
+
     func better(_ s: Double, candidate p: Int, than best: (score: Double, p: Int)?) -> Bool {
         guard let best else { return true }
         if s > best.score + Planner.scoreTolerance { return true }
@@ -571,7 +586,7 @@ private struct Builder {
         }
         let achieved = servingPatterns(sel)
         if available < 3 { reasons.append(.patternMinimumRelaxedUnavailable(available: available)) }
-        if achieved < required { reasons.append(.patternMinimumRelaxedByTime(fitted: achieved)) }
+        if achieved < required { reasons.append(patternShortfallReason(sel, fitted: achieved)) }
 
         // Локальное улучшение: замена на упражнение того же паттерна из среза.
         for _ in 0..<Planner.maxImprovementPasses {

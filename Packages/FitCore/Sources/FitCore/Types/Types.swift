@@ -233,6 +233,12 @@ public enum ReasonCode: Sendable, Equatable {
     /// Минимум трёх паттернов ослаблен по времени: не помещается в
     /// `session_minutes` (SPEC §7.3, сценарий 29a). Меняется одним тапом.
     case patternMinimumRelaxedByTime(fitted: Int)
+    /// Минимум трёх паттернов ослаблен лимитом сборки — семь упражнений или
+    /// «не более двух из семьи» (§7.3), а не временем: тап по
+    /// `session_minutes` этого не решит, поэтому причина отдельная от
+    /// `patternMinimumRelaxedByTime`. SPEC §7.3 называет только две причины
+    /// (доступность и время); третья найдена при ревью реализации.
+    case patternMinimumRelaxedByLimit(fitted: Int, limit: PatternLimit)
     /// «План обновлён» (SPEC §7.1) — печатается, только если у оставшихся дней
     /// изменился состав или объём.
     case planRebuilt(cause: RebuildCause)
@@ -242,6 +248,14 @@ public enum ReasonCode: Sendable, Equatable {
     case weekShortfallByTime(muscle: MuscleSlug, sets: Int)
     /// Генератор тренировок отключён (SPEC §14.3, сценарий 26).
     case workoutGenerationDisabled
+}
+
+/// Какой лимит сборки не дал добрать паттерны (SPEC §7.3).
+public enum PatternLimit: Sendable, Equatable {
+    /// Жадный шаг уже набрал семь упражнений.
+    case exerciseCount
+    /// Все кандидаты нового паттерна — из семей, где уже по два упражнения.
+    case family
 }
 
 /// Что вызвало пересборку (SPEC §7.1, таблица триггеров). Фазовые причины несут

@@ -28,8 +28,8 @@ final class PlannerTests: XCTestCase {
         return session
     }
 
-    private func patterns(_ session: BuiltSession) -> Set<Pattern> {
-        Set(session.exercises.map { F.candidate($0.slug).pattern })
+    private func patterns(_ session: BuiltSession, in library: [ExerciseCandidate] = PlannerFixtures.library) -> Set<Pattern> {
+        Set(session.exercises.compactMap { e in library.first { $0.slug == e.slug }?.pattern })
     }
 
     private var twoGluteDays: [PlannedDay] {
@@ -349,6 +349,60 @@ final class PlannerTests: XCTestCase {
 
         let roomy = Planner.planRemainingDays(F.context(week: twoGluteDays, minutes: 120))
         XCTAssertFalse(roomy.statusLines.contains { if case .weekShortfallByTime = $0 { return true }; return false })
+    }
+
+    // MARK: - Контракт: причина ослабления паттернов — лимиты, а не время (ревью, находка 7)
+
+    private func isolation(_ slug: String, _ muscle: MuscleSlug) -> ExerciseCandidate {
+        ExerciseCandidate(slug: slug, pattern: .isolation, muscleContributions: [muscle: 1.0],
+                          progressionFamily: slug, fatigueCost: 0.4, setupSeconds: 10, defaultRestSeconds: 30, loadType: .bodyweight)
+    }
+
+    private func relaxedByTime(_ s: BuiltSession) -> Bool {
+        s.reasons.contains { if case .patternMinimumRelaxedByTime = $0 { return true }; return false }
+    }
+
+    /// Семь упражнений одного паттерна набраны жадным шагом, ремонту некуда
+    /// добавить: «в N минут не помещается» было бы неправдой — тап по
+    /// session_minutes этого не решит.
+    func test_patternRelaxed_exerciseLimit_notReportedAsTime() {
+        let muscles: [MuscleSlug] = [.quads, .gluteMax, .hamstrings, .gluteMed, .pecs, .lats, .trapsMid, .sideDelts]
+        let vector = Dictionary(uniqueKeysWithValues: muscles.map { ($0, 0.125) })
+        let library = muscles.enumerated().map { isolation("iso_\($0.offset)", $0.element) } + [
+            ExerciseCandidate(slug: "off_squat", pattern: .squat, muscleContributions: [.quads: 0.3, .erectors: 0.7],
+                              progressionFamily: "off_squat", fatigueCost: 1.0, setupSeconds: 30, loadType: .bodyweight),
+            ExerciseCandidate(slug: "off_hinge", pattern: .hinge, muscleContributions: [.hamstrings: 0.3, .erectors: 0.7],
+                              progressionFamily: "off_hinge", fatigueCost: 1.0, setupSeconds: 30, loadType: .bodyweight),
+        ]
+        let session = build(F.input(week: F.week([(.fullBody, nil, vector)]), library: library, minutes: 180,
+                                    states: Dictionary(uniqueKeysWithValues: library.map { ($0.slug, ExerciseState(isInCalibration: false)) })))
+        XCTAssertEqual(session.exercises.count, Planner.maxExercises, "фикстура: упёрлись в семь")
+        XCTAssertLessThan(patterns(session, in: library).count, 3)
+        XCTAssertFalse(relaxedByTime(session), "лимит семи упражнений — не время")
+        XCTAssertTrue(session.reasons.contains(.patternMinimumRelaxedByLimit(fitted: patterns(session, in: library).count, limit: .exerciseCount)))
+        XCTAssertFalse(session.reasons.contains { if case .patternMinimumRelaxedUnavailable = $0 { return true }; return false })
+    }
+
+    /// Единственный кандидат нового паттерна — из семьи, где уже два упражнения.
+    func test_patternRelaxed_familyLimit_notReportedAsTime() {
+        let vector: [MuscleSlug: Double] = [.gluteMax: 0.5, .hamstrings: 0.5]
+        let library = [
+            ExerciseCandidate(slug: "fam_hinge_a", pattern: .hinge, muscleContributions: [.gluteMax: 1.0],
+                              progressionFamily: "fam", fatigueCost: 1.0, setupSeconds: 20, loadType: .bodyweight),
+            ExerciseCandidate(slug: "fam_hinge_b", pattern: .hinge, muscleContributions: [.hamstrings: 1.0],
+                              progressionFamily: "fam", fatigueCost: 1.0, setupSeconds: 20, loadType: .bodyweight),
+            ExerciseCandidate(slug: "fam_squat", pattern: .squat, muscleContributions: [.gluteMax: 0.3, .erectors: 0.7],
+                              progressionFamily: "fam", fatigueCost: 1.0, setupSeconds: 20, loadType: .bodyweight),
+            ExerciseCandidate(slug: "curl_iso", pattern: .isolation, muscleContributions: [.hamstrings: 0.6, .calves: 0.4],
+                              progressionFamily: "curl_iso", fatigueCost: 0.5, setupSeconds: 20, loadType: .bodyweight),
+        ]
+        let session = build(F.input(week: F.week([(.lower, nil, vector)]), library: library, minutes: 180,
+                                    states: Dictionary(uniqueKeysWithValues: library.map { ($0.slug, ExerciseState(isInCalibration: false)) })))
+        XCTAssertTrue(F.slugs(session).isSuperset(of: ["fam_hinge_a", "fam_hinge_b"]), "фикстура: семья заполнена шарнирами")
+        XCTAssertFalse(F.slugs(session).contains("fam_squat"))
+        XCTAssertLessThan(patterns(session, in: library).count, 3)
+        XCTAssertFalse(relaxedByTime(session), "семейный лимит — не время")
+        XCTAssertTrue(session.reasons.contains(.patternMinimumRelaxedByLimit(fitted: patterns(session, in: library).count, limit: .family)))
     }
 
     // MARK: - Сценарий 30: травма колена — низ из шарнирных движений
