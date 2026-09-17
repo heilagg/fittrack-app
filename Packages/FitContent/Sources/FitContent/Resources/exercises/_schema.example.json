@@ -9,9 +9,9 @@
     "quads": 0.10,
     "erectors": 0.10
   },
-  "equipment": ["barbell", "bench"],
+  "equipment": ["bench_flat"],
   "equipment_optional": ["pad"],
-  "load_type": "external_barbell",
+  "load_type": "barbell",
   "weight_increment_source": "plates",
   "unilateral": false,
   "joint_stress": { "knee": "low", "lower_back": "medium", "hip": "medium" },

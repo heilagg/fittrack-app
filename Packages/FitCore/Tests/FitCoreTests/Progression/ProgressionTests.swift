@@ -1006,6 +1006,41 @@ final class ProgressionTests: XCTestCase {
             "базовая линия не проседает; путь: \(run.path.compactMap { $0 })")
     }
 
+    func test_scenario3_extraSetsAddedIsRestoredFromJournal() {
+        // SPEC §18 сценарий 3 через свёртку: на максимальной гантели сначала
+        // повторы (repExtension до 4), затем подходы (extraSetsAdded до 2).
+        // Раньше счётчик подходов из свёртки не выходил и шаг 2 был
+        // ненаблюдаем (§19.2 п.7).
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8]))
+        let run = simulate(ladder: ladder, okFrom: 100, failAbove: 200,
+                           setsPerSession: 3, workouts: 15, coldStart: 8, calibrationWorkouts: 2)
+        let extensions = run.states.map(\.repExtension)
+        let extras = run.states.map(\.extraSetsAdded)
+        guard let firstExtra = extras.firstIndex(where: { $0 > 0 }) else {
+            return XCTFail("шаг 2 каскада не наступил; repExtension: \(extensions)")
+        }
+        XCTAssertEqual(extensions[firstExtra], 4, "подходы — только после исчерпанных повторов")
+        XCTAssertEqual(Set(extras), [0, 1, 2], "растёт по одному; путь: \(extras)")
+        XCTAssertEqual(extras.last, 2, "не больше двух добавленных подходов")
+    }
+
+    func test_extraSetsAddedResetsWhereRepExtensionResets() {
+        // SPEC §9.5: сброс на тех же событиях, что у rep_extension. Здесь —
+        // перерывы §9.7 после выхода на потолок инвентаря.
+        let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8]))
+        // Максимальная гантель, 20 лёгких повторов через день: повторы до +4,
+        // затем подходы до +2.
+        let log = (0..<8).map { n in session(n * 2, [(8, 8, 20, .easy), (8, 8, 20, .easy), (8, 8, 20, .easy)]) }
+        let before = Progression.rebuildStates(from: log, baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(before.extraSetsAdded, 2, "предусловие: подходы добавлены; \(before)")
+
+        for gap in [15, 30, 60] {
+            let back = session(14 + gap, [(8, 8, 9, .ok)])
+            let state = Progression.rebuildStates(from: log + [back], baseRange: hypertrophyRange, ladder: ladder)
+            XCTAssertEqual(state.extraSetsAdded, gap >= 22 ? 0 : 2, "перерыв \(gap) дней")
+        }
+    }
+
     func test_calibrationConvergesOnSingleSetExercise() {
         // Одноподходное упражнение: внутрисессионного подъёма нет ни одного, а
         // межсессионного у калибровки не было вовсе — базовая линия навсегда

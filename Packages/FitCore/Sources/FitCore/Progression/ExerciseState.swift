@@ -15,6 +15,11 @@ public struct ExerciseState: Sendable, Equatable {
     public var baselineKg: Double?
     /// Расширение верхней границы диапазона повторов, 0...4 (SPEC §9.5).
     public var repExtension: Int
+    /// Добавленные рабочие подходы, 0...2 (SPEC §9.5, п.2;
+    /// `exercise_states.extra_sets_added`). Planner прибавляет их к
+    /// `target_sets` (SPEC §7.3). Записывает решение каскада, а не число
+    /// выполненных подходов: базовое число подходов в журнале не наблюдаемо.
+    public var extraSetsAdded: Int
     /// Счётчик застоя (SPEC §9.4).
     public var stallCount: Int
     public var lastPerformedAt: CalendarDay?
@@ -23,12 +28,14 @@ public struct ExerciseState: Sendable, Equatable {
     public init(
         baselineKg: Double? = nil,
         repExtension: Int = 0,
+        extraSetsAdded: Int = 0,
         stallCount: Int = 0,
         lastPerformedAt: CalendarDay? = nil,
         isInCalibration: Bool = true
     ) {
         self.baselineKg = baselineKg
         self.repExtension = repExtension
+        self.extraSetsAdded = extraSetsAdded
         self.stallCount = stallCount
         self.lastPerformedAt = lastPerformedAt
         self.isInCalibration = isInCalibration

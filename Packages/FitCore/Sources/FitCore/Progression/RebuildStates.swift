@@ -123,17 +123,6 @@ extension Progression {
         // §9.4 не является. Не персистится — свёртка пересчитывает его с нуля
         // вместе со всем остальным.
         var maxBaselineReached = 0.0
-        // TODO(код-ревью feature/progression, 2026-09-07): этот счётчик
-        // никуда не выходит из свёртки. `ExerciseState` его не хранит (в
-        // схеме нет колонки: количество подходов — это
-        // `workout_exercises.target_sets`, владелец — Planner), а обе ветки
-        // каскада, которые он различает (`.addSet` и `.suggestHarderVariant`),
-        // состояние не меняют. Следствие: шаг 2 каскада §9.5 из результата
-        // rebuildStates невосстановим, и покрыть его тестом через публичный
-        // API нельзя. Сброс ниже поэтому корректен, но пока не наблюдаем.
-        // Зафиксировано как открытый вопрос SPEC §19.2 — решать вместе с
-        // Planner, который владеет target_sets.
-        var extraSetsAdded = 0
 
         /// Применить намерение через единственную точку схождения и запомнить
         /// аномалию, если инвариант нарушен.
@@ -166,6 +155,7 @@ extension Progression {
                     move(.lower(to: baseline * 0.85, reason: .detraining),
                          openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                     state.repExtension = 0
+                    state.extraSetsAdded = 0
                 case .restartCalibration:
                     move(.lower(to: baseline * 0.75, reason: .detraining),
                          openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
@@ -182,6 +172,7 @@ extension Progression {
                     // сохранять БОЛЬШЕ накопленного состояния, чем более
                     // короткий перерыв.
                     state.repExtension = 0
+                    state.extraSetsAdded = 0
                     state.stallCount = 0
                 }
                 if decay != .none {
@@ -392,6 +383,7 @@ extension Progression {
                     // остаётся на месте.
                 }
                 state.repExtension = 0
+                state.extraSetsAdded = 0
                 outcome = .lowered
             } else if allAtTop && failedCount == 0 && anyEasyOrOk {
                 var raisedWeight = false
@@ -416,7 +408,7 @@ extension Progression {
                         baselineKg: baseline,
                         baseRange: baseRange,
                         repExtension: state.repExtension,
-                        extraSetsAdded: extraSetsAdded,
+                        extraSetsAdded: state.extraSetsAdded,
                         ladder: ladder
                     ) {
                     case .extendReps:
@@ -430,7 +422,7 @@ extension Progression {
                         }
                         state.repExtension = 0
                     case .addSet:
-                        extraSetsAdded += 1
+                        state.extraSetsAdded += 1
                     case .suggestHarderVariant, .maintain:
                         break
                     }
@@ -439,10 +431,8 @@ extension Progression {
                 if raisedWeight {
                     // Добавленные подходы — компенсация за «тяжелее нет
                     // вообще» (SPEC §9.5, п. 2). Как только тяжелее появилось
-                    // и было взято, компенсация возвращается. На понижении
-                    // счётчик не трогаем — срезать одновременно и вес, и
-                    // объём было бы двойным штрафом.
-                    extraSetsAdded = 0
+                    // и было взято, компенсация возвращается.
+                    state.extraSetsAdded = 0
                 }
 
                 // Классификация исхода, а не сброс счётчиков на месте: §9.4
@@ -500,6 +490,7 @@ extension Progression {
                                  openingWeight: firstSet.actualKg, readiness: weightReadiness)
                         }
                         state.repExtension = 0
+                        state.extraSetsAdded = 0
                     }
                     // stallCount == 2: предложение замены упражнения — сигнал
                     // наружу (Planner читает stallCount), самого предложения
