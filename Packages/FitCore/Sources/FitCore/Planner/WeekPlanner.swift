@@ -174,6 +174,9 @@ extension Planner {
         }
 
         var lines = weekLostVolume(outcomes: outcomes, week: week, level: ctx.safety.level)
+        for day in week where outcomes[day.id]?.kind == .vectorMissing {
+            lines.append(.dayVectorMissing(kind: day.kind, accent: day.accent))
+        }
         for m in MuscleSlug.allCases {
             let sets = Int((shortfall[m] ?? 0).rounded())
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }

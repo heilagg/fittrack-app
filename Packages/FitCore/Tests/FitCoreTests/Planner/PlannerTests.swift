@@ -534,6 +534,27 @@ final class PlannerTests: XCTestCase {
                      "ничего не изменилось — строки нет")
     }
 
+    // MARK: - День без целевого вектора виден снаружи (ревью 2, находка 5)
+
+    /// Пара (тип дня, акцент) без вектора — ошибка разметки (§7.3, правило 4).
+    /// Планировщик собрать день не может, но и молчать не должен: иначе дыра в
+    /// контенте выглядит как обычный день отдыха.
+    func test_dayWithoutVectorIsReportedAsMarkupGap() {
+        var week = F.week([(.push, nil, F.upper), (.lower, .gluteMax, F.lowerGlutes)])
+        week[0].vector = [:]
+        let plan = Planner.planRemainingDays(F.context(week: week))
+        XCTAssertNil(plan.sessions["day0"])
+        XCTAssertTrue(plan.statusLines.contains { if case .dayVectorMissing(.push, nil) = $0 { return true }; return false },
+                      "дыра в разметке названа явно")
+        XCTAssertNotNil(plan.sessions["day1"], "остальная неделя собирается")
+
+        let stretch = F.week([(.stretch, nil, [:]), (.lower, .gluteMax, F.lowerGlutes)])
+        let stretchPlan = Planner.planRemainingDays(F.context(week: stretch))
+        XCTAssertFalse(stretchPlan.statusLines.contains { if case .dayVectorMissing = $0 { return true }; return false },
+                       "день растяжки вектора и не должен иметь")
+        XCTAssertEqual(stretchPlan.stretchDayIDs, ["day0"])
+    }
+
     // MARK: - Сценарий 31a: равномерная плановая поправка — состав тот же, меняются target_sets
 
     /// Равномерный срез — разгрузочная неделя и фаза ниже порога 0.3, где тип

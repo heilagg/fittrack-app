@@ -250,6 +250,11 @@ public enum ReasonCode: Sendable, Equatable {
     case weekShortfallByTime(muscle: MuscleSlug, sets: Int)
     /// Генератор тренировок отключён (SPEC §14.3, сценарий 26).
     case workoutGenerationDisabled
+    /// У пары (тип дня, акцент) нет целевого вектора — ошибка разметки
+    /// контента (SPEC §7.3, правило 4; ловит её валидатор §19.1). Планировщик
+    /// день не собирает, но и не молчит: без этой причины дыра в разметке
+    /// выглядит на неделе как обычный день отдыха.
+    case dayVectorMissing(kind: SessionKind, accent: MuscleSlug?)
 }
 
 /// Какой лимит сборки не дал добрать паттерны (SPEC §7.3).

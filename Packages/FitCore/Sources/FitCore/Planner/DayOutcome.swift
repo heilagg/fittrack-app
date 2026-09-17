@@ -22,6 +22,8 @@ public struct DayOutcome: Sendable, Equatable {
         case stretching
         /// Планировщик день не трогает: выполнен, начат, в прошлом, пропущен.
         case notBuilt
+        /// Силовой день без целевого вектора — дыра в разметке (§7.3, правило 4).
+        case vectorMissing
     }
 
     public enum Cause: Sendable, Equatable {
@@ -32,6 +34,7 @@ public struct DayOutcome: Sendable, Equatable {
         case done
         case past
         case gridStretch
+        case markupMissing
     }
 
     public var dayID: String
@@ -63,6 +66,10 @@ extension Planner {
         if ctx.startedDayIDs.contains(day.id) { return outcome(.notBuilt, .started) }
 
         if day.kind == .stretch || day.kind == .rest { return outcome(.stretching, .gridStretch) }
+
+        // Силовой день, у которого вектора нет: собирать не из чего, но и тихо
+        // пропускать нельзя — иначе ошибка разметки неотличима от дня отдыха.
+        if day.vector.allSatisfy({ $0.value <= 0 }) { return outcome(.vectorMissing, .markupMissing) }
 
         // Оверрайд `rest` живёт один день и решается здесь, а не ожиданием
         // отметки `replaced` от вызывающей стороны (§7.1, §11.4). Проверяется
