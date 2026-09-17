@@ -46,7 +46,7 @@ final class PlannerTests: XCTestCase {
         library: [ExerciseCandidate] = PlannerFixtures.library,
         availability: EquipmentAvailability = PlannerFixtures.fullAvailability,
         equipment: EquipmentProfile = PlannerFixtures.fullEquipment,
-        states: [String: ExerciseState] = PlannerFixtures.familiar
+        history: [String: [ExerciseSession]]? = nil
     ) -> (sessions: [BuiltSession], volume: [MuscleSlug: Double]) {
         var week = week
         var completed: [CompletedWorkout] = []
@@ -56,7 +56,7 @@ final class PlannerTests: XCTestCase {
         for i in week.indices {
             if skip.contains(i) { week[i].status = .skipped; continue }
             let ctx = F.context(week: week, library: library, availability: availability, equipment: equipment,
-                                states: states, today: week[i].date, completed: completed, fatigue: fatigue,
+                                history: history, today: week[i].date, completed: completed, fatigue: fatigue,
                                 minutes: minutes, weights: weights)
             guard let session = Planner.planRemainingDays(ctx).sessions[week[i].id] else { continue }
             sessions.append(session)
@@ -168,9 +168,9 @@ final class PlannerTests: XCTestCase {
             let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)], offsets: offsets)
             for minutes in [60, 45, 30] {
                 let with = runWeek(week, minutes: minutes, library: C.library, availability: EquipmentAvailability(),
-                                   equipment: EquipmentProfile(), states: C.familiar)
+                                   equipment: EquipmentProfile())
                 let without = runWeek(week, minutes: minutes, weights: noCoverage, library: C.library,
-                                      availability: EquipmentAvailability(), equipment: EquipmentProfile(), states: C.familiar)
+                                      availability: EquipmentAvailability(), equipment: EquipmentProfile())
                 XCTAssertEqual(with.volume[.gluteMax] ?? 0, without.volume[.gluteMax] ?? 0, accuracy: 1e-9,
                                "дни \(offsets), \(minutes) минут")
             }
@@ -742,6 +742,75 @@ final class PlannerTests: XCTestCase {
         }
     }
 
+    // MARK: - Контракт: детренированность в предписании (ревью, находка 1)
+
+    /// §9.7 действует «перед первой сессией после перерыва», а свёртка
+    /// `rebuildStates` применяет её, только когда эта сессия записана. Поэтому
+    /// срез несёт само предписание — тем же правилом Progression.
+    func test_contract_detraining_prescriptionCarriesDecay() {
+        let library = [F.gobletSquat, F.rdlBand, F.bandAbduction, F.legCurlBand]
+        // Три дня низа — объём на сессию такой, что добавленные подходы у приседа видны.
+        let week = F.week(Array(repeating: (.lower, nil, F.lower), count: 3), offsets: [36, 38, 40])
+        func squat(lastPerformed: Int, repExtension: Int = 3, extraSets: Int = 2) -> PrescribedExercise? {
+            var states = F.familiar
+            states["goblet_squat"] = ExerciseState(baselineKg: 10, repExtension: repExtension, extraSetsAdded: extraSets,
+                                                   lastPerformedAt: F.day(40 - lastPerformed), isInCalibration: false)
+            return build(F.input(week: week, dayIndex: 2, library: library, minutes: 30, states: states)).exercises.first { $0.slug == "goblet_squat" }
+        }
+        guard let recent = squat(lastPerformed: 5), let moderate = squat(lastPerformed: 30),
+              let long = squat(lastPerformed: 60), let mild = squat(lastPerformed: 15) else {
+            return XCTFail("фикстура: goblet_squat в сборке")
+        }
+        XCTAssertEqual(recent.prescribedKg, 10)
+        XCTAssertEqual(recent.targetRepMax, 12 + 3)
+
+        XCTAssertEqual(mild.prescribedKg, 8, "15 дней: 10 × 0.92 = 9.2 → вниз по лестнице")
+        XCTAssertEqual(mild.targetRepMax, 12 + 3, "до 22 дней счётчики прогрессии не сбрасываются")
+
+        XCTAssertEqual(moderate.prescribedKg, 8, "30 дней: 10 × 0.85 = 8.5 → вниз по лестнице")
+        XCTAssertEqual(moderate.targetRepMax, 12, "rep_extension сброшен")
+        let noExtras = squat(lastPerformed: 30, repExtension: 0, extraSets: 0)
+        XCTAssertEqual(moderate.targetSets, noExtras?.targetSets, "extra_sets_added сброшен")
+        XCTAssertLessThan(moderate.targetSets, recent.targetSets, "фикстура: добавленные подходы видны без перерыва")
+
+        XCTAssertNil(long.prescribedKg, "больше 45 дней — снова калибровка")
+        XCTAssertEqual(long.targetRepMax, 12)
+    }
+
+    /// Состояние прогрессии планировщик сворачивает сам — `rebuildStates` с
+    /// лестницей ТЕКУЩЕГО инвентаря (находка 1). Журнал записан на гантелях до
+    /// 12 кг; после смены инвентаря (до 10 кг) предписание следует свёртке с
+    /// новой лестницей, а не состоянию, посчитанному со старой.
+    func test_contract_plannerFoldsHistoryWithCurrentLadder() {
+        let set = { (kg: Double) in SetResult(prescribedKg: kg, actualKg: kg, actualReps: 10, feedback: .ok) }
+        let history: [String: [ExerciseSession]] = F.familiarHistory(for: F.library).merging([
+            "goblet_squat": [
+                ExerciseSession(performedAt: F.day(-6), weightReadiness: 1.0, isCalibration: false, sets: [set(12), set(12)]),
+                ExerciseSession(performedAt: F.day(-3), weightReadiness: 1.0, isCalibration: false, sets: [set(12), set(12), set(12)]),
+            ],
+        ]) { $1 }
+        let week = F.week([(.lower, nil, F.lower)])
+        let library = [F.gobletSquat, F.rdlBand, F.bandAbduction, F.legCurlBand]
+        for equipment in [F.fullEquipment, EquipmentProfile(dumbbellsKg: [4, 6, 8, 10])] {
+            let ctx = WeekContext(
+                weekStart: F.day(0), week: week, today: F.day(0), library: library, availability: F.fullAvailability,
+                equipment: equipment, safety: SafetyProfile(level: .intermediate), goal: .hypertrophy, sessionMinutes: 45,
+                exerciseHistory: history,
+                cycle: CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases, noPhaseReason: .userChoice)),
+                userSeed: F.seed)
+            let ladder = WeightLadder.build(loadType: .dumbbell, profile: equipment)
+            let folded = Progression.rebuildStates(from: history["goblet_squat"]!, baseRange: 8...12, ladder: ladder)
+            XCTAssertEqual(Planner.exerciseStates(history: history, library: library, goal: .hypertrophy, equipment: equipment)["goblet_squat"],
+                           folded)
+            guard let squat = Planner.planRemainingDays(ctx).sessions["day0"]?.exercises.first(where: { $0.slug == "goblet_squat" }) else {
+                XCTFail("фикстура: goblet_squat в сборке"); continue
+            }
+            let expected = folded.baselineKg.map { ladder.roundToAchievable($0 * squat.weightReadiness, direction: .up) }
+            XCTAssertEqual(squat.prescribedKg, expected)
+            XCTAssertLessThanOrEqual(squat.prescribedKg ?? 0, ladder == .discrete([4, 6, 8, 10]) ? 10 : 12, "вес на лестнице текущего инвентаря")
+        }
+    }
+
     // MARK: - Контракт: инвентарь §6.6
 
     func test_contract_equipmentPredicatesAndLadder() {
@@ -916,7 +985,7 @@ final class PlannerTests: XCTestCase {
                     weekStart: start, week: week, today: week[d].date, completed: completed, fatigue: fatigue,
                     library: F.library, availability: F.fullAvailability, equipment: F.fullEquipment,
                     safety: SafetyProfile(level: .intermediate), goal: .hypertrophy, sessionMinutes: minutes,
-                    exerciseStates: F.familiar,
+                    exerciseHistory: F.familiarHistory(for: F.library),
                     cycle: CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases, noPhaseReason: .userChoice)),
                     userSeed: F.seed)
                 let plan = Planner.planRemainingDays(ctx)

@@ -158,6 +158,27 @@ extension Planner {
         return nil
     }
 
+    /// Состояние прогрессии на день сессии: детренированность §9.7 применяется
+    /// «перед первой сессией после перерыва», а свёртка `rebuildStates` —
+    /// только когда эта сессия записана, поэтому срез несёт предписание.
+    /// Правило и числа — `Progression.detrainingAdjustment` и его свойства.
+    /// Как и свёртка, срез действует только на весовые упражнения
+    /// (`ladder != .none`): у упражнения без веса свёртка его не применяет, и
+    /// предписание не расходится с тем, что запишется после сессии.
+    static func stateForSession(_ state: ExerciseState, ladder: WeightLadder, on day: CalendarDay) -> ExerciseState {
+        guard ladder != .none, let last = state.lastPerformedAt, state.baselineKg != nil else { return state }
+        let decay = Progression.detrainingAdjustment(daysSinceLastPerformed: last.days(until: day))
+        guard decay != .none else { return state }
+        var adjusted = state
+        adjusted.baselineKg = state.baselineKg.map { $0 * decay.baselineMultiplier }
+        if decay.resetsProgressionCounters {
+            adjusted.repExtension = 0
+            adjusted.extraSetsAdded = 0
+        }
+        if decay.restartsCalibration { adjusted.isInCalibration = true }
+        return adjusted
+    }
+
     // MARK: - Упражнение: классы для w8/w9 и порядка
 
     static let compoundPatterns: Set<Pattern> = [.squat, .hinge, .lunge, .pushH, .pushV, .pullH, .pullV]
@@ -260,6 +281,8 @@ private struct Builder {
     let compositionTarget: [Double]
     let setTarget: [Double]
     let w: PlannerWeights
+    /// Состояния прогрессии на дату дня — с детренированностью (§9.7).
+    let states: [String: ExerciseState]
 
     init(input: SessionInput, day: PlannedDay, scale: Double) {
         self.input = input
@@ -296,6 +319,14 @@ private struct Builder {
         compositionTarget = Builder.targets(day: day, scale: scale, planned: 1.0, vm: vm, weekDone: done, ceilings: ceilings)
         setTarget = Builder.targets(day: day, scale: scale, planned: planned, vm: vm, weekDone: done, ceilings: ceilings)
 
+        var dayStates: [String: ExerciseState] = [:]
+        for c in input.library {
+            guard let state = input.exerciseStates[c.slug] else { continue }
+            dayStates[c.slug] = Planner.stateForSession(
+                state, ladder: WeightLadder.build(loadType: c.loadType, profile: input.equipment), on: day.date)
+        }
+        states = dayStates
+
         let slugRanks = Planner.ranks(for: input.library.map(\.slug), seed: input.seed)
         let block = input.cycleState.periodization?.blockType ?? .neutral
         let vectorSet = Set(day.vector.filter { $0.value > 0 }.keys)
@@ -307,7 +338,7 @@ private struct Builder {
             var eff = [Double](repeating: 0, count: muscleCount)
             for (m, v) in c.effectiveContributions { eff[muscleIndex[m]!] = v }
 
-            let state = input.exerciseStates[c.slug]
+            let state = dayStates[c.slug]
             let noBaseline = state == nil || state!.isInCalibration
             var bias = 0.0
             if let phase = input.cycleState.phase, let confidence = input.cycleState.cycleConfidence {
@@ -653,7 +684,7 @@ private struct Builder {
         var setsBy = Dictionary(uniqueKeysWithValues: zip(sel, sets))
         func orderedSets() -> [Int] { ordered.map { setsBy[$0]! } }
         for p in ordered {
-            let extra = input.exerciseStates[pool[p].candidate.slug]?.extraSetsAdded ?? 0
+            let extra = states[pool[p].candidate.slug]?.extraSetsAdded ?? 0
             for _ in 0..<max(0, extra) {
                 guard setsBy[p]! < Planner.maxSetsPerExercise else { break }
                 setsBy[p]! += 1
@@ -697,7 +728,8 @@ private struct Builder {
         var volumeItems: [(ExerciseCandidate, Int)] = []
         for (index, p) in ordered.enumerated() {
             let c = pool[p].candidate
-            let state = input.exerciseStates[c.slug]
+            let state = states[c.slug]
+            let storedBaseline = input.exerciseStates[c.slug]?.baselineKg
             let adjustments = c.loadedMuscles.map { Recovery.adjustment(forFatigue: input.fatigue[$0] ?? 0) }
             let fatigueBump = adjustments.map(\.targetRIRDelta).max() ?? 0
             let rir = Readiness.targetRIR(baseRIR: baseRIR, readiness: input.readiness,
@@ -705,11 +737,14 @@ private struct Builder {
                 + (input.safety.isConservative ? 1 : 0)
             let wr = Readiness.weightReadiness(readiness: input.readiness, contributingMuscleAdjustments: adjustments)
             var kg: Double?
-            if let baseline = state?.baselineKg {
+            if let state, !state.isInCalibration, let baseline = state.baselineKg {
                 // Направление округления SPEC не задаёт — задокументированный
-                // выбор по прецеденту SetReaction: вниз при срезе, вверх при надбавке.
+                // выбор по прецеденту SetReaction: вниз, если итог ниже хранимой
+                // базовой линии (срез готовности или детренированности), вверх —
+                // если выше. Калибровка веса не предписывает (§9.8).
                 let ladder = WeightLadder.build(loadType: c.loadType, profile: input.equipment)
-                kg = ladder.roundToAchievable(baseline * wr, direction: wr < 1 ? .down : .up)
+                let raw = baseline * wr
+                kg = ladder.roundToAchievable(raw, direction: raw < (storedBaseline ?? baseline) ? .down : .up)
             }
             exercises.append(PrescribedExercise(
                 slug: c.slug, orderIndex: index, targetSets: finalSets[index],

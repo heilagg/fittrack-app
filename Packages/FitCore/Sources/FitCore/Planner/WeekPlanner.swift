@@ -38,7 +38,12 @@ public struct WeekContext: Sendable {
     public var safety: SafetyProfile
     public var goal: Goal
     public var sessionMinutes: Int
-    public var exerciseStates: [String: ExerciseState]
+    /// Журнал подходов по упражнениям, от старых к новым (§4.3). Состояние
+    /// прогрессии планировщик сворачивает сам — `Progression.rebuildStates` с
+    /// лестницей ТЕКУЩЕГО инвентаря и диапазоном цели: готовое состояние от
+    /// вызывающей стороны могло быть посчитано с другой лестницей (триггер
+    /// «изменение инвентаря», §7.1), и предписание разошлось бы с ним.
+    public var exerciseHistory: [String: [ExerciseSession]]
     public var cycle: CycleInputs
     public var todayCheckin: DailyCheckin
     public var todayOverride: Override?
@@ -61,7 +66,7 @@ public struct WeekContext: Sendable {
         safety: SafetyProfile,
         goal: Goal,
         sessionMinutes: Int,
-        exerciseStates: [String: ExerciseState] = [:],
+        exerciseHistory: [String: [ExerciseSession]] = [:],
         cycle: CycleInputs,
         todayCheckin: DailyCheckin = DailyCheckin(),
         todayOverride: Override? = nil,
@@ -81,7 +86,7 @@ public struct WeekContext: Sendable {
         self.safety = safety
         self.goal = goal
         self.sessionMinutes = sessionMinutes
-        self.exerciseStates = exerciseStates
+        self.exerciseHistory = exerciseHistory
         self.cycle = cycle
         self.todayCheckin = todayCheckin
         self.todayOverride = todayOverride
@@ -121,6 +126,7 @@ extension Planner {
         let libraryBySlug = Dictionary(ctx.library.map { ($0.slug, $0) }, uniquingKeysWith: { first, _ in first })
         let weekDone = weekDoneVolume(completed: ctx.completed, weekStart: ctx.weekStart, library: libraryBySlug)
         let previous = ctx.completed.max { $0.performedAt < $1.performedAt }.map { Set($0.setsBySlug.keys) } ?? []
+        let states = exerciseStates(history: ctx.exerciseHistory, library: ctx.library, goal: ctx.goal, equipment: ctx.equipment)
 
         var sessions: [String: BuiltSession] = [:]
         var shortfall: [MuscleSlug: Double] = [:]
@@ -150,7 +156,7 @@ extension Planner {
                 availability: ctx.availability, equipment: ctx.equipment, safety: ctx.safety,
                 goal: ctx.goal, sessionMinutes: ctx.sessionMinutes,
                 fatigue: fatigue, weekDone: weekDone, previousWorkoutSlugs: previous,
-                exerciseStates: ctx.exerciseStates, cycleState: cycleState, readiness: readiness,
+                exerciseStates: states, cycleState: cycleState, readiness: readiness,
                 isDeloadWeek: ctx.isDeloadWeek, seed: daySeed(userSeed: ctx.userSeed, day: day.date),
                 weights: ctx.weights
             )
@@ -173,6 +179,30 @@ extension Planner {
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }
         }
         return WeekPlan(sessions: sessions, statusLines: lines, stretchDayIDs: stretchDayIDs)
+    }
+
+    /// Состояние прогрессии каждого упражнения среза — свёртка журнала
+    /// `Progression.rebuildStates` (§9, §4.3) с диапазоном повторов цели (§9.1)
+    /// и лестницей текущего инвентаря. `planProgression` отдельно не вызывается:
+    /// свёртка уже применяет её к каждой сессии, и второй вызов сдвинул бы
+    /// базовую линию дважды. Детренированность на дату дня накладывает сборка
+    /// (`Planner.stateForSession`). Упражнение без журнала состояния не имеет.
+    public static func exerciseStates(
+        history: [String: [ExerciseSession]],
+        library: [ExerciseCandidate],
+        goal: Goal,
+        equipment: EquipmentProfile
+    ) -> [String: ExerciseState] {
+        var states: [String: ExerciseState] = [:]
+        for candidate in library {
+            guard let sessions = history[candidate.slug], !sessions.isEmpty, states[candidate.slug] == nil else { continue }
+            states[candidate.slug] = Progression.rebuildStates(
+                from: sessions,
+                baseRange: goalTable(goal).reps,
+                ladder: WeightLadder.build(loadType: candidate.loadType, profile: equipment)
+            )
+        }
+        return states
     }
 
     /// «План обновлён» (§7.1) — только если у дней, которые были в прошлом

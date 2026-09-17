@@ -159,6 +159,16 @@ enum PlannerFixtures {
     static let familiar: [String: ExerciseState] = Dictionary(uniqueKeysWithValues:
         library.map { ($0.slug, ExerciseState(baselineKg: nil, isInCalibration: false)) })
 
+    /// Журнал, после свёртки которого упражнение знакомо, но без базовой линии:
+    /// одна сессия, два подхода в диапазоне с «нормально» выводят из калибровки
+    /// (§9.8), веса нет. Эквивалент `familiar` на уровне недели.
+    static func familiarHistory(for library: [ExerciseCandidate]) -> [String: [ExerciseSession]] {
+        Dictionary(uniqueKeysWithValues: library.map { c in
+            let set = SetResult(prescribedKg: nil, actualKg: nil, actualReps: 10, feedback: .ok)
+            return (c.slug, [ExerciseSession(performedAt: day(-3), weightReadiness: 1.0, isCalibration: false, sets: [set, set])])
+        })
+    }
+
     static func day(_ n: Int) -> CalendarDay { CalendarDay(dayNumber: 20_000 + n) }
 
     /// Неделя из дней подряд, начиная с понедельника `day(0)`.
@@ -198,7 +208,7 @@ enum PlannerFixtures {
         library: [ExerciseCandidate] = PlannerFixtures.library,
         availability: EquipmentAvailability = fullAvailability,
         equipment: EquipmentProfile = fullEquipment,
-        states: [String: ExerciseState] = familiar,
+        history: [String: [ExerciseSession]]? = nil,
         today: CalendarDay = day(0),
         started: Set<String> = [],
         completed: [CompletedWorkout] = [],
@@ -214,7 +224,7 @@ enum PlannerFixtures {
             weekStart: day(0), week: week, today: today, startedDayIDs: started, completed: completed,
             fatigue: fatigue, library: library, availability: availability, equipment: equipment,
             safety: SafetyProfile(level: .intermediate), goal: .hypertrophy, sessionMinutes: minutes,
-            exerciseStates: states, cycle: cycle, todayCheckin: checkin, todayOverride: override,
+            exerciseHistory: history ?? familiarHistory(for: library), cycle: cycle, todayCheckin: checkin, todayOverride: override,
             isDeloadWeek: isDeloadWeek, userSeed: seed, weights: weights)
     }
 
