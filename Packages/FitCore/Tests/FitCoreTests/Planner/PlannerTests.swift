@@ -19,6 +19,13 @@ final class PlannerTests: XCTestCase {
 
     private typealias F = PlannerFixtures
 
+    /// Журнал для тестов, которым он не важен: они проверяют состав и статусы,
+    /// а не предписанный вес.
+    private var throwawayHistory: [String: [ExerciseSession]] {
+        get { F.familiarHistory(for: F.library) }
+        set { _ = newValue }
+    }
+
     private func build(_ input: SessionInput) -> BuiltSession {
         guard let session = Planner.buildSession(input) else {
             XCTFail("сессия не собрана")
@@ -51,6 +58,7 @@ final class PlannerTests: XCTestCase {
         var week = week
         var completed: [CompletedWorkout] = []
         var fatigue: [MuscleSlug: FatigueState] = [:]
+        var history = history ?? PlannerFixtures.familiarHistory(for: library)
         var sessions: [BuiltSession] = []
         var volume: [MuscleSlug: Double] = [:]
         for i in week.indices {
@@ -61,7 +69,7 @@ final class PlannerTests: XCTestCase {
             guard let session = Planner.planRemainingDays(ctx).sessions[week[i].id] else { continue }
             sessions.append(session)
             for (m, v) in session.effectiveVolume { volume[m, default: 0] += v }
-            F.perform(session, on: week[i].date, completed: &completed, fatigue: &fatigue, library: library)
+            F.perform(session, on: week[i].date, completed: &completed, fatigue: &fatigue, library: library, history: &history)
             week[i].status = .done
         }
         return (sessions, volume)
@@ -114,7 +122,7 @@ final class PlannerTests: XCTestCase {
         var fatigue: [MuscleSlug: FatigueState] = [:]
         var days = week
         for i in 0..<4 {
-            F.perform(run.sessions[i], on: F.day(i), completed: &completed, fatigue: &fatigue)
+            F.perform(run.sessions[i], on: F.day(i), completed: &completed, fatigue: &fatigue, history: &throwawayHistory)
             days[i].status = .done
         }
         let moment = Planner.evaluationMoment(for: F.day(4))
@@ -622,7 +630,7 @@ final class PlannerTests: XCTestCase {
 
         var completed: [CompletedWorkout] = []
         var fatigue: [MuscleSlug: FatigueState] = [:]
-        F.perform(plain.sessions["day0"]!, on: F.day(0), completed: &completed, fatigue: &fatigue)
+        F.perform(plain.sessions["day0"]!, on: F.day(0), completed: &completed, fatigue: &fatigue, history: &throwawayHistory)
         var done = week
         done[0].status = .done
         started = Planner.planRemainingDays(F.context(week: done, completed: completed, fatigue: fatigue))
@@ -638,7 +646,7 @@ final class PlannerTests: XCTestCase {
 
         var completed: [CompletedWorkout] = []
         var fatigue: [MuscleSlug: FatigueState] = [:]
-        F.perform(before.sessions["day0"]!, on: F.day(0), completed: &completed, fatigue: &fatigue)
+        F.perform(before.sessions["day0"]!, on: F.day(0), completed: &completed, fatigue: &fatigue, history: &throwawayHistory)
         var done = week
         done[0].status = .done
         let after = Planner.planRemainingDays(F.context(week: done, today: F.day(0), completed: completed, fatigue: fatigue))
@@ -730,7 +738,7 @@ final class PlannerTests: XCTestCase {
         var completed: [CompletedWorkout] = []
         var fatigue: [MuscleSlug: FatigueState] = [:]
         let first = Planner.planRemainingDays(F.context(week: week))
-        F.perform(first.sessions["day0"]!, on: F.day(0), completed: &completed, fatigue: &fatigue)
+        F.perform(first.sessions["day0"]!, on: F.day(0), completed: &completed, fatigue: &fatigue, history: &throwawayHistory)
         week[0].status = .done
         week[1].status = .skipped
         // Повторная доставка той же тренировки (§4.3) — тот же ключ.
@@ -1053,6 +1061,9 @@ final class PlannerTests: XCTestCase {
     func test_simulation_sixWeeksOfFiveGluteDays_noDriftNoOvershoot() {
         var completed: [CompletedWorkout] = []
         var fatigue: [MuscleSlug: FatigueState] = [:]
+        var history = F.weightedHistory()
+        var firstBaseline: [String: Double] = [:]
+        var lastBaseline: [String: Double] = [:]
         let minutes = 45
         let ceiling = Planner.weeklyRange(level: .intermediate, accented: true).upperBound
         let norm = Planner.weeklyRange(level: .intermediate, accented: true).lowerBound
@@ -1068,7 +1079,7 @@ final class PlannerTests: XCTestCase {
                     weekStart: start, week: week, today: week[d].date, completed: completed, fatigue: fatigue,
                     library: F.library, availability: F.fullAvailability, equipment: F.fullEquipment,
                     safety: SafetyProfile(level: .intermediate), goal: .hypertrophy, sessionMinutes: minutes,
-                    exerciseHistory: F.familiarHistory(for: F.library),
+                    exerciseHistory: history,
                     cycle: CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases, noPhaseReason: .userChoice)),
                     userSeed: F.seed)
                 let plan = Planner.planRemainingDays(ctx)
@@ -1077,7 +1088,34 @@ final class PlannerTests: XCTestCase {
                 XCTAssertFalse(session.exercises.isEmpty, "неделя \(w) день \(d) пустой")
                 XCTAssertLessThanOrEqual(session.estimatedSeconds, Double(minutes * 60))
                 glute += session.effectiveVolume[.gluteMax] ?? 0
-                F.perform(session, on: week[d].date, completed: &completed, fatigue: &fatigue)
+
+                // Свёртка журнала — часть входа планировщика (находка 1 первого
+                // ревью), поэтому симуляция обязана журнал ВЕСТИ: иначе
+                // `lastPerformedAt` стоит на месте, к третьей неделе включается
+                // детренированность §9.7, а к шестой упражнение уходит в
+                // калибровку — и тест этого не замечает.
+                let states = Planner.exerciseStates(history: history, library: F.library,
+                                                    goal: .hypertrophy, equipment: F.fullEquipment)
+                for e in session.exercises where F.candidate(e.slug).loadType == .dumbbell {
+                    guard let state = states[e.slug] else { continue }
+                    XCTAssertFalse(state.isInCalibration, "неделя \(w) день \(d): \(e.slug) снова в калибровке")
+                    // Журнал ведётся: перерыв между появлениями упражнения не
+                    // выходит за мягкую ступень §9.7 (до 21 дня). Со статичным
+                    // журналом он растёт до 39 дней и дальше — ровно то, чего
+                    // тест раньше не замечал.
+                    let gap = state.lastPerformedAt.map { $0.days(until: week[d].date) } ?? .max
+                    XCTAssertLessThanOrEqual(gap, 21, "неделя \(w) день \(d): \(e.slug) не тренировался \(gap) дней — журнал не пополняется")
+                    XCTAssertNotNil(e.prescribedKg, "неделя \(w) день \(d): у \(e.slug) нет предписанного веса")
+                    if let kg = e.prescribedKg {
+                        XCTAssertTrue(F.fullEquipment.dumbbellsKg.contains(kg), "вес \(kg) вне лестницы гантелей")
+                    }
+                    if let baseline = state.baselineKg {
+                        if firstBaseline[e.slug] == nil { firstBaseline[e.slug] = baseline }
+                        lastBaseline[e.slug] = baseline
+                    }
+                }
+
+                F.perform(session, on: week[d].date, completed: &completed, fatigue: &fatigue, history: &history)
                 week[d].status = .done
             }
             weekly.append(glute)
@@ -1088,5 +1126,16 @@ final class PlannerTests: XCTestCase {
         }
         let spread = (weekly.max() ?? 0) - (weekly.min() ?? 0)
         XCTAssertLessThanOrEqual(spread, 4.0, "недели не расходятся со временем: \(weekly)")
+
+        XCTAssertFalse(firstBaseline.isEmpty, "фикстура: в сборку попадали упражнения с весом")
+        for (slug, first) in firstBaseline {
+            // Базовая линия не улетает вниз. Ровной она не остаётся намеренно: в
+            // пятидневной неделе с акцентом упражнение с гантелями попадает в
+            // сборку примерно раз в две недели, и §9.7 даёт мягкую ступень ×0.92
+            // на каждый возврат, а синтетический фидбэк «нормально» вес обратно
+            // не поднимает (это делает §9.4 на «легко»). Запас — один-два таких
+            // шага за шесть недель.
+            XCTAssertGreaterThanOrEqual(lastBaseline[slug] ?? 0, first * 0.8, "\(slug): базовая линия просела за шесть недель")
+        }
     }
 }

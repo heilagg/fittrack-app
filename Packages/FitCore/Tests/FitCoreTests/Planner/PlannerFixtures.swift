@@ -169,6 +169,24 @@ enum PlannerFixtures {
         })
     }
 
+    /// Журнал с реальными весами: после свёртки у упражнения есть `baselineKg`,
+    /// калибровка позади. Нужен там, где проверяется предписание веса, а не
+    /// только состав, — например в шестинедельной симуляции.
+    static func weightedHistory(for library: [ExerciseCandidate] = PlannerFixtures.library) -> [String: [ExerciseSession]] {
+        let weights: [String: Double] = [
+            "goblet_squat": 8, "hip_thrust_barbell": 30, "db_row": 8, "db_bench": 8, "db_lateral_raise": 4,
+        ]
+        var history = familiarHistory(for: library)
+        for (slug, kg) in weights where library.contains(where: { $0.slug == slug }) {
+            let set = SetResult(prescribedKg: kg, actualKg: kg, actualReps: 10, feedback: .ok)
+            history[slug] = [
+                ExerciseSession(performedAt: day(-6), weightReadiness: 1.0, isCalibration: false, sets: [set, set]),
+                ExerciseSession(performedAt: day(-3), weightReadiness: 1.0, isCalibration: false, sets: [set, set, set]),
+            ]
+        }
+        return history
+    }
+
     static func day(_ n: Int) -> CalendarDay { CalendarDay(dayNumber: 20_000 + n) }
 
     /// Неделя из дней подряд, начиная с понедельника `day(0)`.
@@ -232,20 +250,32 @@ enum PlannerFixtures {
         library.first { $0.slug == slug }!
     }
 
-    /// Выполнить собранную сессию: запись в журнал и утомление (§8.1, фидбэк ok)
-    /// в 18:00 дня.
+    /// Выполнить собранную сессию: запись в журнал тренировок, в журнал подходов
+    /// (его сворачивает планировщик, §9) и в утомление (§8.1, фидбэк ok) в 18:00
+    /// дня. Журнал подходов обязателен: без него `lastPerformedAt` стоит на
+    /// месте, и многонедельный прогон молча уезжает в детренированность §9.7.
     static func perform(
         _ session: BuiltSession,
         on date: CalendarDay,
         completed: inout [CompletedWorkout],
         fatigue: inout [MuscleSlug: FatigueState],
         plannedDayID: String? = nil,
-        library: [ExerciseCandidate] = PlannerFixtures.library
+        library: [ExerciseCandidate] = PlannerFixtures.library,
+        history: inout [String: [ExerciseSession]]
     ) {
         let at = Timestamp(hoursSinceEpoch: Double(date.dayNumber) * 24 + 18)
         let sets = Dictionary(uniqueKeysWithValues: session.exercises.map { ($0.slug, $0.targetSets) })
         completed.append(CompletedWorkout(id: "w-\(date.dayNumber)-\(session.dayID)", plannedDayID: plannedDayID ?? session.dayID,
                                           date: date, performedAt: at, setsBySlug: sets))
+        for e in session.exercises {
+            let reps = (e.targetRepMin + e.targetRepMax) / 2
+            let sets = Array(repeating: SetResult(prescribedKg: e.prescribedKg, actualKg: e.prescribedKg,
+                                                  actualReps: reps, feedback: .ok),
+                             count: e.targetSets)
+            history[e.slug, default: []].append(
+                ExerciseSession(performedAt: date, weightReadiness: e.weightReadiness, isCalibration: false, sets: sets))
+        }
+
         var fatigueSets: [FatigueSet] = []
         for e in session.exercises {
             let c = library.first { $0.slug == e.slug }!
