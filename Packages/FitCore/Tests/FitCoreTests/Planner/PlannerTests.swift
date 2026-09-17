@@ -574,6 +574,23 @@ final class PlannerTests: XCTestCase {
         XCTAssertNotEqual(Planner.daySeed(userSeed: 1, day: F.day(3)), Planner.daySeed(userSeed: 1, day: F.day(4)))
     }
 
+    // MARK: - Контракт: ранг ничьих не зависит от остальной библиотеки (ревью, находка 3)
+
+    /// Ранг — hash(seed, slug) для каждого упражнения отдельно. Перетасовка всего
+    /// списка меняла ранг почти каждого слага от добавления одного чужого, и
+    /// ничьи во всех днях решались заново («План обновлён» без причины).
+    func test_contract_tieRankStableUnderLibraryChanges() {
+        let slugs = F.library.map(\.slug)
+        let base = Planner.ranks(for: slugs, seed: F.seed)
+        let added = Planner.ranks(for: slugs + ["zz_new_upper_exercise", "aa_new_core_exercise"], seed: F.seed)
+        let removed = Planner.ranks(for: slugs.filter { $0 != "db_row" }, seed: F.seed)
+        for slug in slugs {
+            XCTAssertEqual(added[slug], base[slug], "добавление чужих слагов сдвинуло ранг \(slug)")
+            if slug != "db_row" { XCTAssertEqual(removed[slug], base[slug], "удаление чужого слага сдвинуло ранг \(slug)") }
+        }
+        XCTAssertNotEqual(Planner.ranks(for: slugs, seed: F.seed &+ 1)["rdl_band"], base["rdl_band"], "ранг зависит от seed")
+    }
+
     // MARK: - Контракт: §7.6 prescribed_kg = roundToAchievable(baseline × weight_readiness)
 
     func test_contract_prescribedWeightFollowsWeightReadiness() {

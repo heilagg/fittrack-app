@@ -188,19 +188,24 @@ extension Planner {
         }
     }
 
-    /// Ранг слага в перестановке по seed. Перестановка строится от
-    /// отсортированных слагов, поэтому порядок входного среза на неё не влияет
-    /// (сценарий 33a).
-    static func ranks(for slugs: [String], seed: UInt64) -> [String: Int] {
-        var ordered = Array(Set(slugs)).sorted()
-        var rng = SplitMix64(state: seed)
-        if ordered.count > 1 {
-            for i in stride(from: ordered.count - 1, to: 0, by: -1) {
-                let j = Int(rng.next() % UInt64(i + 1))
-                ordered.swapAt(i, j)
-            }
+    /// Ранг слага для ничьих — hash(seed, slug), у каждого упражнения свой и
+    /// независимый от остальной библиотеки: добавление или удаление чужого
+    /// упражнения не перерешивает ничьи между оставшимися (иначе обновление
+    /// контента давало бы «План обновлён» без причины, §7.1). От порядка
+    /// входного среза ранг тоже не зависит (сценарий 33a). Совпадение хешей
+    /// разрешается слагом при сравнении (`rankLess`).
+    static func ranks(for slugs: [String], seed: UInt64) -> [String: UInt64] {
+        Dictionary(Set(slugs).map { ($0, rank(slug: $0, seed: seed)) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    static func rank(slug: String, seed: UInt64) -> UInt64 {
+        var hash: UInt64 = 0xCBF2_9CE4_8422_2325          // FNV-1a 64
+        for byte in slug.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 0x0000_0100_0000_01B3
         }
-        return Dictionary(uniqueKeysWithValues: ordered.enumerated().map { ($1, $0) })
+        var rng = SplitMix64(state: seed ^ hash)
+        return rng.next()
     }
 }
 
@@ -212,7 +217,7 @@ private let muscleIndex: [MuscleSlug: Int] = Dictionary(uniqueKeysWithValues: mu
 
 private struct PoolItem {
     let candidate: ExerciseCandidate
-    let rank: Int
+    let rank: UInt64
     /// Эффективный вклад по индексу мышцы.
     let effective: [Double]
     /// w4 + w6 + w7 + (w8, w9 с потолком) — не зависит от подходов.
@@ -308,13 +313,13 @@ private struct Builder {
                 worst = min(worst, vm[i])
             }
             items.append(PoolItem(
-                candidate: c, rank: slugRanks[c.slug] ?? 0, effective: eff,
+                candidate: c, rank: slugRanks[c.slug]!, effective: eff,
                 staticPenalty: staticPenalty, fatiguePerSet: fatiguePerSet,
                 serving: c.muscleContributions.contains { vectorSet.contains($0.key) && $0.value > 0 },
                 hasFatiguedMuscle: worst < 1.0, worstVolumeMultiplier: worst
             ))
         }
-        pool = items.sorted { $0.rank < $1.rank }
+        pool = items.sorted { $0.rank != $1.rank ? $0.rank < $1.rank : $0.candidate.slug < $1.candidate.slug }
     }
 
     /// Цель сессии по мышцам (§7.3, «Объём сессии» и «Освободившийся объём»):
@@ -391,7 +396,7 @@ private struct Builder {
             let tb = Planner.compoundPatterns.contains(cb.pattern) || cb.pattern == .carry ? 0 : 1
             if ta != tb { return ta < tb }
             if ca.fatigueCost != cb.fatigueCost { return ca.fatigueCost > cb.fatigueCost }
-            return pool[a].rank < pool[b].rank
+            return rankLess(a, b)
         }
         if let accent = day.accent, ordered.count > 1 {
             let half = (ordered.count + 1) / 2
@@ -466,7 +471,7 @@ private struct Builder {
                 if time.fits(sets) {
                     let s = score(sel, sets, target: target)
                     if best == nil || s > best!.score + Planner.scoreTolerance
-                        || (abs(s - best!.score) <= Planner.scoreTolerance && pool[sel[k]].rank < pool[sel[best!.k]].rank) {
+                        || (abs(s - best!.score) <= Planner.scoreTolerance && rankLess(sel[k], sel[best!.k])) {
                         best = (s, k)
                     }
                 }
@@ -488,7 +493,7 @@ private struct Builder {
                     guard servingPatterns(s2) >= required else { continue }
                     let s = score(s2, n2, target: target)
                     if best == nil || s > best!.score + Planner.scoreTolerance
-                        || (abs(s - best!.score) <= Planner.scoreTolerance && pool[sel[k]].rank < pool[sel[best!.k]].rank) {
+                        || (abs(s - best!.score) <= Planner.scoreTolerance && rankLess(sel[k], sel[best!.k])) {
                         best = (s, k)
                     }
                 }
@@ -509,10 +514,16 @@ private struct Builder {
         return sel.filter { pool[$0].candidate.progressionFamily == family }.count < 2
     }
 
-    func better(_ s: Double, rank: Int, than best: (score: Double, rank: Int)?) -> Bool {
+    /// Порядок ничьих: ранг, при совпадении хешей — слаг.
+    func rankLess(_ a: Int, _ b: Int) -> Bool {
+        let ra = pool[a].rank, rb = pool[b].rank
+        return ra != rb ? ra < rb : pool[a].candidate.slug < pool[b].candidate.slug
+    }
+
+    func better(_ s: Double, candidate p: Int, than best: (score: Double, p: Int)?) -> Bool {
         guard let best else { return true }
         if s > best.score + Planner.scoreTolerance { return true }
-        return abs(s - best.score) <= Planner.scoreTolerance && rank < best.rank
+        return abs(s - best.score) <= Planner.scoreTolerance && rankLess(p, best.p)
     }
 
     // MARK: Сборка
@@ -524,11 +535,11 @@ private struct Builder {
 
         // Жадный шаг.
         while sel.count < Planner.maxExercises {
-            var best: (score: Double, rank: Int, p: Int)?
+            var best: (score: Double, p: Int)?
             for p in pool.indices where !sel.contains(p) && familyAllows(sel, adding: p) {
                 guard let a = allocate(sel + [p], target: compositionTarget, requiredPatterns: nil) else { continue }
-                if better(a.score, rank: pool[p].rank, than: best.map { ($0.score, $0.rank) }) {
-                    best = (a.score, pool[p].rank, p)
+                if better(a.score, candidate: p, than: best.map { ($0.score, $0.p) }) {
+                    best = (a.score, p)
                 }
             }
             guard let b = best, b.score > current + Planner.scoreTolerance else { break }
@@ -546,12 +557,12 @@ private struct Builder {
         let required = min(3, available)
         while servingPatterns(sel) < required, sel.count < Planner.maxExercises {
             let have = Set(sel.filter { pool[$0].serving }.map { pool[$0].candidate.pattern })
-            var best: (score: Double, rank: Int, p: Int)?
+            var best: (score: Double, p: Int)?
             for p in pool.indices where !sel.contains(p) && pool[p].serving
                 && !have.contains(pool[p].candidate.pattern) && familyAllows(sel, adding: p) {
                 guard let a = allocate(sel + [p], target: compositionTarget, requiredPatterns: nil) else { continue }
-                if better(a.score, rank: pool[p].rank, than: best.map { ($0.score, $0.rank) }) {
-                    best = (a.score, pool[p].rank, p)
+                if better(a.score, candidate: p, than: best.map { ($0.score, $0.p) }) {
+                    best = (a.score, p)
                 }
             }
             guard let b = best else { break }
@@ -564,7 +575,7 @@ private struct Builder {
 
         // Локальное улучшение: замена на упражнение того же паттерна из среза.
         for _ in 0..<Planner.maxImprovementPasses {
-            var best: (score: Double, rank: Int, k: Int, p: Int)?
+            var best: (score: Double, k: Int, p: Int)?
             for k in sel.indices {
                 let rest = sel.enumerated().filter { $0.offset != k }.map(\.element)
                 for p in pool.indices where !sel.contains(p)
@@ -575,8 +586,8 @@ private struct Builder {
                     guard servingPatterns(trial) >= achieved,
                           let a = allocate(trial, target: compositionTarget, requiredPatterns: nil),
                           a.score > current + Planner.scoreTolerance else { continue }
-                    if better(a.score, rank: pool[p].rank, than: best.map { ($0.score, $0.rank) }) {
-                        best = (a.score, pool[p].rank, k, p)
+                    if better(a.score, candidate: p, than: best.map { ($0.score, $0.p) }) {
+                        best = (a.score, k, p)
                     }
                 }
             }
