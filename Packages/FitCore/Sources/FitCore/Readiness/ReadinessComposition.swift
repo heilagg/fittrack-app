@@ -8,7 +8,7 @@ extension Readiness {
 
     /// `readiness < 0.85` добавляет к целевому RIR, независимо от фазы.
     static func readinessRIRBump(readiness: Double) -> Int {
-        readiness < 0.85 ? 1 : 0
+        readiness < Thresholds.lowReadiness ? 1 : 0
     }
 
     /// Итоговый целевой RIR: `min(фаза + готовность, +1)` — сумма, а не
@@ -85,8 +85,8 @@ extension Readiness {
     /// на какое упражнение она ляжет. Границы строгие: 0.9 и 1.05 сами
     /// поправки не дают.
     public static func sessionSetDelta(readiness: Double) -> Int {
-        if readiness < 0.9 { return -1 }
-        if readiness > 1.05 { return 1 }
+        if readiness < Thresholds.setDecrease { return -1 }
+        if readiness > Thresholds.setIncrease { return 1 }
         return 0
     }
 

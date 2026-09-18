@@ -149,15 +149,15 @@ extension Progression {
                 case .none:
                     break
                 case .mildDecay:
-                    move(.lower(to: baseline * 0.92, reason: .detraining),
+                    move(.lower(to: baseline * decay.baselineMultiplier, reason: .detraining),
                          openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                 case .moderateDecay:
-                    move(.lower(to: baseline * 0.85, reason: .detraining),
+                    move(.lower(to: baseline * decay.baselineMultiplier, reason: .detraining),
                          openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                     state.repExtension = 0
                     state.extraSetsAdded = 0
                 case .restartCalibration:
-                    move(.lower(to: baseline * 0.75, reason: .detraining),
+                    move(.lower(to: baseline * decay.baselineMultiplier, reason: .detraining),
                          openingWeight: firstSet.actualKg, readiness: session.weightReadiness)
                     state.isInCalibration = true
                     // Срез обязан пережить свою собственную сессию. Она уже
