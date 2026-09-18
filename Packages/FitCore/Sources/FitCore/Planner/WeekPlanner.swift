@@ -38,7 +38,8 @@ public struct WeekContext: Sendable {
     public var safety: SafetyProfile
     public var goal: Goal
     public var sessionMinutes: Int
-    /// Журнал подходов по упражнениям, от старых к новым (§4.3). Состояние
+    /// Журнал подходов по упражнениям (§4.3); порядок значения не имеет —
+    /// свёртка сортирует его сама. Состояние
     /// прогрессии планировщик сворачивает сам — `Progression.rebuildStates` с
     /// лестницей ТЕКУЩЕГО инвентаря и диапазоном цели: готовое состояние от
     /// вызывающей стороны могло быть посчитано с другой лестницей (триггер
@@ -208,6 +209,18 @@ extension Planner {
         return days.sorted { $0.date < $1.date }.filter { seen.insert($0.id).inserted }
     }
 
+    /// Журнал в хронологическом порядке: `rebuildStates` его не сортирует (так
+    /// сказано в её doc-комментарии), а приходит он из слияния локальных и
+    /// серверных записей (§4.3), где порядок не гарантирован. Нормализует вход
+    /// тот, кто его потребляет, — как `buildSession` сортирует неделю, а
+    /// `normalizedWeek` её дедуплицирует. Две сессии одного дня сохраняют
+    /// порядок, в котором пришли: сортировка по паре (дата, позиция).
+    static func chronological(_ sessions: [ExerciseSession]) -> [ExerciseSession] {
+        sessions.enumerated()
+            .sorted { ($0.element.performedAt, $0.offset) < ($1.element.performedAt, $1.offset) }
+            .map(\.element)
+    }
+
     /// Изменение плана — то, что пользователь видит на экране «Сегодня»:
     /// другой состав собранной тренировки либо смена судьбы дня по РЕШЕНИЮ
     /// планировщика (оверрайд `rest` заменил тренировку растяжкой и обратно).
@@ -244,7 +257,7 @@ extension Planner {
         for candidate in library {
             guard let sessions = history[candidate.slug], !sessions.isEmpty, states[candidate.slug] == nil else { continue }
             states[candidate.slug] = Progression.rebuildStates(
-                from: sessions,
+                from: chronological(sessions),
                 baseRange: goalTable(goal).reps,
                 ladder: WeightLadder.build(loadType: candidate.loadType, profile: equipment)
             )

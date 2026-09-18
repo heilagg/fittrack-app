@@ -973,6 +973,43 @@ final class PlannerTests: XCTestCase {
         }
     }
 
+    // MARK: - Контракт: порядок журнала — забота свёртки (ревью 4, находка 2)
+
+    /// `rebuildStates` не сортирует (её doc-комментарий говорит об этом прямо), а
+    /// журнал приходит из слияния локальных и серверных записей (§4.3), где
+    /// порядок не гарантирован. Нормализует вход тот, кто его потребляет, — как
+    /// неделю сортирует `buildSession`.
+    func test_contract_historyOrderDoesNotMatter() {
+        let set = { (kg: Double) in SetResult(prescribedKg: kg, actualKg: kg, actualReps: 10, feedback: .ok) }
+        let older = ExerciseSession(performedAt: F.day(-9), weightReadiness: 1.0, isCalibration: false, sets: [set(8), set(8)])
+        let newer = ExerciseSession(performedAt: F.day(-2), weightReadiness: 1.0, isCalibration: false, sets: [set(12), set(12), set(12)])
+        let library = [F.gobletSquat, F.rdlBand, F.bandAbduction, F.legCurlBand]
+
+        func states(_ sessions: [ExerciseSession]) -> ExerciseState? {
+            var history = F.familiarHistory(for: library)
+            history["goblet_squat"] = sessions
+            return Planner.exerciseStates(history: history, library: library, goal: .hypertrophy,
+                                          equipment: F.fullEquipment)["goblet_squat"]
+        }
+        // Порядок слияния синхронизации: свежая запись впереди старой.
+        XCTAssertEqual(states([newer, older]), states([older, newer]), "состояние не зависит от порядка журнала")
+
+        func prescribed(_ sessions: [ExerciseSession]) -> Double? {
+            var history = F.familiarHistory(for: library)
+            history["goblet_squat"] = sessions
+            let ctx = WeekContext(
+                weekStart: F.day(0), week: F.week([(.lower, nil, F.lower)]), today: F.day(0), library: library,
+                availability: F.fullAvailability, equipment: F.fullEquipment,
+                safety: SafetyProfile(level: .intermediate), goal: .hypertrophy, sessionMinutes: 45,
+                exerciseHistory: history,
+                cycle: CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases, noPhaseReason: .userChoice)),
+                userSeed: F.seed)
+            return Planner.planRemainingDays(ctx).sessions["day0"]?.exercises.first { $0.slug == "goblet_squat" }?.prescribedKg
+        }
+        XCTAssertEqual(prescribed([newer, older]), prescribed([older, newer]), "предписанный вес тоже")
+        XCTAssertNotNil(prescribed([older, newer]), "фикстура: присед в сборке и с весом")
+    }
+
     // MARK: - Контракт: инвентарь §6.6
 
     func test_contract_equipmentPredicatesAndLadder() {
