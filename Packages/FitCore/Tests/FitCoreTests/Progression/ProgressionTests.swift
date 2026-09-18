@@ -427,19 +427,50 @@ final class ProgressionTests: XCTestCase {
         XCTAssertEqual(state.repExtension, 2)
     }
 
-    func test_finding4_calibrationSessionBreaksUnderRepMinRun() {
-        // previousSessionUnderRepMin присваивался только в конце тела цикла,
-        // а calibration-сессия уходила по continue — две несмежные сессии с
-        // недобором считались «двумя подряд» и давали понижение.
+    func test_logCalibrationFlagDoesNotAffectTheFold() {
+        // Прежнее имя — test_finding4_calibrationSessionBreaksUnderRepMinRun,
+        // и утверждало оно, что помеченная калибровочной сессия обрывает
+        // прогон по недобору. Это было верно, пока режим калибровки определял
+        // флаг журнала (`if session.isCalibration`, до af9537d). Теперь режим
+        // определяет ТОЛЬКО состояние, а `workouts.is_calibration` остался
+        // флагом для UI и аналитики — свёртка его не читает нигде.
+        //
+        // Прежняя премисса стала недостижимой: сид-сессия с двумя подходами в
+        // диапазоне выполняет условие выхода §9.8 и закрывает калибровку ДО
+        // третьей сессии, поэтому вход стал неотличим от контрольного
+        // test_finding4_control_normalSessionBetweenUnderRepMinDoesNotLower —
+        // а ожидания расходились (10 против 9.0). Две несовместимые
+        // формулировки одного и того же входа.
+        //
+        // На месте исчезнувшей премиссы утверждается то, что af9537d
+        // действительно держит и что не было закрыто ничем: флаг журнала на
+        // свёртку не влияет. Если он снова начнёт влиять, падает здесь — а не
+        // в сценариях §18 про исчерпанную лестницу, где режим, не умеющий
+        // кончиться, отменяет каскад §9.5 и причина уже не видна.
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10]))
-        let sessions = [
-            session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
-            session(1, [(10, 10, 5, .hard)]),
-            session(2, isCalibration: true, [(10, 10, 9, .ok)]),
-            session(3, [(10, 10, 5, .hard)]),
-        ]
-        let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
-        XCTAssertEqual(state.baselineKg ?? -1, 10, accuracy: 0.0001)
+        func sessions(flagged: Bool) -> [ExerciseSession] {
+            [
+                session(0, [(10, 10, 9, .ok), (10, 10, 9, .ok)]),
+                session(1, [(10, 10, 5, .hard)]),
+                session(2, isCalibration: flagged, [(10, 10, 9, .ok)]),
+                session(3, [(10, 10, 5, .hard)]),
+            ]
+        }
+        let flagged = Progression.rebuildStates(
+            from: sessions(flagged: true), baseRange: hypertrophyRange, ladder: ladder)
+        let unflagged = Progression.rebuildStates(
+            from: sessions(flagged: false), baseRange: hypertrophyRange, ladder: ladder)
+        XCTAssertEqual(
+            flagged, unflagged,
+            "workouts.is_calibration — флаг UI; режимом калибровки владеет ExerciseState.isInCalibration"
+        )
+        // Привязка к числу, а не только равенство друг другу: без неё тест
+        // выживёт и в случае, когда свёртка сломается симметрично в обеих
+        // ветках. Три сессии подряд без повышения дают deload §9.4 ×0.90 —
+        // тот же механизм и то же число, что пинует контрольный
+        // test_finding4_control_normalSessionBetweenUnderRepMinDoesNotLower.
+        XCTAssertEqual(flagged.baselineKg ?? -1, 9.0, accuracy: 0.0001)
+        XCTAssertEqual(flagged.stallCount, 1)
     }
 
     func test_finding4_control_twoConsecutiveUnderRepMinStillLowers() {
@@ -873,9 +904,18 @@ final class ProgressionTests: XCTestCase {
     func test_calibrationLowersBaselineWhenSessionEstablishesLess() {
         // Калибровка двигает базовую линию в обе стороны: если прошлая сессия
         // перелетела, следующая её корректирует вниз.
+        //
+        // Сид намеренно «легко» и вне диапазона (20 повторов при 8–12).
+        // Условие выхода §9.8 — два подхода ПОДРЯД в диапазоне на
+        // «нормально»/«тяжело», — и сид его не выполняет, поэтому вторая
+        // сессия остаётся в режиме калибровки ПО СОСТОЯНИЮ; только так до неё
+        // и доходит понижающая ветка калибровки. Флаг `isCalibration` тут ни
+        // при чём (см. test_logCalibrationFlagDoesNotAffectTheFold) и оставлен
+        // как достоверные данные журнала. Тот же приём сидирования, что в
+        // test_calibrationDoesNotAdoptFailedWeight.
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10, 12]))
         let sessions = [
-            session(0, isCalibration: true, [(10, 10, 12, .ok), (12, 12, 12, .ok)]),   // сидирует 12
+            session(0, isCalibration: true, [(10, 10, 20, .easy), (12, 12, 20, .easy)]),   // сидирует 12
             session(2, isCalibration: true, [(12, 12, 4, .failed), (10, 8, 12, .ok)]),
         ]
         let state = Progression.rebuildStates(from: sessions, baseRange: hypertrophyRange, ladder: ladder)
