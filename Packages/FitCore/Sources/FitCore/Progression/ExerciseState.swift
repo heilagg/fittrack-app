@@ -84,9 +84,15 @@ public struct ExerciseSession: Sendable, Equatable {
     /// (SPEC §7.6), дневное `workouts.readiness` не подставляется. Читается
     /// только демпфированием §9.6.
     public var weightReadiness: Double
-    /// Калибровочная сессия (SPEC §9.8): её подходы не идут в модель
-    /// прогрессии между сессиями, но всё ещё дают исходный `baselineKg`,
-    /// если состояние ещё не инициализировано.
+    /// Пометка «калибровочная» из журнала (`workouts.is_calibration`,
+    /// SPEC §3.1) — флаг для UI и аналитики.
+    ///
+    /// Режимом калибровки он НЕ управляет и свёрткой `rebuildStates` не
+    /// читается вовсе: источник истины — `ExerciseState.isInCalibration`,
+    /// который та же свёртка и вычисляет по условию выхода §9.8. Почему не
+    /// `session.isCalibration || state.isInCalibration` — см. комментарий у
+    /// `inCalibrationRegime` в RebuildStates: приложение, продолжающее слать
+    /// флаг, держало бы режим открытым вечно и отменяло условия завершения.
     public var isCalibration: Bool
     public var sets: [SetResult]
 
