@@ -364,7 +364,7 @@ final class PlannerTests: XCTestCase {
     func test_scenario29c_timeShortfallLineOnlyWhenBudgetBinds() {
         let tight = Planner.planRemainingDays(F.context(week: twoGluteDays, minutes: 12))
         XCTAssertTrue(tight.statusLines.contains { if case .weekShortfallByTime = $0 { return true }; return false })
-        XCTAssertFalse(tight.statusLines.contains { if case .weekLossFromSkips = $0 { return true }; return false })
+        XCTAssertFalse(tight.statusLines.contains { if case .plannedVolumeLoss = $0 { return true }; return false })
 
         let roomy = Planner.planRemainingDays(F.context(week: twoGluteDays, minutes: 120))
         XCTAssertFalse(roomy.statusLines.contains { if case .weekShortfallByTime = $0 { return true }; return false })
@@ -512,7 +512,7 @@ final class PlannerTests: XCTestCase {
 
     private func lossMuscles(_ plan: WeekPlan) -> [MuscleSlug] {
         plan.statusLines.compactMap { (line: ReasonCode) -> MuscleSlug? in
-            if case .weekLossFromSkips(let m, _, _) = line { return m }
+            if case .plannedVolumeLoss(let m, _, _) = line { return m }
             return nil
         }
     }
@@ -524,7 +524,7 @@ final class PlannerTests: XCTestCase {
         let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
         let rest = Planner.planRemainingDays(F.context(week: week, override: .rest))
         XCTAssertTrue(lossMuscles(rest).contains(.gluteMax), "строка потери по ягодичным за день отдыха")
-        XCTAssertTrue(rest.statusLines.contains { if case .weekLossFromSkips(_, _, .restOverride) = $0 { return true }; return false },
+        XCTAssertTrue(rest.statusLines.contains { if case .plannedVolumeLoss(_, _, .restOverride) = $0 { return true }; return false },
                       "причина — оверрайд отдыха, не пропуск")
 
         var skipped = week
@@ -566,7 +566,7 @@ final class PlannerTests: XCTestCase {
 
         func cause(_ muscle: MuscleSlug) -> DayOutcome.Cause? {
             for line in plan.statusLines {
-                if case .weekLossFromSkips(muscle, _, let cause) = line { return cause }
+                if case .plannedVolumeLoss(muscle, _, let cause) = line { return cause }
             }
             return nil
         }
@@ -706,7 +706,7 @@ final class PlannerTests: XCTestCase {
         let fresh = Planner.planRemainingDays(F.context(week: week, today: F.day(3)))
         XCTAssertEqual(plan.sessions["day3"]?.composition, fresh.sessions["day3"]?.composition,
                        "без утомления и выполненного объёма последний день тот же, что и без пропусков")
-        XCTAssertTrue(plan.statusLines.contains(.weekLossFromSkips(muscle: .gluteMax, sets: 8, cause: .skipped)))
+        XCTAssertTrue(plan.statusLines.contains(.plannedVolumeLoss(muscle: .gluteMax, sets: 8, cause: .skipped)))
     }
 
     // MARK: - Сценарий 32a: пропущен день другого типа — дни низа не изменились
@@ -719,7 +719,7 @@ final class PlannerTests: XCTestCase {
         let after = Planner.planRemainingDays(F.context(week: skipped, today: F.day(2)))
         XCTAssertEqual(after.sessions["day2"]?.composition, before.sessions["day2"]?.composition)
         XCTAssertNil(Planner.rebuildNotice(previous: before, current: after, cause: .workoutSkipped))
-        XCTAssertFalse(after.statusLines.contains { if case .weekLossFromSkips(.gluteMax, _, _) = $0 { return true }; return false })
+        XCTAssertFalse(after.statusLines.contains { if case .plannedVolumeLoss(.gluteMax, _, _) = $0 { return true }; return false })
     }
 
     // MARK: - Сценарий 32b: пропущен последний день — пересобирать нечего, статус показан
@@ -732,7 +732,7 @@ final class PlannerTests: XCTestCase {
         let after = Planner.planRemainingDays(F.context(week: week, today: F.day(1)))
         XCTAssertTrue(after.sessions.isEmpty)
         XCTAssertNil(Planner.rebuildNotice(previous: before, current: after, cause: .workoutSkipped))
-        XCTAssertTrue(after.statusLines.contains(.weekLossFromSkips(muscle: .gluteMax, sets: 8, cause: .skipped)))
+        XCTAssertTrue(after.statusLines.contains(.plannedVolumeLoss(muscle: .gluteMax, sets: 8, cause: .skipped)))
     }
 
     // MARK: - Сценарий 32c: пропуск в конце недели W — S_эфф недели W+1 не изменился

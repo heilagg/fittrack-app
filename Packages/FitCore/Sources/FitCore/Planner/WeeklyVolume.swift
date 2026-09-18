@@ -147,7 +147,7 @@ extension Planner {
         return MuscleSlug.allCases.compactMap { m in
             let sets = Int((loss[m] ?? 0).rounded())
             guard sets > 0 else { return nil }
-            return .weekLossFromSkips(muscle: m, sets: sets, cause: causes[m] ?? .skipped)
+            return .plannedVolumeLoss(muscle: m, sets: sets, cause: causes[m] ?? .skipped)
         }
     }
 }

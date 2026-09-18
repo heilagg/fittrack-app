@@ -243,9 +243,10 @@ public enum ReasonCode: Sendable, Equatable {
     /// изменился состав или объём.
     case planRebuilt(cause: RebuildCause)
     /// Статус недели: выйдет меньше подходов, потому что день потерян (SPEC
-    /// §7.1). Причина отличает пропуск от дня отдыха по оверрайду и от замены —
-    /// формулировки у них разные, а число одно и то же.
-    case weekLossFromSkips(muscle: MuscleSlug, sets: Int, cause: DayOutcome.Cause)
+    /// §7.1). Источников три — пропуск, оверрайд `rest` и замена дня, — поэтому
+    /// имя не про пропуск: причина приходит отдельным полем, формулировки у них
+    /// разные, а число одно и то же.
+    case plannedVolumeLoss(muscle: MuscleSlug, sets: Int, cause: DayOutcome.Cause)
     /// Статус недели: недобор по времени (SPEC §7.1, сценарий 29c).
     case weekShortfallByTime(muscle: MuscleSlug, sets: Int)
     /// Генератор тренировок отключён (SPEC §14.3, сценарий 26).
