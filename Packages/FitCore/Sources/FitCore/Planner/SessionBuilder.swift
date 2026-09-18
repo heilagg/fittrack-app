@@ -127,8 +127,9 @@ extension Planner {
     public static let minSetsPerExercise = 2
     public static let maxSetsPerExercise = 5
     public static let maxImprovementPasses = 20
-    /// Порог «низкой готовности» для w9 — тот же, что у RIR +1 (§10).
-    public static let lowReadinessThreshold = 0.85
+    /// Порог «низкой готовности» для w9 — не свой, а тот же, за которым §10
+    /// поднимает RIR (§7.3, «нового порога не вводим»).
+    public static let lowReadinessThreshold = Readiness.Thresholds.lowReadiness
 
     public static func buildSession(_ input: SessionInput) -> BuiltSession? {
         let day = input.week[input.dayIndex]

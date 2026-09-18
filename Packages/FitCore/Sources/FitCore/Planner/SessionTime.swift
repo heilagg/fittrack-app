@@ -6,11 +6,13 @@ extension Planner {
     /// Работа в подходе — константа, пока не закрыт §9.5; ×2 на односторонних.
     public static let workSecondsPerSet = 40.0
 
-    /// Множитель отдыха — ступенька на порогах готовности §10, границы строгие.
-    /// Тот же, что у таймера §13.3.
+    /// Множитель отдыха — ступенька на тех же порогах §10, что и ±1 подход на
+    /// сессию: пороги берутся из `Readiness.Thresholds`, своих чисел у
+    /// планировщика нет (§7.3, «новых порогов не вводим»). Тот же множитель
+    /// читает таймер §13.3.
     public static func restFactor(readiness: Double) -> Double {
-        if readiness < 0.9 { return 1.2 }
-        if readiness > 1.05 { return 0.8 }
+        if readiness < Readiness.Thresholds.setDecrease { return 1.2 }
+        if readiness > Readiness.Thresholds.setIncrease { return 0.8 }
         return 1.0
     }
 

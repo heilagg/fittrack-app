@@ -1035,6 +1035,31 @@ final class PlannerTests: XCTestCase {
                       "фикстура: без фазы при 20 минутах прыжок в сборке есть")
     }
 
+    // MARK: - Контракт: пороги готовности §10 — из одного места (ревью 4, находка 1)
+
+    /// SPEC §10 и §7.3: новых порогов не вводим, таймер отдыха и бюджет читают
+    /// то же число, что и ±1 подход. Тест держит это поведением, а не сверкой
+    /// констант: если у планировщика снова появится свой литерал, полосы
+    /// разъедутся.
+    func test_contract_readinessThresholdsHaveOneSource() {
+        var readiness = Readiness.range.lowerBound
+        while readiness <= Readiness.range.upperBound + 1e-9 {
+            let delta = Readiness.sessionSetDelta(readiness: readiness)
+            let rest = Planner.restFactor(readiness: readiness)
+            switch delta {
+            case -1: XCTAssertEqual(rest, 1.2, "готовность \(readiness): −1 подход и длинный отдых — одна полоса")
+            case 1: XCTAssertEqual(rest, 0.8, "готовность \(readiness): +1 подход и короткий отдых — одна полоса")
+            default: XCTAssertEqual(rest, 1.0, "готовность \(readiness): нейтральная полоса")
+            }
+            readiness += 0.005
+        }
+        // Границы строгие с обеих сторон.
+        XCTAssertEqual(Planner.restFactor(readiness: Readiness.Thresholds.setDecrease), 1.0)
+        XCTAssertEqual(Planner.restFactor(readiness: Readiness.Thresholds.setIncrease), 1.0)
+        XCTAssertEqual(Planner.lowReadinessThreshold, Readiness.Thresholds.lowReadiness,
+                       "порог w9 — тот же, за которым §10 поднимает RIR")
+    }
+
     // MARK: - Контракт: время, порядок, w8/w9
 
     func test_contract_timeOrderAndPreferenceTerms() {
