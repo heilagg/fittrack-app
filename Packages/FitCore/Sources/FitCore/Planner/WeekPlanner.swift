@@ -177,6 +177,9 @@ extension Planner {
         for day in week where outcomes[day.id]?.kind == .vectorMissing {
             lines.append(.dayVectorMissing(kind: day.kind, accent: day.accent))
         }
+        if outcomes.values.contains(where: { $0.kind == .generatorDisabled }) {
+            lines.append(.workoutGenerationDisabled)
+        }
         for m in MuscleSlug.allCases {
             let sets = Int((shortfall[m] ?? 0).rounded())
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }

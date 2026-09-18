@@ -97,12 +97,23 @@ final class PlannerTests: XCTestCase {
 
     // MARK: - Сценарий 26 (часть планировщика): беременность отключает генератор
 
+    /// §14.3 выключает генератор, и «тренировка без упражнений» — это не он:
+    /// пустая сессия в плане выглядит как обычный день, у которого просто
+    /// ничего не подобралось. День получает свой итог и причину на уровне недели.
     func test_scenario26_pregnancyDisablesGenerator() {
         let pregnant = CycleState(phaseMode: .noPhases, noPhaseReason: .pregnancy, hasAnchor: false, phase: nil,
                                   cycleConfidence: nil, periodization: nil, effectivePhaseAdjustment: nil)
-        let session = build(F.input(week: twoGluteDays, cycleState: pregnant))
-        XCTAssertTrue(session.exercises.isEmpty)
-        XCTAssertEqual(session.reasons, [.workoutGenerationDisabled])
+        XCTAssertNil(Planner.buildSession(F.input(week: twoGluteDays, cycleState: pregnant)),
+                     "сборка одного дня не возвращает пустую тренировку")
+
+        let cycle = CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases, noPhaseReason: .pregnancy))
+        let plan = Planner.planRemainingDays(F.context(week: twoGluteDays, cycle: cycle))
+        XCTAssertTrue(plan.sessions.isEmpty, "в плане недели тренировок нет")
+        XCTAssertEqual(plan.days["day0"]?.kind, .generatorDisabled)
+        XCTAssertEqual(plan.days["day0"]?.cause, .pregnancy)
+        XCTAssertFalse(plan.days["day0"]?.losesPlannedVolume ?? true, "это не потеря объёма — генератор выключен")
+        XCTAssertTrue(plan.statusLines.contains(.workoutGenerationDisabled),
+                      "причина видна на уровне недели, а не только внутри сессии")
     }
 
     // MARK: - Сценарий 27: ягодицы 5 дней подряд — объём режется, паттерны меняются, не блокируется

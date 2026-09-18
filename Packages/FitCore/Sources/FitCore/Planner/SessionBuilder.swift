@@ -144,10 +144,12 @@ extension Planner {
             input.week = sorted
             input.dayIndex = index
         }
-        if input.cycleState.noPhaseReason == .pregnancy {
-            return BuiltSession(dayID: day.id, exercises: [], estimatedSeconds: 0, effectiveVolume: [:],
-                                leadingMuscle: nil, scale: 0, reasons: [.workoutGenerationDisabled])
-        }
+        // §14.3: при беременности генератор выключен — тренировки нет вовсе.
+        // Пустая `BuiltSession` здесь была бы хуже `nil`: в плане недели она
+        // выглядит как обычный день, у которого ничего не подобралось, а причина
+        // видна только тому, кто заглянет в `reasons`. Причину несёт итог дня
+        // (`DayOutcome.generatorDisabled`) и строка статуса недели.
+        if input.cycleState.noPhaseReason == .pregnancy { return nil }
         guard let (lead, scale) = sessionScale(dayIndex: input.dayIndex, week: input.week, level: input.safety.level)
         else { return nil }
         var builder = Builder(input: input, day: day, scale: scale)
