@@ -44,7 +44,7 @@ final class PlannerTests: XCTestCase {
         return session
     }
 
-    private func patterns(_ session: BuiltSession, in library: [ExerciseCandidate] = PlannerFixtures.library) -> Set<Pattern> {
+    private func patterns(_ session: BuiltSession, in library: [ExerciseCandidate] = PlannerFixtures.library) -> Set<FitCore.Pattern> {
         Set(session.exercises.compactMap { e in library.first { $0.slug == e.slug }?.pattern })
     }
 
