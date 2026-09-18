@@ -21,6 +21,15 @@ final class PlannerTests: XCTestCase {
 
     /// Журнал для тестов, которым он не важен: они проверяют состав и статусы,
     /// а не предписанный вес.
+    ///
+    /// ВНИМАНИЕ: это свойство НАМЕРЕННО выбрасывает всё, что дописывает
+    /// `F.perform`, — каждый `get` возвращает свежий журнал, `set` игнорируется.
+    /// В многосессионном тесте так делать нельзя: `lastPerformedAt` стоит на
+    /// месте, с третьей недели включается детренированность §9.7, и прогон
+    /// молча уезжает вниз, ничего не заваливая (ровно то, чем была находка 3
+    /// второго ревью). Для таких тестов — `F.weightedHistory()` в локальной
+    /// `var history`, которую `F.perform` пополняет, как в
+    /// `test_simulation_sixWeeksOfFiveGluteDays_noDriftNoOvershoot`.
     private var throwawayHistory: [String: [ExerciseSession]] {
         get { F.familiarHistory(for: F.library) }
         set { _ = newValue }
