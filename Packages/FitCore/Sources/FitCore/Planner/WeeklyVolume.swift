@@ -128,13 +128,20 @@ extension Planner {
     ) -> [ReasonCode] {
         var loss: [MuscleSlug: Double] = [:]
         var causes: [MuscleSlug: DayOutcome.Cause] = [:]
+        var biggest: [MuscleSlug: Double] = [:]
         for (i, day) in week.enumerated() where day.isStrength && (outcomes[day.id]?.losesPlannedVolume ?? false) {
             guard let scale = sessionScale(dayIndex: i, week: week, level: level)?.scale else { continue }
             for (m, share) in day.vector {
-                loss[m, default: 0] += scale * share
-                // Причина — от дня, потерявшего больше всех: строка называет один
-                // день («вторник пропущен» / «сегодня вы выбрали отдых»).
-                if causes[m] == nil { causes[m] = outcomes[day.id]?.cause }
+                let lost = scale * share
+                loss[m, default: 0] += lost
+                // Строка называет ОДИН день («вторник пропущен» / «сегодня вы
+                // выбрали отдых»), поэтому причина берётся от дня, который унёс
+                // у этой мышцы больше всех. Ничья остаётся за более ранним днём:
+                // недели просматриваются по порядку, и результат детерминирован.
+                if lost > (biggest[m] ?? -1) {
+                    biggest[m] = lost
+                    causes[m] = outcomes[day.id]?.cause
+                }
             }
         }
         return MuscleSlug.allCases.compactMap { m in

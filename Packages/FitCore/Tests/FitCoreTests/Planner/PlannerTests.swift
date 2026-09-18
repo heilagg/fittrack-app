@@ -542,6 +542,27 @@ final class PlannerTests: XCTestCase {
                      "ничего не изменилось — строки нет")
     }
 
+    // MARK: - Причина потери — от дня, потерявшего больше всех (ревью 3, находка 1)
+
+    /// Строка статуса называет один день, и это должен быть тот, из-за которого
+    /// неделя просела сильнее, а не первый по календарю.
+    func test_weekLossCauseIsTheBiggestLoser() {
+        var week = F.week([(.upper, nil, F.upper), (.lower, .gluteMax, F.lowerGlutes)])
+        // У дня верха ягодичные есть чуть-чуть, у дня низа — акцент.
+        week[0].vector[.gluteMax] = 0.05
+        week[0].status = .skipped
+        let plan = Planner.planRemainingDays(F.context(week: week, today: F.day(1), override: .rest))
+
+        func cause(_ muscle: MuscleSlug) -> DayOutcome.Cause? {
+            for line in plan.statusLines {
+                if case .weekLossFromSkips(muscle, _, let cause) = line { return cause }
+            }
+            return nil
+        }
+        XCTAssertEqual(cause(.gluteMax), .restOverride, "ягодичные потерял день с акцентом — он и назван")
+        XCTAssertEqual(cause(.lats), .skipped, "широчайшие есть только в дне верха")
+    }
+
     // MARK: - День без целевого вектора виден снаружи (ревью 2, находка 5)
 
     /// Пара (тип дня, акцент) без вектора — ошибка разметки (§7.3, правило 4).
