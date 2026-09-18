@@ -23,7 +23,7 @@
 enum PlannerCalibrationFixtures {
 
     private static func exercise(
-        _ slug: String, _ pattern: Pattern, _ family: String, _ contributions: [MuscleSlug: Double],
+        _ slug: String, _ pattern: FitCore.Pattern, _ family: String, _ contributions: [MuscleSlug: Double],
         _ fatigueCost: Double, _ setup: Int, _ rest: Int, unilateral: Bool = false
     ) -> ExerciseCandidate {
         ExerciseCandidate(slug: slug, pattern: pattern, muscleContributions: contributions, progressionFamily: family,
