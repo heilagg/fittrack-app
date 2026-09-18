@@ -192,6 +192,9 @@ extension Planner {
         if outcomes.values.contains(where: { $0.kind == .generatorDisabled }) {
             lines.append(.workoutGenerationDisabled)
         }
+        if outcomes.values.contains(where: { $0.session?.reasons.contains(.noFeasibleExercises) ?? false }) {
+            lines.append(.noFeasibleExercises)
+        }
         for m in MuscleSlug.allCases {
             let sets = Int((shortfall[m] ?? 0).rounded())
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }

@@ -317,6 +317,36 @@ final class PlannerTests: XCTestCase {
         XCTAssertGreaterThan(session.effectiveVolume[.gluteMax] ?? 0, 0)
     }
 
+    // MARK: - Пустой пул называет причину пустоты (ревью 4, находка 3)
+
+    /// Когда жёсткие ограничения §7.3 не пропускают ни одного упражнения,
+    /// причина — «ничего не подходит под инвентарь и ограничения», а не
+    /// «доступно 0 паттернов»: ослабление минимума паттернов здесь симптом, а не
+    /// причина, и тап по `session_minutes` его не лечит.
+    func test_emptyPoolSaysNothingFits() {
+        // Всей библиотеке нужен тренажёр, которого у пользователя нет.
+        let gymOnly = F.lowerLibrary.map { candidate -> ExerciseCandidate in
+            var c = candidate
+            c.equipment = [.machine("leg_press")]
+            return c
+        }
+        let session = build(F.input(week: twoGluteDays, library: gymOnly, availability: F.bandsOnly,
+                                    equipment: EquipmentProfile(), states: [:]))
+        XCTAssertTrue(session.exercises.isEmpty, "фикстура: подобрать нечего")
+        XCTAssertTrue(session.reasons.contains(.noFeasibleExercises), "названа причина пустоты")
+        XCTAssertFalse(session.reasons.contains { if case .patternMinimumRelaxedUnavailable = $0 { return true }; return false },
+                       "«0 паттернов» — симптом, а не причина")
+
+        let ctx = WeekContext(
+            weekStart: F.day(0), week: twoGluteDays, today: F.day(0), library: gymOnly,
+            availability: F.bandsOnly, equipment: EquipmentProfile(),
+            safety: SafetyProfile(level: .intermediate), goal: .hypertrophy, sessionMinutes: 45,
+            cycle: CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases, noPhaseReason: .userChoice)),
+            userSeed: F.seed)
+        XCTAssertTrue(Planner.planRemainingDays(ctx).statusLines.contains(.noFeasibleExercises),
+                      "неделя говорит это сама, как про дыру в разметке и выключенный генератор")
+    }
+
     // MARK: - Сценарий 29: session_minutes = 20 — укладывается, 3–4 упражнения
 
     func test_scenario29_twentyMinutes_fitsWithThreeToFourExercises() {

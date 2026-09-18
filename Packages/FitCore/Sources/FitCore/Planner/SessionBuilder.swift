@@ -646,8 +646,14 @@ private struct Builder {
             current = b.score
         }
         let achieved = servingPatterns(sel)
-        if available < 3 { reasons.append(.patternMinimumRelaxedUnavailable(available: available)) }
-        if achieved < required { reasons.append(patternShortfallReason(sel, fitted: achieved)) }
+        if available == 0 {
+            // Пул пуст: жёсткие ограничения §7.3 не пропустили ничего. Это и есть
+            // причина, а «ослаблен минимум паттернов до нуля» — её следствие.
+            reasons.append(.noFeasibleExercises)
+        } else {
+            if available < 3 { reasons.append(.patternMinimumRelaxedUnavailable(available: available)) }
+            if achieved < required { reasons.append(patternShortfallReason(sel, fitted: achieved)) }
+        }
 
         // Локальное улучшение: замена на упражнение того же паттерна из среза.
         for _ in 0..<Planner.maxImprovementPasses {
