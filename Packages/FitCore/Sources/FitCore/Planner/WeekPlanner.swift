@@ -128,7 +128,18 @@ extension Planner {
     }
 
     public static func planRemainingDays(_ ctx: WeekContext) -> WeekPlan {
-        let week = ctx.week.sorted { $0.date < $1.date }
+        // Двух строк недели с одним `id` не бывает: `planned_days.id` —
+        // первичный ключ, а пара (неделя, дата) уникальна (§3.1). Это ошибка
+        // вызывающей стороны или синхронизации, и в отладке она обязана быть
+        // громкой. `assert`, а не `precondition`: в релизе планировщик остаётся
+        // рабочим — план недели не то, ради чего стоит ронять приложение.
+        assert(Set(ctx.week.map(\.id)).count == ctx.week.count,
+               "planned_days с одинаковым id: \(ctx.week.map(\.id).sorted())")
+        // В релизе поведение обязано быть определённым и ОДИНАКОВЫМ у всех
+        // потребителей: раньше словарь итогов схлопывал дубликат, а знаменатель
+        // S_эфф и сумма потерь считали его дважды. Дальше по коду идёт один
+        // массив — первая строка на каждый id.
+        let week = normalizedWeek(ctx.week)
         let libraryBySlug = Dictionary(ctx.library.map { ($0.slug, $0) }, uniquingKeysWith: { first, _ in first })
         let weekDone = weekDoneVolume(completed: ctx.completed, weekStart: ctx.weekStart, library: libraryBySlug)
         let previous = ctx.completed.max { $0.performedAt < $1.performedAt }.map { Set($0.setsBySlug.keys) } ?? []
@@ -185,6 +196,16 @@ extension Planner {
             if sets > 0 { lines.append(.weekShortfallByTime(muscle: m, sets: sets)) }
         }
         return WeekPlan(days: outcomes, statusLines: lines)
+    }
+
+    /// Неделя в том виде, в каком её читают все правила: по датам и по одной
+    /// строке на `id`. Дедупликация — не поддержка дубликатов, а требование
+    /// одинакового поведения у всех потребителей в релизе (см. `assert` в
+    /// `planRemainingDays`): иначе словарь итогов схлопывает день, а знаменатель
+    /// `S_эфф` и сумма потерь считают его дважды. Выигрывает первая строка.
+    static func normalizedWeek(_ days: [PlannedDay]) -> [PlannedDay] {
+        var seen = Set<String>()
+        return days.sorted { $0.date < $1.date }.filter { seen.insert($0.id).inserted }
     }
 
     /// Изменение плана — то, что пользователь видит на экране «Сегодня»:

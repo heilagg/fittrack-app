@@ -574,6 +574,36 @@ final class PlannerTests: XCTestCase {
         XCTAssertEqual(cause(.lats), .skipped, "широчайшие есть только в дне верха")
     }
 
+    // MARK: - Дубликаты id дня — невозможное состояние (ревью 3, находка 4)
+
+    /// `planned_days.id` — первичный ключ, а пара (неделя, дата) уникальна
+    /// (§3.1), так что двух строк с одним id не бывает: в отладке это ловит
+    /// `assert` в `planRemainingDays`. Здесь проверяется релизное поведение —
+    /// оно обязано быть определённым и ОДИНАКОВЫМ у всех правил: неделю все
+    /// читают через `normalizedWeek`, где на каждый id остаётся первая строка.
+    /// Раньше словарь итогов схлопывал дубликат, а знаменатель `S_эфф` и сумма
+    /// потерь считали его дважды.
+    func test_duplicateDayIDsAreNormalizedDeterministically() {
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
+        var duplicated = week
+        duplicated[1].id = "day0"
+        duplicated[1].status = .skipped
+
+        let normalized = Planner.normalizedWeek(duplicated)
+        XCTAssertEqual(normalized.map(\.id), ["day0"], "на каждый id — одна строка")
+        XCTAssertEqual(normalized.first?.status, .planned, "выигрывает первая строка, а не дубликат")
+        XCTAssertEqual(Planner.normalizedWeek(duplicated.reversed()).map(\.id), ["day0"])
+
+        // Сортировка по датам — там же, поэтому порядок массива на правила не влияет.
+        let shuffled = Planner.normalizedWeek([week[1], week[0]])
+        XCTAssertEqual(shuffled.map(\.id), ["day0", "day1"])
+
+        // Знаменатель S_эфф и потери читают ту же нормализованную неделю.
+        let scale = Planner.sessionScale(dayIndex: 0, week: normalized, level: .intermediate)?.scale
+        let single = Planner.sessionScale(dayIndex: 0, week: [week[0]], level: .intermediate)?.scale
+        XCTAssertEqual(scale ?? 0, single ?? -1, accuracy: 1e-12, "день учтён один раз")
+    }
+
     // MARK: - День без целевого вектора виден снаружи (ревью 2, находка 5)
 
     /// Пара (тип дня, акцент) без вектора — ошибка разметки (§7.3, правило 4).
