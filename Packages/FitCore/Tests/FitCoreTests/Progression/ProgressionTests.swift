@@ -1146,4 +1146,149 @@ final class ProgressionTests: XCTestCase {
         XCTAssertEqual(state.baselineKg ?? -1, 7.5, accuracy: 0.0001)
         XCTAssertTrue(state.isInCalibration)
     }
+    // MARK: - Контракт: повышение не больше одной ступени (SPEC §9.3), не входит в номерные сценарии
+    //
+    // Правило «Никогда не повышаем более чем на один достижимый шаг за подход
+    // вне калибровки» не исполнялось: `nextSet` округлял `current * 1.05`
+    // вверх, не считая пройденных ступеней. Перелёт начинается при
+    // `current > 20 × шаг`, и ни один существующий тест его не видел: все
+    // вызовы `nextSet` шли на гантельных фикстурах (4…12, 2…10, [8]), где 5%
+    // не дотягивают до 2 кг ни на одной ступени. Инвариант заявлен
+    // обязательным ещё в шапке FitCoreTests.swift, но теста под ним не было.
+
+    /// Сколько ступеней лестницы пройдено переходом `from` → `to`.
+    /// Считается самой лестницей, а не процентами: «один шаг» в §9.3 — это
+    /// ступень, а не доля веса (гантели 6 → 8 — законные +33%).
+    private func rungsCrossed(_ ladder: WeightLadder, from: Double, to: Double) -> Int {
+        var count = 0
+        var cursor = from
+        while let next = ladder.nextAchievableWeight(above: cursor), next <= to + 0.005 {
+            count += 1
+            cursor = next
+        }
+        return count
+    }
+
+    /// `.easy` на верху диапазона — единственная ветка §9.3, которая повышает.
+    private func raised(_ ladder: WeightLadder, from current: Double, isCalibration: Bool = false) -> Double {
+        guard case .nextWeight(let next) = Progression.nextSet(
+            priorFeedback: .ok, current: current, feedback: .easy,
+            actualReps: hypertrophyRange.upperBound, range: hypertrophyRange,
+            isCalibration: isCalibration, ladder: ladder
+        ) else { return .nan }
+        return next
+    }
+
+    /// Ступени лестницы для свипа: у `.discrete` они уже перечислены, у
+    /// `.arithmetic` строятся шагом.
+    private func rungs(of ladder: WeightLadder, count: Int) -> [Double] {
+        switch ladder {
+        case .discrete(let weights): return weights
+        case .arithmetic(let step):  return (1...count).map { Double($0) * step }
+        case .none:                  return []
+        }
+    }
+
+    func test_easyRaisesByExactlyOneRungOnADenseLadder() {
+        // Находка в чистом виде: стек тренажёра с шагом 2.5, рабочие 100 кг.
+        // `current * 1.05` = 105 попадает ТОЧНО на ступень, поэтому округление
+        // возвращало её как есть — и 102.5 оказывалась перепрыгнута.
+        let ladder = WeightLadder.arithmetic(step: 2.5)
+        XCTAssertEqual(raised(ladder, from: 100), 102.5, accuracy: 0.0001)
+
+        // Соседний случай, где `raw` падает МЕЖДУ ступенями (110.25):
+        // округление вверх уносило на 112.5, через 107.5 и 110.
+        XCTAssertEqual(raised(ladder, from: 105), 107.5, accuracy: 0.0001)
+    }
+
+    func test_easyRaisesOneRungPerSetWithinASession() {
+        // Перелёт накапливался: чем выше залетели, тем больше ступеней
+        // перепрыгивал следующий подход. Три `.easy` подряд давали
+        // 100 → 105 → 112.5 → 120 (+20% за сессию) вместо +7.5%.
+        let ladder = WeightLadder.arithmetic(step: 2.5)
+        var weight = 100.0
+        var path = [weight]
+        for _ in 0..<3 {
+            weight = raised(ladder, from: weight)
+            path.append(weight)
+        }
+        XCTAssertEqual(path, [100, 102.5, 105, 107.5], "путь внутри сессии: \(path)")
+    }
+
+    func test_invariant_raiseNeverCrossesMoreThanOneRung() {
+        // Свип вместо таблицы чисел: инвариант §9.3 на всех типах лестниц, в
+        // том числе на редких, где один шаг — это законные +33%.
+        let ladders: [(String, WeightLadder)] = [
+            ("arithmetic 0.5", .arithmetic(step: 0.5)),
+            ("arithmetic 1.25 (трос)", .arithmetic(step: 1.25)),
+            ("arithmetic 2.5 (стек)", .arithmetic(step: 2.5)),
+            ("arithmetic 5", .arithmetic(step: 5)),
+            ("гантели 2…50 через 2", WeightLadder.build(loadType: .dumbbell,
+                profile: EquipmentProfile(dumbbellsKg: (1...25).map { Double($0) * 2 }))),
+            ("гантели 4…12 (редкая)", WeightLadder.build(loadType: .dumbbell,
+                profile: EquipmentProfile(dumbbellsKg: [4, 6, 8, 10, 12]))),
+            ("штанга 20 + 1.25/2.5/5/10", WeightLadder.build(loadType: .barbell,
+                profile: EquipmentProfile(platesKg: [1.25, 2.5, 5, 10], barbellKg: 20))),
+        ]
+
+        for (name, ladder) in ladders {
+            for current in rungs(of: ladder, count: 80) {
+                let next = raised(ladder, from: current)
+                let crossed = rungsCrossed(ladder, from: current, to: next)
+                XCTAssertLessThanOrEqual(
+                    crossed, 1,
+                    "«\(name)»: с \(current) на \(next) — \(crossed) ступеней, §9.3 разрешает одну"
+                )
+                // Обратная сторона: клэмп не имеет права превратить повышение
+                // в удержание, пока на лестнице есть куда расти.
+                if ladder.nextAchievableWeight(above: current) != nil {
+                    XCTAssertGreaterThanOrEqual(
+                        crossed, 1,
+                        "«\(name)»: с \(current) не выросло вовсе (\(next)), хотя выше есть ступень"
+                    )
+                }
+            }
+        }
+    }
+
+    func test_calibrationIsExemptFromTheOneRungCap() {
+        // §9.3 ограничивает повышение «вне калибровки». Её +15% (§9.8) обязаны
+        // прыгать через ступени — на этом держится сходимость калибровки за
+        // 2–3 тренировки (test_calibrationConvergesWithinThreeWorkouts).
+        let ladder = WeightLadder.arithmetic(step: 2.5)
+        let next = raised(ladder, from: 100, isCalibration: true)
+        XCTAssertEqual(next, 115, accuracy: 0.0001)
+        XCTAssertEqual(rungsCrossed(ladder, from: 100, to: next), 6)
+    }
+
+    func test_oneRungCapLeavesDegenerateLaddersAlone() {
+        // `nextAchievableWeight` возвращает nil на обеих вырожденных лестницах,
+        // и клэмп обязан сойти с дороги, а не схлопнуть результат.
+
+        // Квантования нет вовсе (собственный вес, резинки): +5% как есть.
+        XCTAssertEqual(raised(.none, from: 100), 105, accuracy: 0.0001)
+
+        // Лестница исчерпана сверху: `roundToAchievable(.up)` уже клэмпит к
+        // верхней ступени — это опора test_ladderExhaustedDoesNotAccumulateStall.
+        let maxedOut = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8]))
+        XCTAssertEqual(raised(maxedOut, from: 8), 8, accuracy: 0.0001)
+    }
+
+    func test_oneRungCapDoesNotTouchTheDownBranches() {
+        // §9.3 говорит только о повышении. Для отката процент и есть смысл:
+        // −10% со 150 кг на шаге 2.5 — шесть ступеней, и урезать их до одной
+        // значило бы не откатиться вовсе.
+        let ladder = WeightLadder.arithmetic(step: 2.5)
+        let failed = Progression.nextSet(
+            priorFeedback: .ok, current: 150, feedback: .failed, actualReps: 5,
+            range: hypertrophyRange, isCalibration: false, ladder: ladder
+        )
+        XCTAssertEqual(failed, .nextWeight(135))
+
+        let hardUnderRepMin = Progression.nextSet(
+            priorFeedback: .ok, current: 150, feedback: .hard, actualReps: 6,
+            range: hypertrophyRange, isCalibration: false, ladder: ladder
+        )
+        XCTAssertEqual(hardUnderRepMin, .nextWeight(142.5))
+    }
 }
