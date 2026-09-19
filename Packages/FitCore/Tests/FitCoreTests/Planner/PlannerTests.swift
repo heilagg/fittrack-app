@@ -1077,7 +1077,7 @@ final class PlannerTests: XCTestCase {
         XCTAssertFalse(passes(F.hipThrustBarbell, conservative), "консервативный режим — потолок novice")
         XCTAssertFalse(passes(F.boxJump, conservative), "консервативный режим — без joint_stress high")
 
-        let pain = SafetyProfile(level: .advanced, painEvents: [PainEvent(exerciseSlug: "rdl_band", joint: .lowerBack, occurredOn: F.day(0))])
+        let pain = SafetyProfile(level: .advanced, painEvents: [PainEvent(exerciseSlug: "rdl_band", joints: [.lowerBack], occurredOn: F.day(0))])
         XCTAssertFalse(passes(F.rdlBand, pain, on: F.day(14)), "исключено 14 дней включительно")
         XCTAssertTrue(passes(F.rdlBand, pain, on: F.day(15)))
     }

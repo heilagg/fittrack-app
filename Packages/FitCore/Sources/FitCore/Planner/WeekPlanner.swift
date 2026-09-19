@@ -119,6 +119,13 @@ extension Planner {
     /// Момент оценки утомления дня — 12:00 (§7.1). Контракт: `Timestamp` и
     /// `CalendarDay` отсчитываются от одной эпохи в местном времени, то есть
     /// полночь дня `d` — `d.dayNumber × 24` часов.
+    ///
+    /// Контракт местного времени определяет и хранение (SPEC §20.7): величины
+    /// этой шкалы лежат в колонках без зоны (`muscle_fatigue.updated_at` —
+    /// `timestamp`, `exercise_states.last_performed_at` — `date`), а настоящие
+    /// моменты (`workouts.started_at`, `sets.completed_at`) остаются
+    /// `timestamptz` и в расчёт не подставляются. Перевод делается один раз,
+    /// при записи, в зоне запроса — не при каждом чтении.
     public static func evaluationMoment(for day: CalendarDay) -> Timestamp {
         Timestamp(hoursSinceEpoch: Double(day.dayNumber) * 24 + 12)
     }

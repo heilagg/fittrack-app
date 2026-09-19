@@ -67,6 +67,13 @@ public struct GridSlot: Sendable, Equatable {
 extension Planner {
     /// Расстановка §7.2. Типы назначаются выбранным дням в календарном порядке;
     /// растяжка — последний выбранный день и входит в `days_per_week`.
+    ///
+    /// Даты вызывающая сторона строит из `profiles.training_weekdays` (SPEC
+    /// §3.1, §7.2) — ISO-номера 1...7 от понедельника недели. **Дубликаты
+    /// схлопываются здесь молча** (`Set(days)`), поэтому уникальность набора
+    /// обязана проверяться схемой: `{2,2,4}` при `days_per_week = 3` даёт два
+    /// дня вместо трёх и другие типы дней (два full body вместо верх/низ/full
+    /// body).
     public static func weekGrid(days: [CalendarDay], level: ExperienceLevel) -> [GridSlot] {
         let sorted = Set(days).sorted()
         let kinds: [SessionKind]

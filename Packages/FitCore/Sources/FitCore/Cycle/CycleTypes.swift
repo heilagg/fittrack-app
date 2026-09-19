@@ -51,6 +51,15 @@ public enum NoPhaseReason: String, Sendable, Equatable, Hashable {
 /// Заявленные на онбординге данные — срез `cycle_profiles`, нужный конвейеру.
 /// `phaseMode`/`noPhaseReason`/`lowConfidenceStreak` — персистентное состояние
 /// режима (SPEC §11.5), не входные приоры; см. `Cycle.applyingCycleClose`.
+///
+/// **Дефолт `phaseMode == .phases` годится только там, где строка
+/// `cycle_profiles` действительно есть.** У пользователя без неё (мужчина) или
+/// с `profiles.cycle_tracking = 'off'` вызывающая сторона обязана построить
+/// профиль с `.noPhases` и причиной `.userChoice`, а не взять значения по
+/// умолчанию (SPEC §20.6, обязанности `Mapping/`). Цена молчаливого дефолта
+/// видна не отказом, а числом: в фазовом режиме без опорной даты
+/// `Readiness.plannedVolumeFactor` возвращает 1.0 и признак разгрузочной недели
+/// игнорируется вовсе, то есть §11.5 не работает у всех, у кого цикла нет.
 public struct CycleProfile: Sendable, Equatable {
     public var typicalCycleLengthDays: Int?
     public var typicalPeriodLengthDays: Int?

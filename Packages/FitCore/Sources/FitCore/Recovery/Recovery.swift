@@ -19,8 +19,9 @@
 //  joint_stress по конкретному exercise_slug) — это FitContent, от которого
 //  FitCore принципиально не зависит. Вызывающая сторона передаёт уже
 //  перемноженные contribution×fatigue_cost на подход (FatigueSet.muscleLoad)
-//  и сустав для события боли (PainEvent.joint) сама — но выводит последний
-//  не своим правилом, а через Recovery.primaryJoint(from:).
+//  и суставы для события боли (PainEvent.joints) сама — но выводит последние
+//  не своим правилом, а через Recovery.painJoints(from:), и записывает их в
+//  sets.pain_joints на момент события (SPEC §3.1, §8.4 п.5).
 //
 //  Закрывает SPEC §8.1–§8.4. В номерном списке SPEC §18 модулю не выделено
 //  ни одного сценария (1–14 — Progression, 15–26 — Cycle, 27–33 — Planner,
