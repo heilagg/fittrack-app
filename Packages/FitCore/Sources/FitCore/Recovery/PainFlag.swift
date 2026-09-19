@@ -6,22 +6,29 @@
 //  (п.4, п.5).
 
 /// Один зафиксированный флаг боли — срез `sets` (`pain_flag = true`),
-/// дополненный суставом, которому этот флаг приписан.
+/// дополненный суставами, которым этот флаг приписан.
+///
+/// **Суставов несколько, а не один** (SPEC §8.4 п.5, §19.2 п.8). Выбирать
+/// между равными по нагрузке было нечем: канонический пример §6.2
+/// (`hip_thrust_barbell`) даёт `lower_back` и `hip` одинаковой степени
+/// `medium`, и любой тай-брейк молча обнулял бы счёт второго сустава. Поэтому
+/// событие несёт всё множество, а п.5 считается по пересечению множеств.
 ///
 /// Сам `joint_stress` — поле упражнения из FitContent, от которого FitCore не
-/// зависит, поэтому готовый `Joint` передаёт вызывающая сторона. Но выводить
-/// его каждый раз заново она не должна: правило целиком живёт в
-/// `Recovery.primaryJoint(from:)` — иначе два вызывающих кода (экран тренировки
-/// и любой будущий импорт истории) разошлись бы на ничьих, и один и тот же
-/// флаг попадал бы в разные группы §8.4 п.5 в зависимости от пути записи.
+/// зависит, поэтому готовое множество передаёт вызывающая сторона
+/// (`Recovery.painJoints(from:)`). Выводить его заново при каждом чтении она не
+/// должна: множество фиксируется в `sets.pain_joints` (SPEC §3.1) в момент
+/// события, иначе переразметка контента задним числом создавала бы и отменяла
+/// бы рекомендацию показаться специалисту.
 public struct PainEvent: Sendable, Equatable {
     public var exerciseSlug: String
-    public var joint: Joint
+    /// Все суставы, которым приписан флаг (SPEC §8.4 п.5, §19.2 п.8, вариант «б»).
+    public var joints: Set<Joint>
     public var occurredOn: CalendarDay
 
-    public init(exerciseSlug: String, joint: Joint, occurredOn: CalendarDay) {
+    public init(exerciseSlug: String, joints: Set<Joint>, occurredOn: CalendarDay) {
         self.exerciseSlug = exerciseSlug
-        self.joint = joint
+        self.joints = joints
         self.occurredOn = occurredOn
     }
 }
@@ -36,31 +43,27 @@ public enum PainEscalation: Sendable, Equatable {
 }
 
 extension Recovery {
-    /// Сустав, которому приписывается флаг боли на упражнении с данным
-    /// `joint_stress` (SPEC §6.2) — вход для `PainEvent.joint`.
+    /// Суставы, которым приписывается флаг боли на упражнении с данным
+    /// `joint_stress` (SPEC §6.2) — вход для `PainEvent.joints`.
     ///
-    /// Правило: максимальная степень нагрузки; при равенстве — порядок
-    /// объявления `Joint`, повторяющий порядок в §3.1.
+    /// Правило: все суставы МАКСИМАЛЬНОЙ степени нагрузки. Тай-брейк по
+    /// порядку объявления снят (SPEC §19.2 п.8, закрыт вариантом «б»): он был
+    /// детерминирован, но клинически произволен, и у двух равных суставов
+    /// счёт §8.4 п.5 доставался первому по алфавиту служебного слага.
     ///
-    /// `nil` — только для пустого словаря. Пустой `joint_stress` означает
-    /// упражнение, не грузящее ни одного сустава; это ошибка разметки контента,
-    /// и ловить её место в `Tools/content-validator`, а не здесь (реальных
-    /// упражнений пока нет, только `_schema.example.json`).
+    /// Суставы меньшей степени в множество НЕ входят: `low` — это упоминание
+    /// сустава в разметке, а не основание рекомендовать специалиста. На
+    /// каноническом примере §6.2 (`knee: low`, `lower_back: medium`,
+    /// `hip: medium`) разница видна числом: с порогом по максимуму три события
+    /// дают две рекомендации, без порога — три.
     ///
-    /// TODO(код-ревью feature/recovery, 2026-09-08): тай-брейк детерминирован
-    /// и задокументирован, но клинически произволен — канонический пример §6.2
-    /// (`lower_back: medium`, `hip: medium`) даёт ничью, а ни порядок степеней
-    /// нагрузки, ни приоритет суставов в SPEC не объявлены (см. также
-    /// `JointStressLevel`). Приоритет суставов — вопрос к SPEC/продукту, а не
-    /// к этому модулю; до его решения ничья разрешается порядком §3.1, чтобы
-    /// хотя бы не расходились разные вызывающие стороны.
-    public static func primaryJoint(from jointStress: [Joint: JointStressLevel]) -> Joint? {
-        Joint.allCases.filter { jointStress[$0] != nil }
-            .max { lhs, rhs in
-                // Строгое «меньше»: при равной степени нагрузки max(by:)
-                // оставляет первый по порядку объявления элемент.
-                jointStress[lhs]! < jointStress[rhs]!
-            }
+    /// Пустое множество — только для пустого словаря. Пустой `joint_stress`
+    /// означает упражнение, не грузящее ни одного сустава; это ошибка разметки
+    /// контента, и ловить её место в `Tools/content-validator`, а не здесь
+    /// (реальных упражнений пока нет, только `_schema.example.json`).
+    public static func painJoints(from jointStress: [Joint: JointStressLevel]) -> Set<Joint> {
+        guard let top = jointStress.values.max() else { return [] }
+        return Set(jointStress.filter { $0.value == top }.keys)
     }
 
     /// SPEC §8.4, п.3.
@@ -94,8 +97,16 @@ extension Recovery {
         // 3 раза за 30 дней — «разным» проверяем через количество различных
         // exercise_slug, а не общее число событий (иначе совпало бы с п.4
         // при повторной боли в одном и том же упражнении).
-        let specialistJoints = Dictionary(grouping: recent, by: \.joint)
-            .filter { Set($0.value.map(\.exerciseSlug)).count >= 3 }
+        //
+        // Счёт по ПЕРЕСЕЧЕНИЮ множеств (SPEC §8.4 п.5): событие входит в счёт
+        // каждого своего сустава, поэтому ничья lower_back/hip поднимает оба, а
+        // не первый по порядку. Одно упражнение с двумя суставами трёх
+        // рекомендаций не даёт: считаются различные слаги, как и раньше.
+        var slugsByJoint: [Joint: Set<String>] = [:]
+        for event in recent {
+            for joint in event.joints { slugsByJoint[joint, default: []].insert(event.exerciseSlug) }
+        }
+        let specialistJoints = slugsByJoint.filter { $0.value.count >= 3 }
             .keys.sorted { $0.rawValue < $1.rawValue }
 
         return restrictionSlugs.map { .suggestPermanentRestriction(exerciseSlug: $0) }

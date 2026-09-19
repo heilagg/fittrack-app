@@ -143,7 +143,7 @@ final class RecoveryTests: XCTestCase {
     // MARK: - Флаг боли: исключение на 14 дней (SPEC §8.4, п.3)
 
     func test_exerciseExcludedWithinFourteenDaysOfPainFlag() {
-        let events = [PainEvent(exerciseSlug: "hip_thrust_barbell", joint: .hip, occurredOn: day(0))]
+        let events = [PainEvent(exerciseSlug: "hip_thrust_barbell", joints: [.hip], occurredOn: day(0))]
         XCTAssertTrue(Recovery.isExcluded(exerciseSlug: "hip_thrust_barbell", from: events, asOf: day(14)))
         XCTAssertFalse(Recovery.isExcluded(exerciseSlug: "hip_thrust_barbell", from: events, asOf: day(15)))
         XCTAssertFalse(Recovery.isExcluded(exerciseSlug: "other_exercise", from: events, asOf: day(1)))
@@ -153,23 +153,23 @@ final class RecoveryTests: XCTestCase {
 
     func test_twoFlagsOnSameExerciseWithinThirtyDaysSuggestsPermanentRestriction() {
         let events = [
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(0)),
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(20))
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(0)),
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(20))
         ]
         XCTAssertEqual(Recovery.escalations(from: events, asOf: day(20)),
                        [.suggestPermanentRestriction(exerciseSlug: "squat_barbell")])
     }
 
     func test_singleFlagDoesNotEscalate() {
-        let events = [PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(0))]
+        let events = [PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(0))]
         XCTAssertEqual(Recovery.escalations(from: events, asOf: day(0)), [])
     }
 
     func test_threeFlagsOnDifferentExercisesSameJointSuggestsSpecialist() {
         let events = [
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(0)),
-            PainEvent(exerciseSlug: "lunge_dumbbell", joint: .knee, occurredOn: day(10)),
-            PainEvent(exerciseSlug: "leg_press", joint: .knee, occurredOn: day(20))
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(0)),
+            PainEvent(exerciseSlug: "lunge_dumbbell", joints: [.knee], occurredOn: day(10)),
+            PainEvent(exerciseSlug: "leg_press", joints: [.knee], occurredOn: day(20))
         ]
         XCTAssertEqual(Recovery.escalations(from: events, asOf: day(20)),
                        [.suggestSpecialist(joint: .knee)])
@@ -177,8 +177,8 @@ final class RecoveryTests: XCTestCase {
 
     func test_twoDifferentExercisesSameJointDoesNotEscalate() {
         let events = [
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(0)),
-            PainEvent(exerciseSlug: "lunge_dumbbell", joint: .knee, occurredOn: day(10))
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(0)),
+            PainEvent(exerciseSlug: "lunge_dumbbell", joints: [.knee], occurredOn: day(10))
         ]
         XCTAssertEqual(Recovery.escalations(from: events, asOf: day(10)), [])
     }
@@ -188,9 +188,9 @@ final class RecoveryTests: XCTestCase {
         // том же squat_barbell плюс один на другом упражнении того же
         // сустава — это 2 разных упражнения, не 3, специалист не предлагается.
         let events = [
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(0)),
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(5)),
-            PainEvent(exerciseSlug: "lunge_dumbbell", joint: .knee, occurredOn: day(10))
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(0)),
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(5)),
+            PainEvent(exerciseSlug: "lunge_dumbbell", joints: [.knee], occurredOn: day(10))
         ]
         let escalations = Recovery.escalations(from: events, asOf: day(10))
         XCTAssertEqual(escalations, [.suggestPermanentRestriction(exerciseSlug: "squat_barbell")])
@@ -198,44 +198,51 @@ final class RecoveryTests: XCTestCase {
 
     func test_eventsOlderThanThirtyDaysDoNotCountTowardsEscalation() {
         let events = [
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(0)),
-            PainEvent(exerciseSlug: "squat_barbell", joint: .knee, occurredOn: day(31))
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(0)),
+            PainEvent(exerciseSlug: "squat_barbell", joints: [.knee], occurredOn: day(31))
         ]
         XCTAssertEqual(Recovery.escalations(from: events, asOf: day(31)), [])
     }
 
-    // MARK: - Флаг боли: выбор сустава (SPEC §6.2 joint_stress)
+    // MARK: - Флаг боли: суставы события (SPEC §6.2 joint_stress, §19.2 п.8)
 
-    func test_primaryJointPicksHighestStressLevel() {
+    func test_painJointsTakesHighestStressLevelOnly() {
         let stress: [Joint: JointStressLevel] = [.knee: .low, .hip: .medium, .lowerBack: .high]
-        XCTAssertEqual(Recovery.primaryJoint(from: stress), .lowerBack)
+        XCTAssertEqual(Recovery.painJoints(from: stress), [.lowerBack])
     }
 
-    func test_primaryJointBreaksTieByDeclarationOrder() {
+    func test_painJointsKeepsBothSidesOfATie() {
         // Канонический пример §6.2 (hip_thrust_barbell) сам содержит ничью:
-        // lower_back и hip оба medium. Тай-брейк — порядок объявления Joint,
-        // повторяющий порядок из §3.1, где lowerBack идёт раньше hip.
+        // lower_back и hip оба medium. Тай-брейка больше нет — в множество
+        // входят оба (§19.2 п.8, вариант «б»), и счёт §8.4 п.5 поднимают оба.
         let stress: [Joint: JointStressLevel] = [.knee: .low, .lowerBack: .medium, .hip: .medium]
-        XCTAssertEqual(Recovery.primaryJoint(from: stress), .lowerBack)
+        XCTAssertEqual(Recovery.painJoints(from: stress), [.lowerBack, .hip])
     }
 
-    func test_primaryJointIsStableRegardlessOfDictionaryOrder() {
+    func test_painJointsExcludeLowerStressLevels() {
+        // knee: low в множество не попадает — упоминание сустава в разметке не
+        // основание рекомендовать специалиста (§8.4 п.5).
+        let stress: [Joint: JointStressLevel] = [.knee: .low, .lowerBack: .medium, .hip: .medium]
+        XCTAssertFalse(Recovery.painJoints(from: stress).contains(.knee))
+    }
+
+    func test_painJointsAreStableRegardlessOfDictionaryOrder() {
         // Словарь не хранит порядок вставки — резолвер обязан давать один и
-        // тот же ответ, иначе две вызывающие стороны разошлись бы на ничьей.
+        // тот же ответ, иначе две вызывающие стороны разошлись бы.
         let stress: [Joint: JointStressLevel] = [.hip: .medium, .lowerBack: .medium, .knee: .low]
         for _ in 0..<50 {
-            XCTAssertEqual(Recovery.primaryJoint(from: stress), .lowerBack)
+            XCTAssertEqual(Recovery.painJoints(from: stress), [.lowerBack, .hip])
         }
     }
 
-    func test_primaryJointWithSingleEntryReturnsIt() {
-        XCTAssertEqual(Recovery.primaryJoint(from: [.wrist: .low]), .wrist)
+    func test_painJointsWithSingleEntryReturnsIt() {
+        XCTAssertEqual(Recovery.painJoints(from: [.wrist: .low]), [.wrist])
     }
 
-    func test_primaryJointOfEmptyStressMapIsNil() {
+    func test_painJointsOfEmptyStressMapIsEmpty() {
         // Пустой joint_stress — ошибка разметки контента, ловится валидатором,
         // а не здесь; резолвер обязан лишь не падать.
-        XCTAssertNil(Recovery.primaryJoint(from: [:]))
+        XCTAssertTrue(Recovery.painJoints(from: [:]).isEmpty)
     }
 
     // MARK: - Многосессионный прогон (implement-feature skill §5а)

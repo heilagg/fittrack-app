@@ -38,7 +38,16 @@ extension Readiness {
     /// фаза (`phases`, с опорной датой), 3+1 без фаз, либо 1.0, когда
     /// срезать нечем (без опорной даты). `isDeloadWeek` не считают ни этот
     /// модуль, ни Planner: признак передаёт вызывающая сторона, правило счёта
-    /// открыто (SPEC §11.5, §19.2 п.4).
+    /// открыто (SPEC §11.5, §19.2 п.4), и до его закрытия он всегда `false`
+    /// (`week_plans.is_deload`, SPEC §3.1).
+    ///
+    /// **Признак читается ТОЛЬКО в режиме без фаз.** В фазовом режиме объём
+    /// задаёт периодизация §11.2, и `isDeloadWeek` не влияет ни на что. Отсюда
+    /// требование к слою соответствия (SPEC §20.6): пользователь без строки
+    /// `cycle_profiles` или с `cycle_tracking = 'off'` обязан приходить сюда с
+    /// `phaseMode == .noPhases`, а не с дефолтом `CycleProfile()`. С дефолтом
+    /// ветка `.phases` без опорной даты возвращает 1.0, и разгрузочная неделя
+    /// тихо не наступает у всех, у кого цикла нет.
     public static func plannedVolumeFactor(cycleState: CycleState, isDeloadWeek: Bool) -> Double {
         switch cycleState.phaseMode {
         case .noPhases:
