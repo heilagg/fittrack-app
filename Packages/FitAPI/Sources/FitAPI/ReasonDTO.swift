@@ -69,6 +69,32 @@ extension ReasonDTO {
         }
     }
 
+    /// Ветка показа дня (§20.3, закрытый словарь). Отдельной функцией, а не
+    /// `switch` по месту: строку читают и `DayOutcomeDTO`, и снимок плана
+    /// (§20.6), и разъехаться этим двум нельзя — снимок сравнивается с живым
+    /// планом, и разное написание одного и того же `kind` печатало бы «План
+    /// обновлён» на каждой пересборке.
+    public static func code(for kind: DayOutcome.Kind) -> String {
+        switch kind {
+        case .session: return "session"
+        case .stretching: return "stretching"
+        case .notBuilt: return "not_built"
+        case .vectorMissing: return "vector_missing"
+        case .generatorDisabled: return "generator_disabled"
+        }
+    }
+
+    public static func dayKind(_ code: String) -> DayOutcome.Kind? {
+        switch code {
+        case "session": return .session
+        case "stretching": return .stretching
+        case "not_built": return .notBuilt
+        case "vector_missing": return .vectorMissing
+        case "generator_disabled": return .generatorDisabled
+        default: return nil
+        }
+    }
+
     public static func code(for cause: DayOutcome.Cause) -> String {
         switch cause {
         case .restOverride: return "rest_override"

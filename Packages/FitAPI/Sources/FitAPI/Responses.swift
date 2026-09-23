@@ -80,13 +80,7 @@ public struct DayOutcomeDTO: Sendable, Equatable, Codable {
 
     public init(_ o: DayOutcome) {
         dayID = o.dayID
-        switch o.kind {
-        case .session: kind = "session"
-        case .stretching: kind = "stretching"
-        case .notBuilt: kind = "not_built"
-        case .vectorMissing: kind = "vector_missing"
-        case .generatorDisabled: kind = "generator_disabled"
-        }
+        kind = ReasonDTO.code(for: o.kind)
         cause = o.cause.map { DayCauseDTO($0) }
         losesPlannedVolume = o.losesPlannedVolume
         session = o.session.map(BuiltSessionDTO.init)

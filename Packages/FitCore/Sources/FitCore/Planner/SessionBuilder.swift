@@ -79,6 +79,20 @@ public struct PrescribedExercise: Sendable, Equatable {
     public var prescribedKg: Double?
     /// §7.6: пишется всегда, в том числе без веса.
     public var weightReadiness: Double
+
+    /// Публичный — для восстановления состава из снимка §20.6 и для
+    /// `Planner.prescribe`, которая пересобирает предписание поверх готового.
+    public init(slug: String, orderIndex: Int, targetSets: Int, targetRepMin: Int,
+                targetRepMax: Int, targetRIR: Int, prescribedKg: Double?, weightReadiness: Double) {
+        self.slug = slug
+        self.orderIndex = orderIndex
+        self.targetSets = targetSets
+        self.targetRepMin = targetRepMin
+        self.targetRepMax = targetRepMax
+        self.targetRIR = targetRIR
+        self.prescribedKg = prescribedKg
+        self.weightReadiness = weightReadiness
+    }
 }
 
 public struct BuiltSession: Sendable, Equatable {
@@ -92,6 +106,20 @@ public struct BuiltSession: Sendable, Equatable {
     /// Диагностика для тестов: упражнения, снятые шагом 3 (§7.3) против цели
     /// без равномерного среза. Наружу не публикуется.
     var removedAtMinimum: [String] = []
+
+    /// Публичный — для восстановления из снимка §20.6. `removedAtMinimum` в
+    /// него не входит: это диагностика сборки, и заполнить её снаружи нечем.
+    public init(dayID: String, exercises: [PrescribedExercise], estimatedSeconds: Double,
+                effectiveVolume: [MuscleSlug: Double], leadingMuscle: MuscleSlug?,
+                scale: Double, reasons: [ReasonCode]) {
+        self.dayID = dayID
+        self.exercises = exercises
+        self.estimatedSeconds = estimatedSeconds
+        self.effectiveVolume = effectiveVolume
+        self.leadingMuscle = leadingMuscle
+        self.scale = scale
+        self.reasons = reasons
+    }
 
     /// Состав и объём — то, по чему §7.1 решает, печатать ли «План обновлён».
     public var composition: [String: Int] {
@@ -843,15 +871,19 @@ private struct Builder {
             reasons.append(reason)
         }
 
-        return BuiltSession(
+        // `removedAtMinimum` проставляется отдельно: публичный инициализатор
+        // её не принимает — это диагностика сборки, и снаружи (восстановление
+        // снимка §20.6) заполнить её нечем.
+        var session = BuiltSession(
             dayID: day.id,
             exercises: exercises,
             estimatedSeconds: Planner.estimatedSeconds(volumeItems, restFactor: restFactor),
             effectiveVolume: Planner.effectiveVolume(volumeItems),
             leadingMuscle: nil,
             scale: scale,
-            reasons: reasons,
-            removedAtMinimum: removedAtMinimum
+            reasons: reasons
         )
+        session.removedAtMinimum = removedAtMinimum
+        return session
     }
 }

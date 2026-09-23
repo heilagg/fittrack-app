@@ -48,6 +48,19 @@ public struct DayOutcome: Sendable, Equatable {
     /// строка статуса обязана это сказать (§7.1).
     public var losesPlannedVolume: Bool
     public var session: BuiltSession?
+
+    /// Публичный — чтобы итог дня можно было ВОССТАНОВИТЬ снаружи: снимок
+    /// показанного плана (SPEC §20.6, `week_plans.last_shown_plan`) лежит в
+    /// `jsonb`, а `Planner.rebuildNotice` принимает значения этого типа.
+    /// Сам планировщик строит итог через `classify`, а не через этот вызов.
+    public init(dayID: String, kind: Kind, cause: Cause?, losesPlannedVolume: Bool,
+                session: BuiltSession?) {
+        self.dayID = dayID
+        self.kind = kind
+        self.cause = cause
+        self.losesPlannedVolume = losesPlannedVolume
+        self.session = session
+    }
 }
 
 extension Planner {
