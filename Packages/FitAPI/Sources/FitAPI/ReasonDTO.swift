@@ -69,7 +69,7 @@ extension ReasonDTO {
         }
     }
 
-    static func code(for cause: DayOutcome.Cause) -> String {
+    public static func code(for cause: DayOutcome.Cause) -> String {
         switch cause {
         case .restOverride: return "rest_override"
         case .skipped: return "skipped"
@@ -91,7 +91,7 @@ extension ReasonDTO {
         }
     }
 
-    static func dayCause(_ code: String) -> DayOutcome.Cause? {
+    public static func dayCause(_ code: String) -> DayOutcome.Cause? {
         switch code {
         case "rest_override": return .restOverride
         case "skipped": return .skipped
@@ -295,5 +295,52 @@ public struct RebuildCauseDTO: Sendable, Equatable, Codable {
                                                    debugDescription: "неизвестная причина пересборки: \(code)")
         }
         message = try c.decode(String.self, forKey: .message)
+    }
+}
+
+/// Итог дня на проводе (§20.3). Тот же конверт `{code, params, message}`, что у
+/// `ReasonDTO` и `RebuildCauseDTO`, — и это не единообразие ради единообразия.
+///
+/// `cause` — доменная причина, которую видит пользовательница («день
+/// пропущен», «заменён растяжкой»), а §20.3 постановила: формулировку для ВСЕХ
+/// доменных причин отдаёт сервер. Голой строкой этот кусок выпадал из правила —
+/// клиенту пришлось бы собрать русский текст самому, то есть завести тот самый
+/// второй каталог, который расходится тихо и чинится релизом в App Store.
+///
+/// `params` пуст у всех девяти случаев: ассоциированных значений у
+/// `DayOutcome.Cause` нет. Форму из-за этого не сплющиваем — один конверт
+/// разбирается на клиенте одним куском кода на все причины сразу, а
+/// появившийся однажды параметр не сменит форму ответа у двух развёрнутых
+/// клиентов (§20.8).
+public struct DayCauseDTO: Sendable, Equatable {
+    public var cause: DayOutcome.Cause
+    public var message: String
+
+    public init(_ cause: DayOutcome.Cause, message: String? = nil) {
+        self.cause = cause
+        self.message = message ?? ReasonStrings.message(for: cause)
+    }
+}
+
+extension DayCauseDTO: Codable {
+    enum Key: String, CodingKey { case code, params, message }
+    private struct NoParams: Codable {}
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: Key.self)
+        try c.encode(ReasonDTO.code(for: cause), forKey: .code)
+        try c.encode(message, forKey: .message)
+        try c.encode(NoParams(), forKey: .params)
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: Key.self)
+        let code = try c.decode(String.self, forKey: .code)
+        guard let cause = ReasonDTO.dayCause(code) else {
+            throw DecodingError.dataCorruptedError(forKey: .code, in: c,
+                                                   debugDescription: "неизвестная причина дня: \(code)")
+        }
+        self.cause = cause
+        self.message = try c.decode(String.self, forKey: .message)
     }
 }

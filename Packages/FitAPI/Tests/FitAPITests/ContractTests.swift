@@ -167,6 +167,62 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(high.phase, "late_luteal")
     }
 
+    // MARK: - Итог дня
+
+    private var allDayCauses: [DayOutcome.Cause] {
+        // Список ручной по той же причине, что и у ReasonCode: DayOutcome.Cause
+        // не CaseIterable, и новый случай обязан быть добавлен сюда руками,
+        // иначе он уедет наружу без формулировки.
+        [.restOverride, .skipped, .replaced, .started, .done, .past,
+         .gridStretch, .markupMissing, .pregnancy]
+    }
+
+    /// §20.3: словарь причин дня закрыт и состоит из девяти значений.
+    func test_dayCauseDictionaryIsTheNineOfTheSpec() {
+        XCTAssertEqual(Set(allDayCauses.map(ReasonDTO.code(for:))),
+                       ["rest_override", "skipped", "replaced", "started", "done", "past",
+                        "grid_stretch", "markup_missing", "pregnancy"])
+    }
+
+    /// §20.3: словарь веток показа закрыт и состоит из пяти значений.
+    func test_dayKindDictionaryIsTheFiveOfTheSpec() {
+        let kinds: [DayOutcome.Kind] = [.session, .stretching, .notBuilt, .vectorMissing, .generatorDisabled]
+        let encoded = kinds.map { kind in
+            DayOutcomeDTO(DayOutcome(dayID: "d", kind: kind, cause: nil,
+                                     losesPlannedVolume: false, session: nil)).kind
+        }
+        XCTAssertEqual(Set(encoded),
+                       ["session", "stretching", "not_built", "vector_missing", "generator_disabled"])
+    }
+
+    /// Причина дня едет полным конвертом, как всякая доменная причина, и несёт
+    /// готовую формулировку: §20.3 не оставляет клиенту собирать её самому.
+    func test_dayCauseTravelsAsCodeParamsMessage() throws {
+        for cause in allDayCauses {
+            let dto = DayCauseDTO(cause)
+            XCTAssertFalse(dto.message.isEmpty, "нет формулировки для \(ReasonDTO.code(for: cause))")
+            XCTAssertFalse(dto.message.contains("!"), "восклицательный знак в «\(dto.message)» (§13.5)")
+
+            let json = try JSONSerialization.jsonObject(with: try encoder.encode(dto)) as? [String: Any]
+            XCTAssertEqual(Set(json?.keys ?? [:].keys), ["code", "params", "message"],
+                           "конверт причины дня — те же три поля")
+            XCTAssertEqual((json?["params"] as? [String: Any])?.isEmpty, true,
+                           "params пуст, но присутствует: форма одна на все причины")
+
+            let back = try decoder.decode(DayCauseDTO.self, from: try encoder.encode(dto))
+            XCTAssertEqual(back, dto, "причина дня не пережила round-trip: \(cause)")
+        }
+    }
+
+    /// Формулировка одна на два места: строка потери объёма и карточка дня не
+    /// вправе называть один факт по-разному.
+    func test_dayCauseMessageIsTheSamePhraseAsInVolumeLoss() {
+        let lost = ReasonStrings.message(for: .plannedVolumeLoss(muscle: .gluteMax, sets: 8, cause: .skipped))
+        let standalone = ReasonStrings.message(for: DayOutcome.Cause.skipped)
+        XCTAssertTrue(lost.lowercased().contains(standalone.lowercased()),
+                      "«\(standalone)» обязана быть той же формулировкой, что внутри «\(lost)»")
+    }
+
     // MARK: - Плюрализация
 
     func test_setsPluralisation() {

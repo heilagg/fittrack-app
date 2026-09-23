@@ -62,8 +62,14 @@ public struct BuiltSessionDTO: Sendable, Equatable, Codable {
 /// Итог дня недели (§7.1).
 public struct DayOutcomeDTO: Sendable, Equatable, Codable {
     public var dayID: String
+    /// Ветка показа, закрытый словарь §20.3: `session`, `stretching`,
+    /// `not_built`, `vector_missing`, `generator_disabled`. Строкой, а не
+    /// конвертом причины: это не причина, а то, что рисовать, и формулировки у
+    /// неё нет.
     public var kind: String
-    public var cause: String?
+    /// Причина — полным конвертом `{code, params, message}` (§20.3): её видит
+    /// пользовательница, и формулировку отдаёт сервер.
+    public var cause: DayCauseDTO?
     public var losesPlannedVolume: Bool
     public var session: BuiltSessionDTO?
 
@@ -81,7 +87,7 @@ public struct DayOutcomeDTO: Sendable, Equatable, Codable {
         case .vectorMissing: kind = "vector_missing"
         case .generatorDisabled: kind = "generator_disabled"
         }
-        cause = o.cause.map(ReasonDTO.code(for:))
+        cause = o.cause.map { DayCauseDTO($0) }
         losesPlannedVolume = o.losesPlannedVolume
         session = o.session.map(BuiltSessionDTO.init)
     }
