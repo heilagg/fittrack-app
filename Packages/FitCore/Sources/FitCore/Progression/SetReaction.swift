@@ -16,12 +16,53 @@ public enum SetOutcome: Sendable, Equatable {
 
 public enum Progression {
 
+    /// «Не больше 3 повышений за упражнение в калибровке» (SPEC §9.8).
+    public static let maxCalibrationIncreases = 3
+
+    /// Берёт ли этот подход калибровочное повышение — то есть расходует ли он
+    /// одну из трёх попыток §9.8.
+    ///
+    /// Вынесено отдельной функцией, потому что потребителей у правила двое и
+    /// разойтись им нельзя: сама `nextSet` и тот, кто ведёт счётчик снаружи —
+    /// на вебе это построение дерева §20.9, где счётчик выражен третьей
+    /// компонентой состояния узла. Вывести «было ли повышение» сравнением
+    /// результата с `current` нельзя: на плотной лестнице ×1.15 может
+    /// округлиться обратно в ту же ступень, и попытка, которая по правилу
+    /// израсходована, выглядела бы неизрасходованной.
+    ///
+    /// Считается решение, а не изменение веса, — как `extra_sets_added` в §9.5
+    /// считает решение добавить подход, а не факт его выполнения.
+    public static func consumesCalibrationIncrease(
+        feedback: Feedback,
+        actualReps: Int,
+        range: ClosedRange<Int>,
+        isCalibration: Bool,
+        calibrationIncreasesUsed: Int
+    ) -> Bool {
+        isCalibration
+            && feedback == .easy
+            && actualReps >= range.upperBound
+            && calibrationIncreasesUsed < maxCalibrationIncreases
+    }
+
     /// `priorFeedback` — фидбэк подхода, непосредственно предшествующего
     /// только что завершённому (`nil`, если только что завершённый подход —
     /// первый в упражнении за сессию). Нужен только для проверки «два
     /// failed подряд»; вся остальная реакция зависит исключительно от
     /// последнего подхода (SPEC §9.3 нарочно не использует более глубокую
     /// историю здесь — это работа `BaselineUpdater`).
+    ///
+    /// `calibrationIncreasesUsed` — сколько калибровочных повышений уже взято
+    /// по ЭТОМУ упражнению в ЭТОЙ сессии (SPEC §9.8). Вне калибровки значение
+    /// не читается. Дефолта у параметра намеренно нет, как и у
+    /// `responseProfiles` в `Cycle.state`: забытый аргумент неотличим по
+    /// поведению от «повышений ещё не было», то есть лимит §9.8 просто
+    /// перестал бы действовать — молча и ровно в калибровке, в первые две-три
+    /// тренировки новой пользовательницы. Пусть лучше не компилируется.
+    ///
+    /// Счётчик остаётся снаружи: он живёт в пределах одной сессии, а этот
+    /// модуль ничего не хранит между вызовами. Продвигает его вызывающая
+    /// сторона по `consumesCalibrationIncrease`.
     public static func nextSet(
         priorFeedback: Feedback?,
         current: Double,
@@ -29,6 +70,7 @@ public enum Progression {
         actualReps: Int,
         range: ClosedRange<Int>,
         isCalibration: Bool,
+        calibrationIncreasesUsed: Int,
         ladder: WeightLadder
     ) -> SetOutcome {
         if feedback == .failed && priorFeedback == .failed {
@@ -46,12 +88,19 @@ public enum Progression {
         case (.ok, _):
             raw = current
         case (.easy, let r) where r >= range.upperBound:
-            // Калибровка: шаг вверх +15% вместо +5% (SPEC §9.8). Ограничение
-            // «не больше 3 повышений за упражнение в калибровке» здесь не
-            // учитывается — это счётчик на уровне сессии, которым
-            // Progression не владеет (полный список отложенного — в
-            // doc-комментарии rebuildStates, RebuildStates.swift).
-            raw = isCalibration ? current * 1.15 : current * 1.05
+            // Калибровка: шаг вверх +15% вместо +5% (SPEC §9.8), но не больше
+            // трёх повышений за упражнение в сессии. Исчерпав их, ветка
+            // перестаёт двигать вес: три ×1.15 подряд — это уже +52%, и
+            // продолжать поиск тем же шагом значит не подбирать вес, а
+            // проскакивать его.
+            if isCalibration {
+                raw = consumesCalibrationIncrease(
+                    feedback: feedback, actualReps: actualReps, range: range,
+                    isCalibration: true, calibrationIncreasesUsed: calibrationIncreasesUsed
+                ) ? current * 1.15 : current
+            } else {
+                raw = current * 1.05
+            }
         case (.easy, _):
             // Легко, но повторов ниже верха диапазона (в т.ч. пользователь
             // сам снизил вес и не добрал до rep_min) — добираем повторами,

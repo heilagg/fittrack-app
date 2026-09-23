@@ -15,6 +15,10 @@
    `profiles`, `user_id = auth.uid()` для таблиц с этой колонкой, join по
    владельцу родителя для дочерних таблиц без `user_id`
    (`planned_days`, `workout_exercises`, `sets`)
+6. `0006_week_plan_snapshot.sql` — `week_plans.last_shown_plan` (§20.6): вход
+   для `Planner.rebuildNotice`. Отдельной миграцией, а не правкой `0003`,
+   потому что 0001–0005 уже прогнаны, а схемозначимость этого пункта выяснилась
+   после них
 
 Конвенции для каждой таблицы: клиентский UUID в `id`, денормализованный
 `user_id`, `updated_at`, `deleted_at`, индекс `(user_id, updated_at)`.
