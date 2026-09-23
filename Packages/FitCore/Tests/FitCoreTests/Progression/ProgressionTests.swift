@@ -50,6 +50,7 @@ final class ProgressionTests: XCTestCase {
             actualReps: 3,
             range: hypertrophyRange,
             isCalibration: false,
+            calibrationIncreasesUsed: 0,
             ladder: ladder
         )
         XCTAssertEqual(outcome, .terminateExercise)
@@ -66,6 +67,7 @@ final class ProgressionTests: XCTestCase {
             actualReps: 5,
             range: hypertrophyRange,
             isCalibration: false,
+            calibrationIncreasesUsed: 0,
             ladder: ladder
         )
         XCTAssertEqual(outcome1, .nextWeight(8))
@@ -79,6 +81,7 @@ final class ProgressionTests: XCTestCase {
             actualReps: 9,
             range: hypertrophyRange,
             isCalibration: false,
+            calibrationIncreasesUsed: 0,
             ladder: ladder
         )
         XCTAssertEqual(outcome2, .nextWeight(8))
@@ -92,6 +95,7 @@ final class ProgressionTests: XCTestCase {
             actualReps: 8,
             range: hypertrophyRange,
             isCalibration: false,
+            calibrationIncreasesUsed: 0,
             ladder: ladder
         )
         XCTAssertEqual(outcome3, .nextWeight(8))
@@ -105,6 +109,7 @@ final class ProgressionTests: XCTestCase {
             actualReps: 12,
             range: hypertrophyRange,
             isCalibration: false,
+            calibrationIncreasesUsed: 0,
             ladder: ladder
         )
         XCTAssertEqual(outcome4, .nextWeight(10))
@@ -152,6 +157,7 @@ final class ProgressionTests: XCTestCase {
             actualReps: 5,
             range: hypertrophyRange,
             isCalibration: false,
+            calibrationIncreasesUsed: 0,
             ladder: ladder
         )
         XCTAssertEqual(outcome, .nextWeight(8))
@@ -221,13 +227,13 @@ final class ProgressionTests: XCTestCase {
 
         let zero = Progression.nextSet(
             priorFeedback: nil, current: 0, feedback: .failed, actualReps: 0,
-            range: hypertrophyRange, isCalibration: false, ladder: ladder
+            range: hypertrophyRange, isCalibration: false, calibrationIncreasesUsed: 0, ladder: ladder
         )
         XCTAssertEqual(zero, .nextWeight(2))
 
         let negative = Progression.nextSet(
             priorFeedback: nil, current: -5, feedback: .failed, actualReps: 0,
-            range: hypertrophyRange, isCalibration: false, ladder: ladder
+            range: hypertrophyRange, isCalibration: false, calibrationIncreasesUsed: 0, ladder: ladder
         )
         XCTAssertEqual(negative, .nextWeight(2))
     }
@@ -276,6 +282,59 @@ final class ProgressionTests: XCTestCase {
     }
 
     // MARK: - Контракт: калибровка и детренированность, не входит в номерные сценарии
+
+    /// SPEC §9.8: не больше трёх повышений за упражнение в калибровке за сессию.
+    /// Проверяется на самой `nextSet`, а не через свёртку: свёртка идёт между
+    /// сессиями и лимита внутри одной не видит по построению.
+    func test_calibrationLimitsIncreasesToThreePerSession() {
+        // Лестница арифметическая, чтобы каждое ×1.15 гарантированно попадало
+        // на новую ступень и «не выросло» нельзя было списать на округление.
+        let ladder = WeightLadder.arithmetic(step: 0.5)
+        var weight = 20.0
+        var used = 0
+
+        for step in 1...Progression.maxCalibrationIncreases {
+            let before = weight
+            XCTAssertTrue(
+                Progression.consumesCalibrationIncrease(
+                    feedback: .easy, actualReps: 12, range: hypertrophyRange,
+                    isCalibration: true, calibrationIncreasesUsed: used),
+                "повышение \(step) обязано расходовать попытку"
+            )
+            guard case .nextWeight(let next) = Progression.nextSet(
+                priorFeedback: nil, current: weight, feedback: .easy, actualReps: 12,
+                range: hypertrophyRange, isCalibration: true,
+                calibrationIncreasesUsed: used, ladder: ladder
+            ) else { return XCTFail("повышение \(step): ожидался вес") }
+            used += 1
+            weight = next
+            XCTAssertGreaterThan(weight, before, "повышение \(step) обязано поднять вес")
+        }
+
+        // Четвёртое «легко» на том же упражнении в той же сессии вес не трогает.
+        XCTAssertFalse(
+            Progression.consumesCalibrationIncrease(
+                feedback: .easy, actualReps: 12, range: hypertrophyRange,
+                isCalibration: true, calibrationIncreasesUsed: used),
+            "четвёртое повышение попытку не расходует — их всего три"
+        )
+        guard case .nextWeight(let fourth) = Progression.nextSet(
+            priorFeedback: nil, current: weight, feedback: .easy, actualReps: 12,
+            range: hypertrophyRange, isCalibration: true,
+            calibrationIncreasesUsed: used, ladder: ladder
+        ) else { return XCTFail("четвёртый подход: ожидался вес") }
+        XCTAssertEqual(fourth, weight, accuracy: 0.0001,
+                       "исчерпав три повышения, калибровка вес больше не поднимает")
+
+        // Контроль: вне калибровки счётчик не читается вовсе — ×1.05 работает
+        // при любом его значении.
+        guard case .nextWeight(let outside) = Progression.nextSet(
+            priorFeedback: nil, current: weight, feedback: .easy, actualReps: 12,
+            range: hypertrophyRange, isCalibration: false,
+            calibrationIncreasesUsed: used, ladder: ladder
+        ) else { return XCTFail("вне калибровки: ожидался вес") }
+        XCTAssertGreaterThan(outside, weight, "вне калибровки лимит §9.8 не действует")
+    }
 
     func test_calibrationExitsAfterTwoConsecutiveQualifyingSets() {
         let ladder = WeightLadder.build(loadType: .dumbbell, profile: EquipmentProfile(dumbbellsKg: [8, 10]))
@@ -852,7 +911,7 @@ final class ProgressionTests: XCTestCase {
                 sets.append(SetResult(prescribedKg: weight, actualKg: weight, actualReps: reps, feedback: feedback))
                 let outcome = Progression.nextSet(
                     priorFeedback: prior, current: weight, feedback: feedback, actualReps: reps,
-                    range: hypertrophyRange, isCalibration: true, ladder: ladder
+                    range: hypertrophyRange, isCalibration: true, calibrationIncreasesUsed: 0, ladder: ladder
                 )
                 guard case .nextWeight(let next) = outcome else { break }
                 weight = next
@@ -989,7 +1048,7 @@ final class ProgressionTests: XCTestCase {
                 sets.append(SetResult(prescribedKg: weight, actualKg: weight, actualReps: reps, feedback: feedback))
                 guard case .nextWeight(let next) = Progression.nextSet(
                     priorFeedback: prior, current: weight, feedback: feedback, actualReps: reps,
-                    range: hypertrophyRange, isCalibration: isCalibration, ladder: ladder
+                    range: hypertrophyRange, isCalibration: isCalibration, calibrationIncreasesUsed: 0, ladder: ladder
                 ) else { break }
                 weight = next
                 prior = feedback
@@ -1174,7 +1233,7 @@ final class ProgressionTests: XCTestCase {
         guard case .nextWeight(let next) = Progression.nextSet(
             priorFeedback: .ok, current: current, feedback: .easy,
             actualReps: hypertrophyRange.upperBound, range: hypertrophyRange,
-            isCalibration: isCalibration, ladder: ladder
+            isCalibration: isCalibration, calibrationIncreasesUsed: 0, ladder: ladder
         ) else { return .nan }
         return next
     }
@@ -1281,13 +1340,13 @@ final class ProgressionTests: XCTestCase {
         let ladder = WeightLadder.arithmetic(step: 2.5)
         let failed = Progression.nextSet(
             priorFeedback: .ok, current: 150, feedback: .failed, actualReps: 5,
-            range: hypertrophyRange, isCalibration: false, ladder: ladder
+            range: hypertrophyRange, isCalibration: false, calibrationIncreasesUsed: 0, ladder: ladder
         )
         XCTAssertEqual(failed, .nextWeight(135))
 
         let hardUnderRepMin = Progression.nextSet(
             priorFeedback: .ok, current: 150, feedback: .hard, actualReps: 6,
-            range: hypertrophyRange, isCalibration: false, ladder: ladder
+            range: hypertrophyRange, isCalibration: false, calibrationIncreasesUsed: 0, ladder: ladder
         )
         XCTAssertEqual(hardUnderRepMin, .nextWeight(142.5))
     }

@@ -140,9 +140,13 @@ public enum MuscleSlug: String, Sendable, Equatable, Hashable, CaseIterable {
 /// (SPEC §6.2) — нужен Recovery для эскалации флага боли по суставу (SPEC §8.4).
 ///
 /// Порядок объявления повторяет порядок в комментарии к `user_restrictions.joint`
-/// (§3.1) и используется как детерминированный тай-брейк в
-/// `Recovery.primaryJoint(from:)` — см. там же о том, почему тай-брейк вообще
-/// понадобился.
+/// (§3.1) и больше ни на что не влияет. Раньше он служил тай-брейком при выборе
+/// одного сустава для события боли; SPEC §19.2 п.8 закрылся вариантом «событие
+/// несёт множество суставов» (§8.4 п.5), тай-брейк был снят как клинически
+/// произвольный, и выбирать между равными больше не нужно —
+/// `Recovery.painJoints(from:)` возвращает их все. Там, где порядок суставов всё
+/// же нужен наружу, он берётся по `rawValue` (`Recovery.escalations`), а не по
+/// объявлению.
 public enum Joint: String, Sendable, Equatable, Hashable, CaseIterable {
     case knee
     case lowerBack = "lower_back"
@@ -262,6 +266,14 @@ public enum ReasonCode: Sendable, Equatable {
     /// день не собирает, но и не молчит: без этой причины дыра в разметке
     /// выглядит на неделе как обычный день отдыха.
     case dayVectorMissing(kind: SessionKind, accent: MuscleSlug?)
+    /// Пригодность замены: альтернатива ведёт ту же мышцу, что и заменяемое
+    /// упражнение (SPEC §13.4, «тот же акцент на ягодицы»).
+    case substitutionKeepsLeadingMuscle(muscle: MuscleSlug)
+    /// Пригодность замены: альтернатива меньше грузит сустав, по которому у
+    /// пользователя ограничение §14.4 или недавний флаг боли §8.4
+    /// («без нагрузки на колено»). `to` — степень у альтернативы; `nil`
+    /// означает, что сустава нет в её разметке вовсе.
+    case substitutionRelievesJoint(joint: Joint, from: JointStressLevel, to: JointStressLevel?)
 }
 
 /// Какой лимит сборки не дал добрать паттерны (SPEC §7.3).

@@ -798,10 +798,17 @@ private struct Builder {
                 let raw = baseline * wr
                 kg = ladder.roundToAchievable(raw, direction: raw < (storedBaseline ?? baseline) ? .down : .up)
             }
+            // Диапазон — через Planner.repRange, а не по месту: та же функция
+            // заполняет exercise_states.current_rep_* и строит дерево §20.9
+            // (SPEC §9.1, §20.15 тест 20c). Инлайн той же формулы здесь означал
+            // бы, что «один источник на три места» верно только пока три копии
+            // совпадают. Состояние — то, что использует сборка (после
+            // stateForSession), а не сырое хранимое.
+            let reps = Planner.repRange(goal: input.goal, state: state)
             exercises.append(PrescribedExercise(
                 slug: c.slug, orderIndex: index, targetSets: finalSets[index],
-                targetRepMin: table.reps.lowerBound,
-                targetRepMax: table.reps.upperBound + (state?.repExtension ?? 0),
+                targetRepMin: reps.lowerBound,
+                targetRepMax: reps.upperBound,
                 targetRIR: rir, prescribedKg: kg, weightReadiness: wr
             ))
             volumeItems.append((c, finalSets[index]))

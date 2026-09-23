@@ -268,7 +268,7 @@ extension Planner {
             guard let sessions = history[candidate.slug], !sessions.isEmpty, states[candidate.slug] == nil else { continue }
             states[candidate.slug] = Progression.rebuildStates(
                 from: chronological(sessions),
-                baseRange: goalTable(goal).reps,
+                baseRange: baseRepRange(goal: goal),
                 ladder: WeightLadder.build(loadType: candidate.loadType, profile: equipment)
             )
         }
