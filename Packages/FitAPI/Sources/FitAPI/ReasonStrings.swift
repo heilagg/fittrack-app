@@ -260,6 +260,17 @@ public enum ReasonStrings {
         }
     }
 
+    /// Итог дня отдельной строкой (§20.3, «Итог дня едет в той же форме»).
+    ///
+    /// Собирается из `phrase` заглавной буквой, а не пишется вторым списком:
+    /// один и тот же факт («день пропущен») не вправе звучать по-разному в
+    /// строке потери объёма и в карточке дня. Второй каталог разошёлся бы
+    /// ровно так же тихо, как разошлись бы два каталога у веба и iOS (§20.2).
+    public static func message(for cause: DayOutcome.Cause) -> String {
+        let text = phrase(cause)
+        return text.prefix(1).uppercased() + text.dropFirst()
+    }
+
     // MARK: - Ошибки
 
     public static func message(for code: APIErrorCode) -> String {

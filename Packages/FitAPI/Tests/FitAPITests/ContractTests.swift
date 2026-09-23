@@ -167,6 +167,62 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(high.phase, "late_luteal")
     }
 
+    // MARK: - Итог дня
+
+    private var allDayCauses: [DayOutcome.Cause] {
+        // Список ручной по той же причине, что и у ReasonCode: DayOutcome.Cause
+        // не CaseIterable, и новый случай обязан быть добавлен сюда руками,
+        // иначе он уедет наружу без формулировки.
+        [.restOverride, .skipped, .replaced, .started, .done, .past,
+         .gridStretch, .markupMissing, .pregnancy]
+    }
+
+    /// §20.3: словарь причин дня закрыт и состоит из девяти значений.
+    func test_dayCauseDictionaryIsTheNineOfTheSpec() {
+        XCTAssertEqual(Set(allDayCauses.map(ReasonDTO.code(for:))),
+                       ["rest_override", "skipped", "replaced", "started", "done", "past",
+                        "grid_stretch", "markup_missing", "pregnancy"])
+    }
+
+    /// §20.3: словарь веток показа закрыт и состоит из пяти значений.
+    func test_dayKindDictionaryIsTheFiveOfTheSpec() {
+        let kinds: [DayOutcome.Kind] = [.session, .stretching, .notBuilt, .vectorMissing, .generatorDisabled]
+        let encoded = kinds.map { kind in
+            DayOutcomeDTO(DayOutcome(dayID: "d", kind: kind, cause: nil,
+                                     losesPlannedVolume: false, session: nil)).kind
+        }
+        XCTAssertEqual(Set(encoded),
+                       ["session", "stretching", "not_built", "vector_missing", "generator_disabled"])
+    }
+
+    /// Причина дня едет полным конвертом, как всякая доменная причина, и несёт
+    /// готовую формулировку: §20.3 не оставляет клиенту собирать её самому.
+    func test_dayCauseTravelsAsCodeParamsMessage() throws {
+        for cause in allDayCauses {
+            let dto = DayCauseDTO(cause)
+            XCTAssertFalse(dto.message.isEmpty, "нет формулировки для \(ReasonDTO.code(for: cause))")
+            XCTAssertFalse(dto.message.contains("!"), "восклицательный знак в «\(dto.message)» (§13.5)")
+
+            let json = try JSONSerialization.jsonObject(with: try encoder.encode(dto)) as? [String: Any]
+            XCTAssertEqual(Set(json?.keys ?? [:].keys), ["code", "params", "message"],
+                           "конверт причины дня — те же три поля")
+            XCTAssertEqual((json?["params"] as? [String: Any])?.isEmpty, true,
+                           "params пуст, но присутствует: форма одна на все причины")
+
+            let back = try decoder.decode(DayCauseDTO.self, from: try encoder.encode(dto))
+            XCTAssertEqual(back, dto, "причина дня не пережила round-trip: \(cause)")
+        }
+    }
+
+    /// Формулировка одна на два места: строка потери объёма и карточка дня не
+    /// вправе называть один факт по-разному.
+    func test_dayCauseMessageIsTheSamePhraseAsInVolumeLoss() {
+        let lost = ReasonStrings.message(for: .plannedVolumeLoss(muscle: .gluteMax, sets: 8, cause: .skipped))
+        let standalone = ReasonStrings.message(for: DayOutcome.Cause.skipped)
+        XCTAssertTrue(lost.lowercased().contains(standalone.lowercased()),
+                      "«\(standalone)» обязана быть той же формулировкой, что внутри «\(lost)»")
+    }
+
     // MARK: - Плюрализация
 
     func test_setsPluralisation() {
@@ -176,6 +232,93 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(ReasonStrings.sets(11), "11 подходов")
         XCTAssertEqual(ReasonStrings.sets(21), "21 подход")
         XCTAssertEqual(ReasonStrings.sets(112), "112 подходов")
+    }
+
+    // MARK: - Тела ответов
+
+    private var prescribed: PrescribedExercise {
+        PrescribedExercise(slug: "hip_thrust_barbell", orderIndex: 0, targetSets: 3,
+                           targetRepMin: 8, targetRepMax: 12, targetRIR: 2,
+                           prescribedKg: 40, weightReadiness: 1.0)
+    }
+
+    private func workout(tree: DecisionTreeDTO?) -> WorkoutDTO {
+        WorkoutDTO(
+            id: "w1", plannedDayID: "d1", sessionKind: .lower, accentMuscle: .gluteMax,
+            startedAt: "2026-09-24T19:00:00+03:00", readiness: 1.1, cyclePhase: .lateLuteal,
+            cycleConfidence: 0.62, isCalibration: false,
+            exercises: [WorkoutExerciseDTO(id: "we1", prescribed: prescribed, isCalibration: false,
+                                           decisionTree: tree,
+                                           sets: [SetDTO(id: "s1", setIndex: 1, prescribedKg: 40,
+                                                         prescribedReps: 12, actualKg: 40, actualReps: 11,
+                                                         feedback: .ok, painJoints: [.hip, .lowerBack],
+                                                         completedAt: "2026-09-24T19:04:00+03:00")])])
+    }
+
+    private var tree: DecisionTreeDTO {
+        DecisionTree.build(weightKg: 40, remainingSets: 2, range: 8...12, isCalibration: false,
+                           ladder: .arithmetic(step: 2.5))
+    }
+
+    func test_workoutSurvivesRoundTrip() throws {
+        let dto = workout(tree: tree)
+        XCTAssertEqual(try decoder.decode(WorkoutDTO.self, from: try encoder.encode(dto)), dto)
+    }
+
+    /// Ключи на проводе — snake_case, как у всей границы.
+    func test_workoutKeysAreSnakeCase() throws {
+        let json = try JSONSerialization.jsonObject(with: try encoder.encode(workout(tree: tree))) as? [String: Any]
+        XCTAssertNotNil(json?["planned_day_id"])
+        XCTAssertNotNil(json?["session_kind"])
+        XCTAssertNotNil(json?["is_calibration"])
+
+        let exercise = (json?["exercises"] as? [[String: Any]])?.first
+        XCTAssertNotNil(exercise?["decision_tree"], "дерево — поле упражнения (§20.3)")
+        XCTAssertNotNil(exercise?["weight_readiness"])
+        XCTAssertEqual(exercise?["is_calibration"] as? Bool, false, "калибровка по упражнению, не по тренировке")
+
+        let set = (exercise?["sets"] as? [[String: Any]])?.first
+        XCTAssertEqual(set?["pain_joints"] as? [String], ["hip", "lower_back"])
+        XCTAssertEqual(set?["prescribed_reps"] as? Int, 12)
+    }
+
+    /// §20.3: у не начатого дня дерева не существует, и поле отсутствует.
+    func test_decisionTreeIsAbsentWhenWorkoutHasNotStarted() throws {
+        let json = try JSONSerialization.jsonObject(
+            with: try encoder.encode(workout(tree: nil))) as? [String: Any]
+        let exercise = (json?["exercises"] as? [[String: Any]])?.first
+        XCTAssertNil(exercise?["decision_tree"])
+    }
+
+    /// §20.3: ответ на лог подхода несёт ТОЛЬКО дерево — второго источника
+    /// того же числа у клиента быть не должно.
+    func test_logSetResponseCarriesOnlyTheTree() throws {
+        let json = try JSONSerialization.jsonObject(
+            with: try encoder.encode(LogSetResponseDTO(decisionTree: tree))) as? [String: Any]
+        XCTAssertEqual(Set(json?.keys ?? [:].keys), ["decision_tree"])
+    }
+
+    /// Один тип на четыре недельных пути, `notice` необязателен.
+    func test_weekPlanResponseCarriesOptionalNotice() throws {
+        let plan = WeekPlanDTO(WeekPlan(days: [:], statusLines: []))
+        let silent = WeekPlanResponseDTO(plan: plan)
+        XCTAssertNil(try decoder.decode(WeekPlanResponseDTO.self, from: try encoder.encode(silent)).notice)
+
+        let loud = WeekPlanResponseDTO(plan: plan, notice: ReasonDTO(.planRebuilt(cause: .equipmentChanged)))
+        let back = try decoder.decode(WeekPlanResponseDTO.self, from: try encoder.encode(loud))
+        XCTAssertEqual(back, loud)
+    }
+
+    func test_todayCardSurvivesRoundTrip() throws {
+        let card = TodayCardDTO(
+            date: "2026-09-24", readiness: 1.1,
+            cycle: CycleStateDTO(CycleState(phaseMode: .phases, noPhaseReason: nil, hasAnchor: true,
+                                            phase: .lateLuteal, cycleConfidence: 0.62,
+                                            periodization: nil, effectivePhaseAdjustment: nil)),
+            day: DayOutcomeDTO(DayOutcome(dayID: "d1", kind: .notBuilt, cause: .skipped,
+                                          losesPlannedVolume: true, session: nil)),
+            reasons: [ReasonDTO(.phasePeriodization(phase: .lateLuteal, cycleConfidence: 0.62))])
+        XCTAssertEqual(try decoder.decode(TodayCardDTO.self, from: try encoder.encode(card)), card)
     }
 
     // MARK: - Запросы

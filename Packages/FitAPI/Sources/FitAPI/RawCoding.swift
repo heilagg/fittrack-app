@@ -28,6 +28,22 @@ extension KeyedDecodingContainer {
     }
 }
 
+extension KeyedDecodingContainer {
+    /// Массив таких же значений — `sets.pain_joints` (§3.1) и всё, что схема
+    /// держит массивом слагов.
+    func decodeRawArrayIfPresent<T: RawRepresentable>(_ type: T.Type, forKey key: Key) throws -> [T]?
+    where T.RawValue == String {
+        guard let raws = try decodeIfPresent([String].self, forKey: key) else { return nil }
+        return try raws.map { raw in
+            guard let value = T(rawValue: raw) else {
+                throw DecodingError.dataCorruptedError(forKey: key, in: self,
+                                                       debugDescription: "неизвестное значение «\(raw)»")
+            }
+            return value
+        }
+    }
+}
+
 extension KeyedEncodingContainer {
     mutating func encodeRaw<T: RawRepresentable>(_ value: T, forKey key: Key) throws
     where T.RawValue == String {
@@ -37,5 +53,10 @@ extension KeyedEncodingContainer {
     mutating func encodeRawIfPresent<T: RawRepresentable>(_ value: T?, forKey key: Key) throws
     where T.RawValue == String {
         try encodeIfPresent(value?.rawValue, forKey: key)
+    }
+
+    mutating func encodeRawArray<T: RawRepresentable>(_ values: [T], forKey key: Key) throws
+    where T.RawValue == String {
+        try encode(values.map(\.rawValue), forKey: key)
     }
 }

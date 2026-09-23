@@ -69,7 +69,33 @@ extension ReasonDTO {
         }
     }
 
-    static func code(for cause: DayOutcome.Cause) -> String {
+    /// Ветка показа дня (§20.3, закрытый словарь). Отдельной функцией, а не
+    /// `switch` по месту: строку читают и `DayOutcomeDTO`, и снимок плана
+    /// (§20.6), и разъехаться этим двум нельзя — снимок сравнивается с живым
+    /// планом, и разное написание одного и того же `kind` печатало бы «План
+    /// обновлён» на каждой пересборке.
+    public static func code(for kind: DayOutcome.Kind) -> String {
+        switch kind {
+        case .session: return "session"
+        case .stretching: return "stretching"
+        case .notBuilt: return "not_built"
+        case .vectorMissing: return "vector_missing"
+        case .generatorDisabled: return "generator_disabled"
+        }
+    }
+
+    public static func dayKind(_ code: String) -> DayOutcome.Kind? {
+        switch code {
+        case "session": return .session
+        case "stretching": return .stretching
+        case "not_built": return .notBuilt
+        case "vector_missing": return .vectorMissing
+        case "generator_disabled": return .generatorDisabled
+        default: return nil
+        }
+    }
+
+    public static func code(for cause: DayOutcome.Cause) -> String {
         switch cause {
         case .restOverride: return "rest_override"
         case .skipped: return "skipped"
@@ -91,7 +117,7 @@ extension ReasonDTO {
         }
     }
 
-    static func dayCause(_ code: String) -> DayOutcome.Cause? {
+    public static func dayCause(_ code: String) -> DayOutcome.Cause? {
         switch code {
         case "rest_override": return .restOverride
         case "skipped": return .skipped
@@ -295,5 +321,52 @@ public struct RebuildCauseDTO: Sendable, Equatable, Codable {
                                                    debugDescription: "неизвестная причина пересборки: \(code)")
         }
         message = try c.decode(String.self, forKey: .message)
+    }
+}
+
+/// Итог дня на проводе (§20.3). Тот же конверт `{code, params, message}`, что у
+/// `ReasonDTO` и `RebuildCauseDTO`, — и это не единообразие ради единообразия.
+///
+/// `cause` — доменная причина, которую видит пользовательница («день
+/// пропущен», «заменён растяжкой»), а §20.3 постановила: формулировку для ВСЕХ
+/// доменных причин отдаёт сервер. Голой строкой этот кусок выпадал из правила —
+/// клиенту пришлось бы собрать русский текст самому, то есть завести тот самый
+/// второй каталог, который расходится тихо и чинится релизом в App Store.
+///
+/// `params` пуст у всех девяти случаев: ассоциированных значений у
+/// `DayOutcome.Cause` нет. Форму из-за этого не сплющиваем — один конверт
+/// разбирается на клиенте одним куском кода на все причины сразу, а
+/// появившийся однажды параметр не сменит форму ответа у двух развёрнутых
+/// клиентов (§20.8).
+public struct DayCauseDTO: Sendable, Equatable {
+    public var cause: DayOutcome.Cause
+    public var message: String
+
+    public init(_ cause: DayOutcome.Cause, message: String? = nil) {
+        self.cause = cause
+        self.message = message ?? ReasonStrings.message(for: cause)
+    }
+}
+
+extension DayCauseDTO: Codable {
+    enum Key: String, CodingKey { case code, params, message }
+    private struct NoParams: Codable {}
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: Key.self)
+        try c.encode(ReasonDTO.code(for: cause), forKey: .code)
+        try c.encode(message, forKey: .message)
+        try c.encode(NoParams(), forKey: .params)
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: Key.self)
+        let code = try c.decode(String.self, forKey: .code)
+        guard let cause = ReasonDTO.dayCause(code) else {
+            throw DecodingError.dataCorruptedError(forKey: .code, in: c,
+                                                   debugDescription: "неизвестная причина дня: \(code)")
+        }
+        self.cause = cause
+        self.message = try c.decode(String.self, forKey: .message)
     }
 }

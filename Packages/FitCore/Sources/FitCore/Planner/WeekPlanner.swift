@@ -104,6 +104,13 @@ public struct WeekPlan: Sendable, Equatable {
     /// Строки статуса недели (§7.1): потеря объёма, недобор по времени.
     public var statusLines: [ReasonCode]
 
+    /// Публичный по той же причине, что у `DayOutcome`: предыдущий план
+    /// восстанавливается из снимка §20.6 и подаётся в `rebuildNotice`.
+    public init(days: [String: DayOutcome], statusLines: [ReasonCode]) {
+        self.days = days
+        self.statusLines = statusLines
+    }
+
     /// Собранные тренировки — срез `days` для тех, кому нужен только план.
     public var sessions: [String: BuiltSession] {
         days.compactMapValues(\.session)
