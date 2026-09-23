@@ -225,6 +225,50 @@ extension Planner {
         }
     }
 
+    /// Числа одного упражнения (§7.3 «Повторы и RIR», §7.6): целевой RIR,
+    /// готовность к весу, предписанный вес и действующий диапазон повторов.
+    ///
+    /// Вынесено из тела сборки не ради краткости, а затем, чтобы у `prescribe`
+    /// (§20.3) не появилось второй реализации этих формул. Разойдясь, две копии
+    /// дали бы пользовательнице разные веса на карточке дня и на экране
+    /// тренировки, причём ни один тест §18 этого не увидел бы: он сверяет
+    /// сборку саму с собой.
+    ///
+    /// `state` — состояние ПОСЛЕ сбросов §9.7 (`stateForSession`), а
+    /// `storedBaseline` — сырая хранимая базовая линия: направление округления
+    /// сравнивается именно с ней, иначе срез детренированности сам себя
+    /// округлял бы вверх.
+    static func exerciseNumbers(
+        _ c: ExerciseCandidate,
+        state: ExerciseState?,
+        storedBaseline: Double?,
+        input: SessionInput
+    ) -> (rir: Int, weightReadiness: Double, prescribedKg: Double?, reps: ClosedRange<Int>) {
+        let table = goalTable(input.goal)
+        let baseRIR = input.safety.level == .novice ? table.rir.upperBound : table.rir.lowerBound
+        let adjustments = c.loadedMuscles.map { Recovery.adjustment(forFatigue: input.fatigue[$0] ?? 0) }
+        let fatigueBump = adjustments.map(\.targetRIRDelta).max() ?? 0
+        let rir = Readiness.targetRIR(baseRIR: baseRIR, readiness: input.readiness,
+                                      cycleState: input.cycleState, fatigueRIRBump: fatigueBump)
+            + (input.safety.isConservative ? 1 : 0)
+        let wr = Readiness.weightReadiness(readiness: input.readiness, contributingMuscleAdjustments: adjustments)
+        var kg: Double?
+        if let state, !state.isInCalibration, let baseline = state.baselineKg {
+            // Направление округления SPEC не задаёт — задокументированный выбор
+            // по прецеденту SetReaction: вниз, если итог ниже хранимой базовой
+            // линии (срез готовности или детренированности), вверх — если выше.
+            // Калибровка веса не предписывает (§9.8).
+            let ladder = WeightLadder.build(loadType: c.loadType, profile: input.equipment)
+            let raw = baseline * wr
+            kg = ladder.roundToAchievable(raw, direction: raw < (storedBaseline ?? baseline) ? .down : .up)
+        }
+        // Диапазон — через repRange, а не по месту: та же функция заполняет
+        // exercise_states.current_rep_* и строит дерево §20.9 (SPEC §9.1,
+        // §20.15 тест 20c). Инлайн той же формулы означал бы, что «один
+        // источник на три места» верно только пока три копии совпадают.
+        return (rir, wr, kg, repRange(goal: input.goal, state: state))
+    }
+
     /// Диапазон цели без расширения — то, что функции Progression принимают как
     /// `baseRange` (SPEC §9.1). Именно он идёт в `rebuildStates`: расширение —
     /// результат свёртки, и подавать его на вход значило бы учесть дважды.
@@ -773,43 +817,20 @@ private struct Builder {
         ordered = order(ordered)
         let finalSets = orderedSets()
 
-        // Числа упражнения (§7.3 «Повторы и RIR», §7.6).
-        let table = Planner.goalTable(input.goal)
-        let baseRIR = input.safety.level == .novice ? table.rir.upperBound : table.rir.lowerBound
+        // Числа упражнения (§7.3 «Повторы и RIR», §7.6) — одной функцией на
+        // сборку и на пересчёт §20.3, состояние берётся после stateForSession.
         var exercises: [PrescribedExercise] = []
         var volumeItems: [(ExerciseCandidate, Int)] = []
         for (index, p) in ordered.enumerated() {
             let c = pool[p].candidate
-            let state = states[c.slug]
-            let storedBaseline = input.exerciseStates[c.slug]?.baselineKg
-            let adjustments = c.loadedMuscles.map { Recovery.adjustment(forFatigue: input.fatigue[$0] ?? 0) }
-            let fatigueBump = adjustments.map(\.targetRIRDelta).max() ?? 0
-            let rir = Readiness.targetRIR(baseRIR: baseRIR, readiness: input.readiness,
-                                          cycleState: input.cycleState, fatigueRIRBump: fatigueBump)
-                + (input.safety.isConservative ? 1 : 0)
-            let wr = Readiness.weightReadiness(readiness: input.readiness, contributingMuscleAdjustments: adjustments)
-            var kg: Double?
-            if let state, !state.isInCalibration, let baseline = state.baselineKg {
-                // Направление округления SPEC не задаёт — задокументированный
-                // выбор по прецеденту SetReaction: вниз, если итог ниже хранимой
-                // базовой линии (срез готовности или детренированности), вверх —
-                // если выше. Калибровка веса не предписывает (§9.8).
-                let ladder = WeightLadder.build(loadType: c.loadType, profile: input.equipment)
-                let raw = baseline * wr
-                kg = ladder.roundToAchievable(raw, direction: raw < (storedBaseline ?? baseline) ? .down : .up)
-            }
-            // Диапазон — через Planner.repRange, а не по месту: та же функция
-            // заполняет exercise_states.current_rep_* и строит дерево §20.9
-            // (SPEC §9.1, §20.15 тест 20c). Инлайн той же формулы здесь означал
-            // бы, что «один источник на три места» верно только пока три копии
-            // совпадают. Состояние — то, что использует сборка (после
-            // stateForSession), а не сырое хранимое.
-            let reps = Planner.repRange(goal: input.goal, state: state)
+            let n = Planner.exerciseNumbers(c, state: states[c.slug],
+                                            storedBaseline: input.exerciseStates[c.slug]?.baselineKg,
+                                            input: input)
             exercises.append(PrescribedExercise(
                 slug: c.slug, orderIndex: index, targetSets: finalSets[index],
-                targetRepMin: reps.lowerBound,
-                targetRepMax: reps.upperBound,
-                targetRIR: rir, prescribedKg: kg, weightReadiness: wr
+                targetRepMin: n.reps.lowerBound,
+                targetRepMax: n.reps.upperBound,
+                targetRIR: n.rir, prescribedKg: n.prescribedKg, weightReadiness: n.weightReadiness
             ))
             volumeItems.append((c, finalSets[index]))
         }
