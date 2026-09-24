@@ -278,6 +278,7 @@ public enum ReasonStrings {
         case .unauthorized: return "Нужно войти заново"
         case .jwksUnavailable: return "Сервер входа временно недоступен, попробуйте через минуту"
         case .forbidden: return "Нет доступа к этим данным"
+        case .unlinkedAccount: return "Сохраните аккаунт, чтобы начать тренировку"
         case .notFound: return "Не найдено"
         case .dateSkew: return "Дата на устройстве сильно расходится с нашей — проверьте часы"
         case .validationFailed: return "Запрос не прошёл проверку"
