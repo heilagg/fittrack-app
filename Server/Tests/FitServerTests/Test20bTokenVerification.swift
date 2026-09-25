@@ -614,17 +614,99 @@ struct Test20bTokenVerification {
         #expect(failure?.code.httpStatus == 503)
     }
 
-    /// Пустой список ключей — то, что отдаёт проект на legacy HS256. Сегодня
-    /// трактуется как «ключей нет» (§20.3), и отдельная классификация в §20.5
-    /// не решена: тест фиксирует текущее поведение, а не выбирает его.
-    @Test func test20b_emptyKeySetIsTreatedAsNoKeysAtAll() async throws {
-        let key = TestKey()
-        let clock = TestClock(start)
-        let (verifier, _) = try verifier(source: StubJWKS(.json(#"{"keys":[]}"#)), clock: clock)
+    // MARK: - Старт процесса
 
+    /// Пустой список ключей при старте — процесс не поднимается (§20.5). Это
+    /// ответ проекта, не переведённого на асимметричные ключи, и он приезжает
+    /// УСПЕХОМ: сбой прошёл бы сам, конфигурация — нет.
+    @Test func test20b_emptyKeySetRefusesToStartTheProcess() async throws {
+        let clock = TestClock(start)
+        let configuration = try configuration()
+        let cache = JWKSCache(
+            source: StubJWKS(.json(#"{"keys":[]}"#)),
+            configuration: configuration,
+            now: { clock.now }
+        )
+
+        await #expect(throws: JWKSCache.StartupFailure.jwksHasNoUsableKeys(configuration.jwksURL)) {
+            try await cache.start()
+        }
+    }
+
+    /// Ключ без собственного `alg` непригоден (иначе алгоритм выбирал бы
+    /// предъявитель токена), и набор из одних таких ключей — тот же случай:
+    /// поднимать процесс с неработающей аутентификацией незачем.
+    @Test func test20b_keySetWithoutUsableKeysRefusesToStartTheProcess() async throws {
+        let clock = TestClock(start)
+        let configuration = try configuration()
+        let key = TestKey()
+        let withoutAlg = key.jwk.replacingOccurrences(of: #""alg":"ES256","#, with: "")
+        let cache = JWKSCache(
+            source: StubJWKS(.json("{\"keys\":[\(withoutAlg)]}")),
+            configuration: configuration,
+            now: { clock.now }
+        )
+
+        await #expect(throws: JWKSCache.StartupFailure.self) { try await cache.start() }
+    }
+
+    /// Недоступность старту НЕ мешает: чужой сбой пройдёт сам, а останавливать
+    /// из-за него деплой значило бы ставить свою доступность в зависимость от
+    /// момента выкатки. Процесс поднимается и отвечает 503, пока ключи не
+    /// приедут (§20.5).
+    @Test func test20b_unreachableJWKSDoesNotPreventStartup() async throws {
+        let key = TestKey()
+        let source = StubJWKS(.unreachable)
+        let clock = TestClock(start)
+        let configuration = try configuration()
+        let cache = JWKSCache(source: source, configuration: configuration, now: { clock.now })
+
+        try await cache.start()
+
+        let verifier = TokenVerifier(configuration: configuration, cache: cache, now: { clock.now })
         await expectFailure(.jwksUnavailable) {
             try await verifier.verify(bearer: try await self.sign(self.claims(), with: key))
         }
+
+        // Ключи приехали — тот же процесс начинает работать без перезапуска.
+        await source.set(.json(jwks(key)))
+        clock.advance(601)
+        let verified = try await verifier.verify(bearer: try await sign(claims(), with: key))
+        #expect(!(verified.isAnonymous))
+    }
+
+    /// Ключи были и пропали — `internal` и 500, а не `jwks_unavailable` и 503:
+    /// проект настроен, значит это поломка у нас, и повтор клиенту не поможет
+    /// (§20.5).
+    @Test func test20b_vanishedKeySetIsFiveHundredNotFiveOhThree() async throws {
+        let key = TestKey()
+        let source = StubJWKS(.json(jwks(key)))
+        let clock = TestClock(start)
+        // Срок обновления — рабочие 10 минут: пустой набор обязан приехать
+        // именно плановым обновлением, а не промахом по `kid`.
+        let configuration = try configuration(refreshInterval: 600)
+        let cache = JWKSCache(source: source, configuration: configuration, now: { clock.now })
+        try await cache.start()
+        let verifier = TokenVerifier(configuration: configuration, cache: cache, now: { clock.now })
+
+        _ = try await verifier.verify(bearer: try await sign(claims(), with: key))
+
+        // Плановое обновление принесло пустой набор.
+        await source.set(.json(#"{"keys":[]}"#))
+        clock.advance(601)
+
+        let failure = await #expect(throws: AuthFailure.self) {
+            _ = try await verifier.verify(bearer: try await self.sign(self.claims(), with: key))
+        }
+        #expect(failure == .keySetVanished)
+        #expect(failure?.code == .internal)
+        #expect(failure?.code.httpStatus == 500)
+    }
+
+    /// Срок обновления — 10 минут, и это значение §20.5, а не умолчание
+    /// реализации.
+    @Test func test20b_refreshIntervalIsTenMinutesByDefault() throws {
+        #expect(try AuthConfiguration(issuer: issuer).refreshInterval == 600)
     }
 
     // MARK: - Что уходит дальше
