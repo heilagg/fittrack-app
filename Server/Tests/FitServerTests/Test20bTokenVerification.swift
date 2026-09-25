@@ -18,7 +18,8 @@
 //       умолчанию: `JWTKeyCollection.verify` поступает именно так, и токен
 //       прошёл бы чужим ключом.
 
-import XCTest
+import Testing
+import Foundation
 import JWTKit
 import FitAPI
 @testable import FitServer
@@ -120,7 +121,8 @@ private func base64URL(_ data: Data) -> String {
         .replacingOccurrences(of: "=", with: "")
 }
 
-final class Test20bTokenVerification: XCTestCase {
+@Suite("20b: проверка предъявленного токена (§20.15)")
+struct Test20bTokenVerification {
 
     private let issuer = "https://project.supabase.co/auth/v1"
     private let foreignIssuer = "https://other-project.supabase.co/auth/v1"
@@ -185,17 +187,11 @@ final class Test20bTokenVerification: XCTestCase {
 
     private func expectFailure(
         _ expected: AuthFailure,
-        file: StaticString = #filePath,
-        line: UInt = #line,
+        sourceLocation: SourceLocation = #_sourceLocation,
         _ body: () async throws -> VerifiedToken
     ) async {
-        do {
+        await #expect(throws: expected, sourceLocation: sourceLocation) {
             _ = try await body()
-            XCTFail("ожидался отказ \(expected)", file: file, line: line)
-        } catch let failure as AuthFailure {
-            XCTAssertEqual(failure, expected, file: file, line: line)
-        } catch {
-            XCTFail("ожидался AuthFailure, получено \(error)", file: file, line: line)
         }
     }
 
@@ -204,7 +200,7 @@ final class Test20bTokenVerification: XCTestCase {
     /// Главное утверждение 20b: чужой проект отсекается `iss`, а не подписью и
     /// не промахом `kid`. Поэтому подпись здесь СВЕЖАЯ и сделана ключом, который
     /// лежит в нашем же JWKS: всё остальное сходится, расходится только issuer.
-    func test20b_foreignIssuerIsRejectedWhileSignatureAndKidAreValid() async throws {
+    @Test func test20b_foreignIssuerIsRejectedWhileSignatureAndKidAreValid() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -223,7 +219,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// `aud` чужой токен не отличает — у Supabase он `authenticated` во всех
     /// проектах. Проверяется как самостоятельное правило, а не как замена `iss`.
-    func test20b_wrongAudienceIsRejected() async throws {
+    @Test func test20b_wrongAudienceIsRejected() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -236,7 +232,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     // MARK: - Подпись
 
-    func test20b_forgedSignatureIsRejected() async throws {
+    @Test func test20b_forgedSignatureIsRejected() async throws {
         let published = TestKey()
         // Тот же `kid`, другая пара ключей: подпись подделана.
         let forged = TestKey(kid: published.kid)
@@ -253,7 +249,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// `alg: none` — отказ, и отказ по алгоритму, а не по подписи: до ключа
     /// такой токен не доходит вовсе.
-    func test20b_algNoneIsRejected() async throws {
+    @Test func test20b_algNoneIsRejected() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, cache) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -266,13 +262,13 @@ final class Test20bTokenVerification: XCTestCase {
             try await verifier.verify(bearer: "\(header).\(payload).")
         }
         let fetchesAfter = await cache.fetchCount
-        XCTAssertEqual(fetchesBefore, fetchesAfter, "непригодный alg не должен дёргать JWKS")
+        #expect(fetchesBefore == fetchesAfter, "непригодный alg не должен дёргать JWKS")
     }
 
     /// Классика подмены алгоритма: HS256, подписанный байтами публичного ключа.
     /// Отклоняется по списку алгоритмов, то есть до того, как этот «секрет»
     /// вообще кого-то заинтересует.
-    func test20b_hmacSignedWithThePublicKeyIsRejected() async throws {
+    @Test func test20b_hmacSignedWithThePublicKeyIsRejected() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -292,7 +288,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// Заголовок объявляет RS256, ключ по `kid` — ES256. Отказ наступает на
     /// сверке с ключом, а не на подписи: алгоритм берётся из ключа (§20.5).
-    func test20b_headerAlgorithmMismatchingTheKeyIsRejected() async throws {
+    @Test func test20b_headerAlgorithmMismatchingTheKeyIsRejected() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -312,7 +308,7 @@ final class Test20bTokenVerification: XCTestCase {
     /// Ключ по умолчанию не подставляется. `JWTKeyCollection.verify` при
     /// неизвестном `kid` берёт первый добавленный ключ — токен прошёл бы чужим
     /// ключом, а механика §20.5 не наступила бы никогда.
-    func test20b_unknownKidNeverFallsBackToTheDefaultKey() async throws {
+    @Test func test20b_unknownKidNeverFallsBackToTheDefaultKey() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -326,7 +322,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// Токен без `kid` — промах без похода за ключами: искать нечего, а
     /// троттл §20.5 считается именно по `kid`.
-    func test20b_tokenWithoutKidIsRejectedWithoutFetching() async throws {
+    @Test func test20b_tokenWithoutKidIsRejectedWithoutFetching() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, cache) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -340,12 +336,12 @@ final class Test20bTokenVerification: XCTestCase {
             try await verifier.verify(bearer: "\(header).\(payload).signature")
         }
         let fetchesAfter = await cache.fetchCount
-        XCTAssertEqual(fetchesBefore, fetchesAfter)
+        #expect(fetchesBefore == fetchesAfter)
     }
 
     // MARK: - Время
 
-    func test20b_expiredTokenIsRejected() async throws {
+    @Test func test20b_expiredTokenIsRejected() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -360,7 +356,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// Перекос 60 с покрывает сетевой разброс и ничего сверх: 30 секунд после
     /// `exp` проходят, 90 — нет.
-    func test20b_expiryIsForgivenWithinSixtySecondsAndNotBeyond() async throws {
+    @Test func test20b_expiryIsForgivenWithinSixtySecondsAndNotBeyond() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -378,7 +374,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// `nbf` прощается в другую сторону — потому и моментов два, а не один
     /// сдвинутый.
-    func test20b_notBeforeIsForgivenWithinSixtySecondsAndNotBeyond() async throws {
+    @Test func test20b_notBeforeIsForgivenWithinSixtySecondsAndNotBeyond() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -391,7 +387,7 @@ final class Test20bTokenVerification: XCTestCase {
     }
 
     /// `nbf` необязателен у Supabase — токена без него это правило не касается.
-    func test20b_absentNotBeforeIsAccepted() async throws {
+    @Test func test20b_absentNotBeforeIsAccepted() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -401,7 +397,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     // MARK: - Subject
 
-    func test20b_missingSubjectIsRejected() async throws {
+    @Test func test20b_missingSubjectIsRejected() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -420,7 +416,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// Промах по `kid` даёт ровно один перезапрос; второй промах по тому же
     /// ключу — 401 без похода.
-    func test20b_kidMissTriggersExactlyOneRefetch() async throws {
+    @Test func test20b_kidMissTriggersExactlyOneRefetch() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, cache) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -436,16 +432,16 @@ final class Test20bTokenVerification: XCTestCase {
 
         await expectFailure(.unauthorized(.unknownKey)) { try await verifier.verify(bearer: token) }
         let afterFirst = await cache.fetchCount
-        XCTAssertEqual(afterFirst, warm + 1, "первый промах — один перезапрос")
+        #expect(afterFirst == warm + 1, "первый промах — один перезапрос")
 
         await expectFailure(.unauthorized(.unknownKey)) { try await verifier.verify(bearer: token) }
         let afterSecond = await cache.fetchCount
-        XCTAssertEqual(afterSecond, afterFirst, "второй промах подряд — без похода")
+        #expect(afterSecond == afterFirst, "второй промах подряд — без похода")
     }
 
     /// Глобальный счётчик: разные неизвестные `kid` не дают по походу каждый.
     /// Без него учёт по `kid` оставлял бы внешний рычаг на исходящий трафик.
-    func test20b_globalThrottleCapsFetchesAcrossDistinctKids() async throws {
+    @Test func test20b_globalThrottleCapsFetchesAcrossDistinctKids() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, cache) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -462,7 +458,7 @@ final class Test20bTokenVerification: XCTestCase {
             }
         }
         let afterBurst = await cache.fetchCount
-        XCTAssertEqual(afterBurst, warm + 1, "минута — один поход, сколько бы kid ни пришло")
+        #expect(afterBurst == warm + 1, "минута — один поход, сколько бы kid ни пришло")
 
         clock.advance(61)
         let another = TestKey()
@@ -470,14 +466,14 @@ final class Test20bTokenVerification: XCTestCase {
             try await verifier.verify(bearer: try await self.sign(self.claims(), with: another))
         }
         let afterWindow = await cache.fetchCount
-        XCTAssertEqual(afterWindow, afterBurst + 1, "после окна поход снова разрешён")
+        #expect(afterWindow == afterBurst + 1, "после окна поход снова разрешён")
     }
 
     /// Счётчик по `kid` проверяется отдельно от глобального: окна разведены
     /// (5 минут против минуты), поэтому отказ от второго похода объясним только
     /// им. С равными окнами §20.5 оба истекают разом, и такое утверждение было
     /// бы зелёным по обеим причинам сразу.
-    func test20b_theKidCounterAloneBlocksARepeatedMiss() async throws {
+    @Test func test20b_theKidCounterAloneBlocksARepeatedMiss() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, cache) = try verifier(
@@ -500,7 +496,7 @@ final class Test20bTokenVerification: XCTestCase {
         clock.advance(61)
         await expectFailure(.unauthorized(.unknownKey)) { try await verifier.verify(bearer: token) }
         let afterSecond = await cache.fetchCount
-        XCTAssertEqual(afterSecond, afterFirst, "тот же kid внутри своего окна — без похода")
+        #expect(afterSecond == afterFirst, "тот же kid внутри своего окна — без похода")
 
         // Другой неизвестный ключ в тот же момент поход получает: окно
         // считается по ключу, а не по процессу.
@@ -509,11 +505,11 @@ final class Test20bTokenVerification: XCTestCase {
             try await verifier.verify(bearer: try await self.sign(self.claims(), with: another))
         }
         let afterOther = await cache.fetchCount
-        XCTAssertEqual(afterOther, afterSecond + 1)
+        #expect(afterOther == afterSecond + 1)
     }
 
     /// Ради чего перезапрос и существует: ротация подхватывается без деплоя.
-    func test20b_rotationIsPickedUpOnKidMiss() async throws {
+    @Test func test20b_rotationIsPickedUpOnKidMiss() async throws {
         let old = TestKey()
         let new = TestKey()
         let source = StubJWKS(.json(jwks(old)))
@@ -527,7 +523,7 @@ final class Test20bTokenVerification: XCTestCase {
 
         let token = try await sign(claims(), with: new)
         let verified = try await verifier.verify(bearer: token)
-        XCTAssertEqual(verified.subject, "8f1b1c8e-0000-4000-8000-000000000001")
+        #expect(verified.subject == "8f1b1c8e-0000-4000-8000-000000000001")
 
         // Набор заменён целиком: прежний ключ больше не принимается.
         await expectFailure(.unauthorized(.unknownKey)) {
@@ -541,7 +537,7 @@ final class Test20bTokenVerification: XCTestCase {
     /// быть проверяемым: с заданным сроком набор обновляется без единого
     /// промаха по `kid`, то есть ротация подхватывается до того, как о ней
     /// узнает первый пользователь.
-    func test20b_scheduledRefreshPicksUpRotationWithoutAnyKidMiss() async throws {
+    @Test func test20b_scheduledRefreshPicksUpRotationWithoutAnyKidMiss() async throws {
         let old = TestKey()
         let new = TestKey()
         let source = StubJWKS(.json(jwks(old)))
@@ -557,15 +553,15 @@ final class Test20bTokenVerification: XCTestCase {
         // Ключ новый, промаха не было бы и без обновления — проверяем, что
         // набор подтянулся сам.
         let verified = try await verifier.verify(bearer: try await sign(claims(), with: new))
-        XCTAssertFalse(verified.isAnonymous)
+        #expect(!(verified.isAnonymous))
         let after = await cache.fetchCount
-        XCTAssertEqual(after, warm + 1)
+        #expect(after == warm + 1)
     }
 
     /// Плановое обновление тоже под глобальным счётчиком. Иначе при лежащем
     /// Supabase срок обновления оставался бы просроченным, и каждый запрос
     /// уходил бы в сеть.
-    func test20b_scheduledRefreshDuringOutageStaysUnderTheGlobalThrottle() async throws {
+    @Test func test20b_scheduledRefreshDuringOutageStaysUnderTheGlobalThrottle() async throws {
         let key = TestKey()
         let source = StubJWKS(.json(jwks(key)))
         let clock = TestClock(start)
@@ -582,13 +578,13 @@ final class Test20bTokenVerification: XCTestCase {
             _ = try await verifier.verify(bearer: try await sign(claims(), with: key))
         }
         let after = await cache.fetchCount
-        XCTAssertEqual(after, warm + 1, "просроченный срок не делает поход из каждого запроса")
+        #expect(after == warm + 1, "просроченный срок не делает поход из каждого запроса")
     }
 
     // MARK: - Доступность JWKS
 
     /// Ключ не протух от того, что Supabase недоступен.
-    func test20b_warmCacheSurvivesJWKSOutage() async throws {
+    @Test func test20b_warmCacheSurvivesJWKSOutage() async throws {
         let key = TestKey()
         let source = StubJWKS(.json(jwks(key)))
         let clock = TestClock(start)
@@ -600,30 +596,28 @@ final class Test20bTokenVerification: XCTestCase {
         clock.advance(600)
 
         let verified = try await verifier.verify(bearer: try await sign(claims(), with: key))
-        XCTAssertFalse(verified.isAnonymous)
+        #expect(!(verified.isAnonymous))
     }
 
     /// Кеша нет вовсе — 503, а НЕ 401: это не «токен плохой», и клиенту
     /// следует повторить, а не разлогинивать пользователя.
-    func test20b_coldCacheDuringOutageIsFiveOhThreeNotFourOhOne() async throws {
+    @Test func test20b_coldCacheDuringOutageIsFiveOhThreeNotFourOhOne() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.unreachable), clock: clock)
 
-        do {
-            _ = try await verifier.verify(bearer: try await sign(claims(), with: key))
-            XCTFail("ожидался отказ")
-        } catch let failure as AuthFailure {
-            XCTAssertEqual(failure, .jwksUnavailable)
-            XCTAssertEqual(failure.code, .jwksUnavailable)
-            XCTAssertEqual(failure.code.httpStatus, 503)
+        let failure = await #expect(throws: AuthFailure.self) {
+            _ = try await verifier.verify(bearer: try await self.sign(self.claims(), with: key))
         }
+        #expect(failure == .jwksUnavailable)
+        #expect(failure?.code == .jwksUnavailable)
+        #expect(failure?.code.httpStatus == 503)
     }
 
     /// Пустой список ключей — то, что отдаёт проект на legacy HS256. Сегодня
     /// трактуется как «ключей нет» (§20.3), и отдельная классификация в §20.5
     /// не решена: тест фиксирует текущее поведение, а не выбирает его.
-    func test20b_emptyKeySetIsTreatedAsNoKeysAtAll() async throws {
+    @Test func test20b_emptyKeySetIsTreatedAsNoKeysAtAll() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(#"{"keys":[]}"#)), clock: clock)
@@ -637,7 +631,7 @@ final class Test20bTokenVerification: XCTestCase {
 
     /// В `request.jwt.claims` уходит исходный JSON: claim, которого
     /// `SupabaseClaims` не знает, обязан дожить до транзакции (§20.4, §20.5).
-    func test20b_verifiedTokenCarriesTheClaimsVerbatim() async throws {
+    @Test func test20b_verifiedTokenCarriesTheClaimsVerbatim() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
@@ -645,66 +639,71 @@ final class Test20bTokenVerification: XCTestCase {
         let token = try await sign(claims(email: "she@example.com"), with: key)
         let verified = try await verifier.verify(bearer: token)
 
-        XCTAssertTrue(verified.claimsJSON.contains("\"email\""))
-        XCTAssertTrue(verified.claimsJSON.contains("she@example.com"))
+        #expect(verified.claimsJSON.contains("\"email\""))
+        #expect(verified.claimsJSON.contains("she@example.com"))
         let parsed = try JSONSerialization.jsonObject(with: Data(verified.claimsJSON.utf8)) as? [String: Any]
-        XCTAssertEqual(parsed?["sub"] as? String, verified.subject)
+        #expect(parsed?["sub"] as? String == verified.subject)
     }
 
     // MARK: - Гейт линковки
 
     /// Анонимный токен валиден и 401 не даёт — §4.1 требует анонимного
     /// онбординга. Закрыт для него только путь, требующий линковки (§20.5).
-    func test20b_anonymousTokenIsValidButFailsTheLinkedAccountGate() async throws {
+    @Test func test20b_anonymousTokenIsValidButFailsTheLinkedAccountGate() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
 
         let anonymous = try await verifier.verify(bearer: try await sign(claims(isAnonymous: true), with: key))
-        XCTAssertTrue(anonymous.isAnonymous)
-        XCTAssertThrowsError(try anonymous.requireLinkedAccount()) { error in
-            XCTAssertEqual(error as? AuthFailure, .unlinkedAccount)
-            XCTAssertEqual((error as? AuthFailure)?.code, .unlinkedAccount)
-            XCTAssertEqual((error as? AuthFailure)?.code.httpStatus, 403)
+        #expect(anonymous.isAnonymous)
+        let refusal = #expect(throws: AuthFailure.self) {
+            try anonymous.requireLinkedAccount()
         }
+        #expect(refusal == .unlinkedAccount)
+        #expect(refusal?.code == .unlinkedAccount)
+        #expect(refusal?.code.httpStatus == 403)
 
         let linked = try await verifier.verify(bearer: try await sign(claims(isAnonymous: false), with: key))
-        XCTAssertNoThrow(try linked.requireLinkedAccount())
+        #expect(throws: Never.self) { try linked.requireLinkedAccount() }
     }
 
     /// Отсутствующий claim закрывает гейт, а не открывает: ошибка видимая, а
     /// не молчаливая.
-    func test20b_absentIsAnonymousClaimClosesTheGate() async throws {
+    @Test func test20b_absentIsAnonymousClaimClosesTheGate() async throws {
         let key = TestKey()
         let clock = TestClock(start)
         let (verifier, _) = try verifier(source: StubJWKS(.json(jwks(key))), clock: clock)
 
         let verified = try await verifier.verify(bearer: try await sign(claims(isAnonymous: nil), with: key))
-        XCTAssertTrue(verified.isAnonymous)
+        #expect(verified.isAnonymous)
     }
 
     // MARK: - Конфигурация
 
     /// Issuer без значения по умолчанию, URL JWKS выводится из него (§20.5).
-    func test20b_issuerIsRequiredAndDerivesTheJWKSURL() throws {
+    @Test func test20b_issuerIsRequiredAndDerivesTheJWKSURL() throws {
         let configuration = try configuration()
-        XCTAssertEqual(
-            configuration.jwksURL.absoluteString,
-            "https://project.supabase.co/auth/v1/.well-known/jwks.json"
+        #expect(
+            configuration.jwksURL.absoluteString
+                == "https://project.supabase.co/auth/v1/.well-known/jwks.json"
         )
-        XCTAssertThrowsError(try AuthConfiguration(issuer: "", refreshInterval: nil))
-        XCTAssertThrowsError(try AuthConfiguration(issuer: "   ", refreshInterval: nil))
+        #expect(throws: AuthConfiguration.Failure.self) {
+            try AuthConfiguration(issuer: "", refreshInterval: nil)
+        }
+        #expect(throws: AuthConfiguration.Failure.self) {
+            try AuthConfiguration(issuer: "   ", refreshInterval: nil)
+        }
 
         // Локальная среда отличается значением, а не формой.
         let local = try AuthConfiguration(issuer: "http://127.0.0.1:54321/auth/v1/", refreshInterval: nil)
-        XCTAssertEqual(
-            local.jwksURL.absoluteString,
-            "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
+        #expect(
+            local.jwksURL.absoluteString
+                == "http://127.0.0.1:54321/auth/v1/.well-known/jwks.json"
         )
     }
 
     /// Список алгоритмов закрыт (§20.5): его расширение — правка SPEC.
-    func test20b_supportedAlgorithmsAreExactlyTwo() {
-        XCTAssertEqual(Set(SupportedAlgorithm.allCases.map(\.rawValue)), ["ES256", "RS256"])
+    @Test func test20b_supportedAlgorithmsAreExactlyTwo() {
+        #expect(Set(SupportedAlgorithm.allCases.map(\.rawValue)) == ["ES256", "RS256"])
     }
 }
