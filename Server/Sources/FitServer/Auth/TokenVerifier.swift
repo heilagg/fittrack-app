@@ -69,6 +69,9 @@ public enum AuthFailure: Error, Equatable, Sendable {
     case unauthorized(Reason)
     case jwksUnavailable
     case unlinkedAccount
+    /// Ключи были и пропали (§20.5). Клиенту повторять незачем, и токен ни при
+    /// чём — поэтому ни 503, ни 401.
+    case keySetVanished
 
     /// Пара (код, статус) живёт в `FitAPI` (§20.3), поэтому здесь только
     /// отображение в код — своего статуса этот тип не знает.
@@ -77,6 +80,7 @@ public enum AuthFailure: Error, Equatable, Sendable {
         case .unauthorized: return .unauthorized
         case .jwksUnavailable: return .jwksUnavailable
         case .unlinkedAccount: return .unlinkedAccount
+        case .keySetVanished: return .internal
         }
     }
 }
@@ -140,6 +144,8 @@ public struct TokenVerifier: Sendable {
             throw AuthFailure.unauthorized(.unknownKey)
         case .unavailable:
             throw AuthFailure.jwksUnavailable
+        case .keySetVanished:
+            throw AuthFailure.keySetVanished
         }
 
         let claims: SupabaseClaims

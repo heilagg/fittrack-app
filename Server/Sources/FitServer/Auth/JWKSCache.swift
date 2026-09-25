@@ -26,9 +26,20 @@ public actor JWKSCache {
         case found(JWTKeyCollection, JWK)
         /// Набор есть, ключа в нём нет.
         case unknownKey
-        /// Набора нет вовсе: холодный старт во время сбоя — либо, сегодня, и
-        /// пустой список ключей у проекта на legacy HS256 (см. `Auth.swift`).
+        /// Набора нет вовсе: холодный старт во время сбоя. Чужая беда, повтор
+        /// поможет — 503.
         case unavailable
+        /// Ключи были и пропали. Проект настроен, значит это поломка у нас, а
+        /// не временная недоступность: 500, и повтор не поможет (§20.5).
+        case keySetVanished
+    }
+
+    /// Отказ старта. Отдельно от `AuthFailure`: это не ответ на запрос, а
+    /// причина, по которой запросов не будет вовсе.
+    public enum StartupFailure: Error, Equatable, Sendable {
+        /// JWKS ответил успехом и пустым (или целиком непригодным) набором —
+        /// проект не переведён на асимметричные ключи (§20.5).
+        case jwksHasNoUsableKeys(URL)
     }
 
     private struct Entry {
@@ -48,6 +59,7 @@ public actor JWKSCache {
 
     private var entries: [JWKIdentifier: Entry] = [:]
     private var installedSet = false
+    private var everHadKeys = false
     private var lastSuccess: Date?
     private var lastAttempt: Date?
     private var missedKids: [JWKIdentifier: Date] = [:]
@@ -65,6 +77,20 @@ public actor JWKSCache {
     /// Сколько раз ходили за ключами. Нужно тесту 20b: утверждение про троттл
     /// — это утверждение о числе походов, и проверить его больше нечем.
     public private(set) var fetchCount = 0
+
+    /// Первый поход за ключами, при старте процесса (§20.5).
+    ///
+    /// Две неудачи различаются тем, как приходят, и потому ведут себя
+    /// по-разному: недоступность (таймаут, 5xx) молча пропускается — процесс
+    /// поднимется и будет отвечать `jwks_unavailable`, пока ключи не приедут;
+    /// пустой набор, приехавший УСПЕХОМ, останавливает старт. Сбой пройдёт сам,
+    /// конфигурация — нет.
+    public func start() async throws {
+        await attemptFetch()
+        if installedSet, entries.isEmpty {
+            throw StartupFailure.jwksHasNoUsableKeys(configuration.jwksURL)
+        }
+    }
 
     public func lookup(kid: JWKIdentifier) async -> Lookup {
         await refreshIfNeeded()
@@ -98,10 +124,11 @@ public actor JWKSCache {
     }
 
     private func outcomeWithoutKey() -> Lookup {
-        // Пустой набор — это «ключей нет», а не «ключ не тот»: по букве
-        // таблицы §20.3 у `jwks_unavailable` условие «ключей нет и кеша нет».
-        // Классификация ответа `200 {"keys": []}` в §20.5 не решена.
-        (installedSet && !entries.isEmpty) ? .unknownKey : .unavailable
+        if !entries.isEmpty { return .unknownKey }
+        // Ключи были и пропали — поломка, а не чужой сбой (§20.5). Без этого
+        // различения 500 и 503 слились бы, и клиенту предлагалось бы повторять
+        // то, что повтором не лечится.
+        return everHadKeys ? .keySetVanished : .unavailable
     }
 
     private func refreshIfNeeded() async {
@@ -155,6 +182,7 @@ public actor JWKSCache {
         }
         entries = fresh
         installedSet = true
+        if !fresh.isEmpty { everHadKeys = true }
         lastSuccess = now()
         // Промах снимается только с тех ключей, которые в новом наборе
         // появились. Снимать все — значит стирать и тот промах, который этот
