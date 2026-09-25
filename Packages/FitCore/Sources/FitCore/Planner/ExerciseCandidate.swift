@@ -14,6 +14,11 @@ public enum EquipmentRequirement: Sendable, Equatable, Hashable {
     case bands
     case kettlebells
     case cableMachine
+    /// Возвышение под выпад или зашагивание. Тумба годится на месте
+    /// степ-платформы, обратное неверно, поэтому требований два (§6.6) — та же
+    /// асимметрия, что у `benchFlat` против `benchAdjustable`.
+    case stepPlatform
+    case plyoBox
     case machine(String)
 }
 

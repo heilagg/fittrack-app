@@ -18,6 +18,8 @@ public struct EquipmentAvailability: Sendable, Equatable {
     public var bands: Bool
     public var hasKettlebells: Bool
     public var cableMachine: Bool
+    public var stepPlatform: Bool
+    public var plyoBox: Bool
     public var machines: Set<String>
 
     public init(
@@ -26,6 +28,8 @@ public struct EquipmentAvailability: Sendable, Equatable {
         bands: Bool = false,
         hasKettlebells: Bool = false,
         cableMachine: Bool = false,
+        stepPlatform: Bool = false,
+        plyoBox: Bool = false,
         machines: Set<String> = []
     ) {
         self.bench = bench
@@ -33,6 +37,8 @@ public struct EquipmentAvailability: Sendable, Equatable {
         self.bands = bands
         self.hasKettlebells = hasKettlebells
         self.cableMachine = cableMachine
+        self.stepPlatform = stepPlatform
+        self.plyoBox = plyoBox
         self.machines = machines
     }
 
@@ -45,6 +51,8 @@ public struct EquipmentAvailability: Sendable, Equatable {
         case .bands: return bands
         case .kettlebells: return hasKettlebells
         case .cableMachine: return cableMachine
+        case .stepPlatform: return stepPlatform || plyoBox
+        case .plyoBox: return plyoBox
         case .machine(let slug): return machines.contains(slug)
         }
     }

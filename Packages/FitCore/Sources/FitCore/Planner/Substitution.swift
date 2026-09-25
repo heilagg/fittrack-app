@@ -109,15 +109,14 @@ extension Planner {
         }
     }
 
-    /// Степень нагрузки как число, где «сустава нет в разметке» строго ниже
-    /// `.low`: отсутствие записи — это не та же нагрузка, что низкая.
-    static func stressRank(_ level: JointStressLevel?) -> Int {
-        switch level {
-        case .none: return -1
-        case .low: return 0
-        case .medium: return 1
-        case .high: return 2
-        }
+    /// Степень нагрузки упражнения на сустав. Отсутствующий ключ — `.none`
+    /// («не грузит»), и это не смягчение правила, а его буква: §6.2 требует
+    /// полную карту семи суставов, полноту проверяет валидатор (§19.1), и
+    /// различать здесь «не размечено» и «не грузит» больше нечего. Раньше
+    /// различие существовало и ранжировало пустую клетку НИЖЕ `.low`, из-за
+    /// чего забытый сустав выигрывал отбор замены у честного `low`.
+    static func jointStress(_ candidate: ExerciseCandidate, _ joint: Joint) -> JointStressLevel {
+        candidate.jointStress[joint] ?? .none
     }
 
     static func relievesPainJoints(
@@ -127,7 +126,7 @@ extension Planner {
     ) -> Bool {
         guard case .pain(let joints) = purpose else { return true }
         return joints.allSatisfy { joint in
-            stressRank(candidate.jointStress[joint]) < stressRank(exercise.jointStress[joint])
+            jointStress(candidate, joint) < jointStress(exercise, joint)
         }
     }
 
@@ -150,9 +149,9 @@ extension Planner {
         var concerning = Set(safety.restrictions.map(\.joint))
         for event in safety.painEvents { concerning.formUnion(event.joints) }
         for joint in Joint.allCases where concerning.contains(joint) {
-            let before = exercise.jointStress[joint]
-            let after = candidate.jointStress[joint]
-            guard let before, stressRank(after) < stressRank(before) else { continue }
+            let before = jointStress(exercise, joint)
+            let after = jointStress(candidate, joint)
+            guard after < before else { continue }
             reasons.append(.substitutionRelievesJoint(joint: joint, from: before, to: after))
         }
         return reasons

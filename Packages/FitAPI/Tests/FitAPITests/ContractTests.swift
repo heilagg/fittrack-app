@@ -32,7 +32,7 @@ final class ContractTests: XCTestCase {
             .dayVectorMissing(kind: .fullBody, accent: nil),
             .substitutionKeepsLeadingMuscle(muscle: .gluteMax),
             .substitutionRelievesJoint(joint: .knee, from: .high, to: .low),
-            .substitutionRelievesJoint(joint: .lowerBack, from: .medium, to: nil),
+            .substitutionRelievesJoint(joint: .lowerBack, from: .medium, to: .none),
         ]
         for cause in allRebuildCauses { reasons.append(.planRebuilt(cause: cause)) }
         return reasons

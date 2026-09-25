@@ -159,23 +159,29 @@ public enum Joint: String, Sendable, Equatable, Hashable, CaseIterable {
 
 /// Степень нагрузки на сустав — значение `exercise.joint_stress[joint]` (SPEC §6.2).
 ///
-/// SPEC нигде не перечисляет допустимые значения явным списком (в отличие от
-/// `pattern`, `load_type` или колонок `user_restrictions`). Набор `low | medium |
-/// high` выведен из примера §6.2 (`{"knee": "low", "lower_back": "medium", …}`)
-/// плюс §6.3 и §14.4 («`avoid` исключает `high` и `medium`, `careful` — только
-/// `high`»), а не процитирован. Порядок `low < medium < high` там же не объявлен
-/// и тоже выведен из этой формулировки: `avoid` строже `careful` и захватывает
-/// на одну ступень больше.
+/// Набор и порядок объявлены в §6.2 явно: `none` < `low` < `medium` < `high`,
+/// `avoid` исключает `high` и `medium`, `careful` — только `high` (§14.4).
+/// Раньше и набор, и порядок выводились из примера схемы, а `none` не
+/// существовало вовсе — отсутствие сустава в карте и означало «не грузит».
+///
+/// **`none` — значение, а не отсутствие ключа.** §6.2 требует полную карту всех
+/// семи суставов: пустая клетка читалась ниже `low`, и забытый сустав делал
+/// упражнение ЛУЧШЕЙ заменой при боли в нём, чем честное `low`. Полноту карты
+/// проверяет валидатор контента (§19.1); здесь же отсутствующий ключ
+/// приравнивается к `.none` в каждом чтении (`?? .none`), чтобы разница между
+/// «не размечено» и «не грузит» не могла пережить валидатор и что-то значить.
 public enum JointStressLevel: String, Sendable, Equatable, Hashable, CaseIterable, Comparable {
+    case none
     case low
     case medium
     case high
 
     private var rank: Int {
         switch self {
-        case .low: return 0
-        case .medium: return 1
-        case .high: return 2
+        case .none: return 0
+        case .low: return 1
+        case .medium: return 2
+        case .high: return 3
         }
     }
 
@@ -271,9 +277,11 @@ public enum ReasonCode: Sendable, Equatable {
     case substitutionKeepsLeadingMuscle(muscle: MuscleSlug)
     /// Пригодность замены: альтернатива меньше грузит сустав, по которому у
     /// пользователя ограничение §14.4 или недавний флаг боли §8.4
-    /// («без нагрузки на колено»). `to` — степень у альтернативы; `nil`
-    /// означает, что сустава нет в её разметке вовсе.
-    case substitutionRelievesJoint(joint: Joint, from: JointStressLevel, to: JointStressLevel?)
+    /// («без нагрузки на колено»). `to` — степень у альтернативы, и `.none`
+    /// среди них полноправна: она и означает «не грузит вовсе», на чём стоит
+    /// выбор формулировки в `FitAPI.ReasonStrings`. Опциональной она была,
+    /// пока «нет в разметке» отличалось от «не грузит» (§6.2).
+    case substitutionRelievesJoint(joint: Joint, from: JointStressLevel, to: JointStressLevel)
 }
 
 /// Какой лимит сборки не дал добрать паттерны (SPEC §7.3).

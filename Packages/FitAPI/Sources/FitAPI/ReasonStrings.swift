@@ -196,7 +196,8 @@ public enum ReasonStrings {
             return "Тот же акцент на \(accusative(muscle))"
 
         case .substitutionRelievesJoint(let joint, _, let to):
-            return to == nil
+            // `.none` — «не грузит вовсе» (§6.2); раньше то же говорил `nil`.
+            return to == .none
                 ? "Без нагрузки на \(accusative(joint))"
                 : "Меньше нагрузки на \(accusative(joint))"
         }
