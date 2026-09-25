@@ -7,6 +7,7 @@ public enum APIErrorCode: String, Sendable, Equatable, Hashable, CaseIterable, C
     case unauthorized
     case jwksUnavailable = "jwks_unavailable"
     case forbidden
+    case unlinkedAccount = "unlinked_account"
     case notFound = "not_found"
     case dateSkew = "date_skew"
     case validationFailed = "validation_failed"
@@ -26,7 +27,7 @@ public enum APIErrorCode: String, Sendable, Equatable, Hashable, CaseIterable, C
         switch self {
         case .unauthorized: return 401
         case .jwksUnavailable: return 503
-        case .forbidden: return 403
+        case .forbidden, .unlinkedAccount: return 403
         case .notFound: return 404
         case .dateSkew, .validationFailed, .setIDRequired: return 422
         case .weekExists, .setImmutable, .workoutNotStarted,
