@@ -5,13 +5,18 @@ import PackageDescription
 // внешними зависимостями и первый, собираемый под Linux; архитектура модуля —
 // в doc-комментарии Sources/FitServer/FitServer.swift.
 //
-// Первая внешняя зависимость — JWTKit, и приехала она ровно тогда, когда
-// обещано: вместе с первым кодом, который её зовёт (Auth/). Vapor и
-// postgres-nio по-прежнему отсутствуют, и по той же причине — их не зовёт ещё
-// никто. Auth/ намеренно написан без Vapor: политика §20.5 (кеш, два счётчика
-// троттла, 401 против 503) своя, а `app.jwt` предлагает одну глобальную
-// коллекцию ключей без места под неё. Заодно тест 20b получается юнитовым, без
+// Зависимости приезжают ровно тогда, когда появляется код, который их зовёт:
+// JWTKit вместе с `Auth/`, postgres-nio вместе с `DB/`. Vapor по-прежнему
+// отсутствует, и по той же причине — его не зовёт ещё никто: и `Auth/`, и `DB/`
+// написаны без него. Для `Auth/` это было решением (политика §20.5 — свой кеш и
+// два счётчика троттла — не ложится в одну глобальную `app.jwt`), для `DB/` это
+// просто отсутствие надобности: пул и транзакция к HTTP-слою не относятся.
+// Побочная выгода та же, что и раньше: 20b и 20k остаются тестами пакета, без
 // HTTP-обвязки.
+//
+// Версия postgres-nio — от 1.33.0, и нижняя граница не декоративна:
+// `PostgresClient.withTransaction` нужен как единственная точка, где берётся
+// соединение и открывается транзакция (§20.4).
 //
 // Почему JWTKit, а не разбор токена руками: правило zero-dependency ядра сюда
 // не распространяется, и не из снисхождения. Его причина (§20.2) — привязка
@@ -36,7 +41,8 @@ let package = Package(
     dependencies: [
         .package(path: "../Packages/FitCore"),
         .package(path: "../Packages/FitAPI"),
-        .package(url: "https://github.com/vapor/jwt-kit.git", from: "5.0.0")
+        .package(url: "https://github.com/vapor/jwt-kit.git", from: "5.0.0"),
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.33.0")
     ],
     targets: [
         .target(
@@ -44,7 +50,8 @@ let package = Package(
             dependencies: [
                 "FitCore",
                 "FitAPI",
-                .product(name: "JWTKit", package: "jwt-kit")
+                .product(name: "JWTKit", package: "jwt-kit"),
+                .product(name: "PostgresNIO", package: "postgres-nio")
             ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
@@ -52,7 +59,8 @@ let package = Package(
             name: "FitServerTests",
             dependencies: [
                 "FitServer",
-                .product(name: "JWTKit", package: "jwt-kit")
+                .product(name: "JWTKit", package: "jwt-kit"),
+                .product(name: "PostgresNIO", package: "postgres-nio")
             ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         )
