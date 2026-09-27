@@ -1,22 +1,87 @@
 import Foundation
+import FitContent
+import ContentValidator
 
-//  Валидатор библиотеки упражнений и шаблонов растяжки.
+//  Гейт CI (SPEC §20.11): библиотека, не прошедшая §6.2, §6.6 и правило
+//  покрытия, не попадает в сборку сервера. Ненулевой код возврата = красный CI.
 //
-//  Проверки (SPEC §17, этап 2):
-//    - сумма muscle_contributions ≈ 1.0, все слаги мышц из списка SPEC §6.4
-//    - alternatives ведут на существующие слаги
-//    - progression_family связна; family_load_ratio задан у каждого
-//      упражнения семьи размером > 1
-//    - каждая комбинация (тип дня × акцент × уровень инвентаря) покрыта
-//      минимум тремя упражнениями — иначе домашний пользователь упрётся
-//      в пустой подбор
-//    - joint_stress и impact заданы, значения из допустимого множества
-//    - у каждой пары (тип дня × акцент) есть целевой вектор: слаги SPEC §6.4,
-//      сумма ≈ 1.0, доля акцентной мышцы наибольшая (SPEC §7.3)
-//    - каждое значение equipment — из словаря SPEC §6.6; load_type
-//      kettlebell/cable/machine называет свой снаряд в equipment
+//  Здесь только разбор аргумента, вывод и код возврата. Сами проверки — в
+//  библиотеке `ContentValidator`, и тесты у них там же: что именно проверяется,
+//  перечислено в doc-комментарии `Validator`.
 //
-//  Ненулевой код возврата = красный CI.
+//  Читает те файлы, что лежат в репозитории, а не бандл: бандл — копия,
+//  собранная сборкой, и сверять копию значило бы пропускать файл, который в
+//  сборку не попал.
 
-FileHandle.standardError.write(Data("content-validator: не реализован (этап 2)\n".utf8))
-exit(1)
+let defaultRelativePath = "Packages/FitContent/Sources/FitContent/Resources"
+
+func resolveRoot() -> URL? {
+    if let given = CommandLine.arguments.dropFirst().first {
+        return URL(fileURLWithPath: given, isDirectory: true)
+    }
+    let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+    let candidate = cwd.appendingPathComponent(defaultRelativePath)
+    return FileManager.default.fileExists(atPath: candidate.path) ? candidate : nil
+}
+
+func plural(_ count: Int, _ one: String, _ few: String, _ many: String) -> String {
+    switch (count % 100, count % 10) {
+    case (11...14, _): return many
+    case (_, 1): return one
+    case (_, 2...4): return few
+    default: return many
+    }
+}
+
+func die(_ message: String) -> Never {
+    // stdout сбрасывается до записи в stderr: иначе сводка и находки
+    // перемешиваются в логе CI, и непонятно, к какому прогону что относится.
+    fflush(stdout)
+    FileHandle.standardError.write(Data("content-validator: \(message)\n".utf8))
+    exit(1)
+}
+
+guard let root = resolveRoot() else {
+    die("""
+        каталог контента не найден.
+        Запуск: content-validator [путь-к-Resources]
+        Без аргумента ожидается запуск из корня репозитория, где лежит
+        \(defaultRelativePath)
+        """)
+}
+
+let library: ContentLibrary
+do {
+    library = try Content.load(from: root)
+} catch {
+    // Ошибка формы — уже брак разметки, и дальше проверять нечего: часть файлов
+    // не прочитана, и список находок был бы заведомо неполным.
+    die("контент не загружается — \(error)")
+}
+
+let report = Validator.run(library)
+
+print("content-validator: \(report.exerciseCount) "
+      + plural(report.exerciseCount, "упражнение", "упражнения", "упражнений")
+      + ", \(report.vectorCount) из \(DayVectorTable.allKeys.count) целевых векторов"
+      + ", \(report.stretchCount) "
+      + plural(report.stretchCount, "шаблон", "шаблона", "шаблонов") + " растяжки")
+
+if report.coverage.builds > 0 {
+    print("покрытие §20.11: \(report.coverage.builds) сборок, "
+          + "\(report.coverage.passed) прошли полностью, "
+          + "\(report.coverage.relaxedInDeclared) ослаблены в объявленно неполных "
+          + "комбинациях (§20.11)")
+}
+print("консервативный режим §14.1 правилом покрытия не проверяется: осей у "
+      + "правила три, и его среди них нет")
+
+guard report.passed else {
+    fflush(stdout)
+    FileHandle.standardError.write(Data((report.lines.joined(separator: "\n") + "\n").utf8))
+    die("\(report.findings.count) "
+        + plural(report.findings.count, "ошибка", "ошибки", "ошибок")
+        + " разметки — в сборку она не идёт")
+}
+
+print("content-validator: разметка прошла все проверки")

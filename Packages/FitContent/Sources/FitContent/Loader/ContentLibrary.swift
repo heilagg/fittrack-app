@@ -64,7 +64,11 @@ public struct ContentLibrary: Sendable {
     /// попадает ни в одну ячейку — оно не требует ничего.
     public let byEquipment: [EquipmentRequirement: [String]]
 
-    init(exercises: [ExerciseSchema], vectors: DayVectorTable, stretches: [StretchSchema]) {
+    /// Публичный, чтобы библиотеку можно было собрать из значений, не трогая
+    /// файлы: так устроены тесты валидатора и прогоны на синтетике, где путь
+    /// через JSON проверяет не то, что нужно, и только замедляет.
+    public init(exercises: [ExerciseSchema], vectors: DayVectorTable,
+                stretches: [StretchSchema] = []) {
         let sorted = exercises.sorted { $0.slug < $1.slug }
         self.exercises = sorted
         self.candidates = sorted.map(\.candidate)
