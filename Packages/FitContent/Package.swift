@@ -16,7 +16,10 @@ let package = Package(
         .target(
             name: "FitContent",
             dependencies: ["FitCore"],
-            resources: [.process("Resources")],
+            // `.copy`, а не `.process`: загрузчик обходит `Resources/exercises`
+            // и `Resources/vectors` как каталоги, а `.process` не обязана
+            // сохранять их структуру в бандле. Обрабатывать в JSON нечего.
+            resources: [.copy("Resources")],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
         .testTarget(

@@ -1,6 +1,7 @@
 //  Срез библиотеки упражнений, который читает планировщик (SPEC §7.5). Ровно
-//  поля таблицы §7.5 — `name`, `cues`, `default_rep_range`,
-//  `weight_increment_source` и прочее показывает и квантует не планировщик.
+//  поля таблицы §7.5: `name`, `cues`, `common_errors` и `illustration`
+//  показывает слой представления, `equipment_optional` на выполнимость не
+//  влияет.
 //  FitCore не зависит от FitContent: срез строит вызывающая сторона, как
 //  `FatigueSet` для Recovery.
 
@@ -13,6 +14,11 @@ public enum EquipmentRequirement: Sendable, Equatable, Hashable {
     case bands
     case kettlebells
     case cableMachine
+    /// Возвышение под выпад или зашагивание. Тумба годится на месте
+    /// степ-платформы, обратное неверно, поэтому требований два (§6.6) — та же
+    /// асимметрия, что у `benchFlat` против `benchAdjustable`.
+    case stepPlatform
+    case plyoBox
     case machine(String)
 }
 

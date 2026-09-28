@@ -120,9 +120,12 @@ final class SubstitutionTests: XCTestCase {
                        "§8.4 п.2: альтернатива обязана грузить больной сустав строго меньше")
     }
 
-    func test_absentJointStressRanksBelowLow() {
-        XCTAssertLessThan(Planner.stressRank(nil), Planner.stressRank(.low),
-                          "сустава нет в разметке — это не та же нагрузка, что низкая")
+    func test_absentJointStressReadsAsNone() {
+        let bare = candidate("bare", contributions: [.gluteMax: 1.0])
+        XCTAssertEqual(Planner.jointStress(bare, .knee), .none,
+                       "§6.2: отсутствующий ключ читается как none, а не как отдельная степень")
+        XCTAssertLessThan(JointStressLevel.none, .low,
+                          "none строго ниже low: порядок объявлен в §6.2")
     }
 
     // MARK: - Причины пригодности

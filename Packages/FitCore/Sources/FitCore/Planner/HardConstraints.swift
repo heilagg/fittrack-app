@@ -55,8 +55,9 @@ extension Planner {
         guard isFeasible(candidate, availability: availability, equipment: equipment) else { return false }
 
         // §14.4: avoid исключает medium и high, careful — только high.
+        // Отсутствующий ключ — `.none` (§6.2): полноту карты держит валидатор.
         for restriction in safety.restrictions {
-            guard let stress = candidate.jointStress[restriction.joint] else { continue }
+            let stress = candidate.jointStress[restriction.joint] ?? .none
             switch restriction.severity {
             case .avoid where stress >= .medium: return false
             case .careful where stress == .high: return false

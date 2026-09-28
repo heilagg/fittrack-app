@@ -12,12 +12,13 @@
   "equipment": ["bench_flat"],
   "equipment_optional": ["pad"],
   "load_type": "barbell",
-  "weight_increment_source": "plates",
   "unilateral": false,
-  "joint_stress": { "knee": "low", "lower_back": "medium", "hip": "medium" },
+  "joint_stress": {
+    "knee": "low", "lower_back": "medium", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
   "impact": "none",
   "skill_level": "intermediate",
-  "default_rep_range": [8, 12],
   "default_rest_seconds": 120,
   "fatigue_cost": 1.0,
   "alternatives": ["hip_thrust_dumbbell", "glute_bridge_bw", "kas_glute_bridge"],

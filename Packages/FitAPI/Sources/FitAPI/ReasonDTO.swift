@@ -184,7 +184,7 @@ extension ReasonDTO: Codable {
         case .substitutionRelievesJoint(let joint, let from, let to):
             try p.encode(joint.rawValue, forKey: .joint)
             try p.encode(from.rawValue, forKey: .from)
-            try p.encodeIfPresent(to?.rawValue, forKey: .to)
+            try p.encode(to.rawValue, forKey: .to)
         }
     }
 
@@ -246,13 +246,9 @@ extension ReasonDTO: Codable {
             reason = .substitutionKeepsLeadingMuscle(muscle: try muscle(.muscle))
         case "substitution_relieves_joint":
             guard let joint = Joint(rawValue: try p.decode(String.self, forKey: .joint)),
-                  let from = JointStressLevel(rawValue: try p.decode(String.self, forKey: .from))
+                  let from = JointStressLevel(rawValue: try p.decode(String.self, forKey: .from)),
+                  let to = JointStressLevel(rawValue: try p.decode(String.self, forKey: .to))
             else { throw fail("неизвестный сустав или степень нагрузки") }
-            var to: JointStressLevel?
-            if let raw = try p.decodeIfPresent(String.self, forKey: .to) {
-                guard let level = JointStressLevel(rawValue: raw) else { throw fail("неизвестная степень нагрузки") }
-                to = level
-            }
             reason = .substitutionRelievesJoint(joint: joint, from: from, to: to)
         default:
             throw DecodingError.dataCorruptedError(forKey: .code, in: c,

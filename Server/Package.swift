@@ -41,8 +41,15 @@ let package = Package(
     dependencies: [
         .package(path: "../Packages/FitCore"),
         .package(path: "../Packages/FitAPI"),
+        // FitContent линкуется в сервер и раздаётся им (§20.11): `Content/`
+        // превращает разметку в байты ответа.
+        .package(path: "../Packages/FitContent"),
         .package(url: "https://github.com/vapor/jwt-kit.git", from: "5.0.0"),
-        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.33.0")
+        .package(url: "https://github.com/vapor/postgres-nio.git", from: "1.33.0"),
+        // swift-crypto объявлен явно, хотя JWTKit 5 и так на нём: `ETag` §20.11
+        // — это SHA-256, и зависеть на неё транзитивно значило бы, что смена
+        // реализации JWT ломает хеш контента.
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0")
     ],
     targets: [
         .target(
@@ -50,8 +57,10 @@ let package = Package(
             dependencies: [
                 "FitCore",
                 "FitAPI",
+                "FitContent",
                 .product(name: "JWTKit", package: "jwt-kit"),
-                .product(name: "PostgresNIO", package: "postgres-nio")
+                .product(name: "PostgresNIO", package: "postgres-nio"),
+                .product(name: "Crypto", package: "swift-crypto")
             ],
             swiftSettings: [.swiftLanguageMode(.v6)]
         ),
@@ -59,6 +68,7 @@ let package = Package(
             name: "FitServerTests",
             dependencies: [
                 "FitServer",
+                "FitContent",
                 .product(name: "JWTKit", package: "jwt-kit"),
                 .product(name: "PostgresNIO", package: "postgres-nio")
             ],
