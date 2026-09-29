@@ -1,0 +1,35 @@
+{
+  "slug": "bench_press_incline_dumbbell",
+  "name": "Жим гантелей на наклонной скамье",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.40,
+    "front_delts": 0.35,
+    "triceps": 0.25
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["bench_press_dumbbell", "overhead_press_dumbbell", "chest_press_machine"],
+  "progression_family": "incline_press",
+  "setup_seconds": 45,
+  "cues": [
+    "Угол скамьи около тридцати градусов, не выше",
+    "Поясница прижата, рёбра вниз",
+    "Гантели опускаются к верху груди"
+  ],
+  "common_errors": [
+    "Слишком крутой угол, упражнение становится жимом на плечи",
+    "Прогиб в пояснице с отрывом от скамьи",
+    "Локти уходят далеко за спину"
+  ],
+  "illustration": "placeholder/upper/bench_press_incline_dumbbell"
+}

@@ -1,0 +1,35 @@
+{
+  "slug": "lateral_raise_band",
+  "name": "Махи с резинкой в стороны",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "side_delts": 0.80,
+    "front_delts": 0.11,
+    "traps_upper": 0.09
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["lateral_raise_dumbbell", "lateral_raise_cable"],
+  "progression_family": "lateral_raise_band",
+  "setup_seconds": 15,
+  "cues": [
+    "Резинка под стопами, натяжение есть уже внизу",
+    "Поднимать до линии плеч, локти чуть согнуты",
+    "Возврат под контролем"
+  ],
+  "common_errors": [
+    "Подключение корпуса на последних повторениях",
+    "Слишком жёсткая резинка, руки не доходят до плеч",
+    "Плечи уходят вверх"
+  ],
+  "illustration": "placeholder/upper/lateral_raise_band"
+}

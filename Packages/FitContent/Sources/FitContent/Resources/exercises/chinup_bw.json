@@ -1,0 +1,36 @@
+{
+  "slug": "chinup_bw",
+  "name": "Подтягивание обратным хватом",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.45,
+    "biceps": 0.32,
+    "traps_mid": 0.13,
+    "rear_delts": 0.10
+  },
+  "equipment": ["pullup_bar"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.2,
+  "alternatives": ["pullup_bw", "lat_pulldown_machine", "curl_barbell"],
+  "progression_family": "chinup",
+  "setup_seconds": 15,
+  "cues": [
+    "Хват на ширине плеч, ладони к себе",
+    "Локти тянуть вниз вдоль корпуса",
+    "Опускаться медленнее, чем поднимаешься"
+  ],
+  "common_errors": [
+    "Раскачивание корпусом",
+    "Кисти переразогнуты, нагрузка уходит в запястья",
+    "Остановка на середине амплитуды"
+  ],
+  "illustration": "placeholder/upper/chinup_bw"
+}

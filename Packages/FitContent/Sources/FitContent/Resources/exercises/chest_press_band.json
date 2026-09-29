@@ -1,0 +1,35 @@
+{
+  "slug": "chest_press_band",
+  "name": "Жим резинки от груди",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.50,
+    "triceps": 0.28,
+    "front_delts": 0.22
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["pushup_bw", "chest_press_machine"],
+  "progression_family": "chest_press_band",
+  "setup_seconds": 20,
+  "cues": [
+    "Резинка за спиной на уровне лопаток",
+    "Локти чуть ниже линии плеч",
+    "В конце движения кисти сводятся, но не сталкиваются"
+  ],
+  "common_errors": [
+    "Резинка съезжает на шею",
+    "Корпус наклоняется вперёд вслед за руками",
+    "Возврат броском без контроля"
+  ],
+  "illustration": "placeholder/upper/chest_press_band"
+}

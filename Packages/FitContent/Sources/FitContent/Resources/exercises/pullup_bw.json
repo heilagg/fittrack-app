@@ -1,0 +1,36 @@
+{
+  "slug": "pullup_bw",
+  "name": "Подтягивание прямым хватом",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.55,
+    "biceps": 0.20,
+    "traps_mid": 0.15,
+    "rear_delts": 0.10
+  },
+  "equipment": ["pullup_bar"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.2,
+  "alternatives": ["lat_pulldown_machine", "chinup_bw", "pulldown_band"],
+  "progression_family": "pullup",
+  "setup_seconds": 15,
+  "cues": [
+    "Лопатки опустить и свести до того, как согнутся руки",
+    "Тянуть грудью к перекладине, а не подбородком",
+    "Внизу распрямлять руки полностью, но без провала в плечах"
+  ],
+  "common_errors": [
+    "Рывок корпусом вместо тяги спиной",
+    "Неполная амплитуда: подбородок не доходит",
+    "Плечи уходят к ушам в нижней точке"
+  ],
+  "illustration": "placeholder/upper/pullup_bw"
+}

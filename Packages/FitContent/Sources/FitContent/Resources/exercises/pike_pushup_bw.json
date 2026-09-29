@@ -1,0 +1,36 @@
+{
+  "slug": "pike_pushup_bw",
+  "name": "Отжимание домиком",
+  "pattern": "push_v",
+  "muscle_contributions": {
+    "front_delts": 0.45,
+    "triceps": 0.30,
+    "side_delts": 0.20,
+    "abs": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "medium", "neck": "low", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["overhead_press_dumbbell", "pushup_bw"],
+  "progression_family": "pike_pushup",
+  "setup_seconds": 5,
+  "cues": [
+    "Таз высоко, корпус и руки в одну линию",
+    "Макушка опускается перед кистями, а не между ними",
+    "Локти идут назад, а не в стороны"
+  ],
+  "common_errors": [
+    "Таз опускается, упражнение превращается в отжимание",
+    "Голова упирается в пол",
+    "Кисти слишком далеко от стоп"
+  ],
+  "illustration": "placeholder/upper/pike_pushup_bw"
+}

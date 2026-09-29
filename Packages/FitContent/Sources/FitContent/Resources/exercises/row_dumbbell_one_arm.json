@@ -1,0 +1,37 @@
+{
+  "slug": "row_dumbbell_one_arm",
+  "name": "Тяга гантели в наклоне одной рукой",
+  "pattern": "pull_h",
+  "muscle_contributions": {
+    "lats": 0.45,
+    "traps_mid": 0.25,
+    "biceps": 0.13,
+    "rear_delts": 0.12,
+    "forearms": 0.05
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "none", "lower_back": "medium", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["row_barbell_bent_over", "row_seated_machine", "row_band"],
+  "progression_family": "row_dumbbell",
+  "setup_seconds": 25,
+  "cues": [
+    "Спина параллельна полу и неподвижна",
+    "Гантель идёт к поясу, локоть вдоль корпуса",
+    "Плечо не проворачивать вслед за рукой"
+  ],
+  "common_errors": [
+    "Разворот корпуса, чтобы дотянуть вес",
+    "Поясница скругляется",
+    "Тяга локтём в сторону, работает задняя дельта"
+  ],
+  "illustration": "placeholder/upper/row_dumbbell_one_arm"
+}

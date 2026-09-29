@@ -1,0 +1,35 @@
+{
+  "slug": "chest_press_machine",
+  "name": "Жим в тренажёре на грудь",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.52,
+    "triceps": 0.26,
+    "front_delts": 0.22
+  },
+  "equipment": ["machine:chest_press"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["bench_press_dumbbell", "pec_deck_machine", "pushup_bw"],
+  "progression_family": "chest_press",
+  "setup_seconds": 30,
+  "cues": [
+    "Рукояти на уровне середины груди",
+    "Спина и затылок прижаты к спинке",
+    "Локти в конце не выпрямлять до упора"
+  ],
+  "common_errors": [
+    "Сиденье слишком низко, жим идёт вверх",
+    "Плечи выкатываются вперёд",
+    "Возврат броском до удара блинов"
+  ],
+  "illustration": "placeholder/upper/chest_press_machine"
+}

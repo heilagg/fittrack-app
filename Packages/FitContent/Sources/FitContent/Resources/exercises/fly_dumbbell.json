@@ -1,0 +1,34 @@
+{
+  "slug": "fly_dumbbell",
+  "name": "Разведение гантелей лёжа",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "pecs": 0.85,
+    "front_delts": 0.15
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["pec_deck_machine", "bench_press_dumbbell"],
+  "progression_family": "fly",
+  "setup_seconds": 30,
+  "cues": [
+    "Руки чуть согнуты, угол в локте не меняется",
+    "Разводить до уровня скамьи, не ниже",
+    "Сводить по дуге, а не жать вверх"
+  ],
+  "common_errors": [
+    "Локти сгибаются, разведение превращается в жим",
+    "Слишком глубокое опускание до боли в плече",
+    "Вес выбран как для жима"
+  ],
+  "illustration": "placeholder/upper/fly_dumbbell"
+}

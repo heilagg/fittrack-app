@@ -1,0 +1,33 @@
+{
+  "slug": "wrist_curl_dumbbell",
+  "name": "Сгибание запястий с гантелями",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "forearms": 1.00
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["hammer_curl_dumbbell", "farmer_carry_dumbbell"],
+  "progression_family": "wrist_curl",
+  "setup_seconds": 15,
+  "cues": [
+    "Предплечья лежат на бедре, кисти свисают",
+    "Опускать гантель до раскрытия пальцев и собирать обратно",
+    "Амплитуда полная, вес небольшой"
+  ],
+  "common_errors": [
+    "Движение в локте вместо запястья",
+    "Слишком большой вес и амплитуда в пару сантиметров",
+    "Резкий возврат с ударом по связкам"
+  ],
+  "illustration": "placeholder/upper/wrist_curl_dumbbell"
+}

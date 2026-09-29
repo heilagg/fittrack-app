@@ -1,0 +1,34 @@
+{
+  "slug": "triceps_extension_overhead_dumbbell",
+  "name": "Разгибание руки из-за головы с гантелью",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "triceps": 0.90,
+    "front_delts": 0.10
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["triceps_pushdown_cable", "triceps_extension_band", "pushup_narrow_bw"],
+  "progression_family": "triceps_extension",
+  "setup_seconds": 15,
+  "cues": [
+    "Локти смотрят вверх и остаются на месте",
+    "Гантель опускается за голову, а не в сторону",
+    "Рёбра вниз, поясница не прогибается"
+  ],
+  "common_errors": [
+    "Локти разъезжаются в стороны",
+    "Прогиб в пояснице",
+    "Слишком большой вес и обрезанная амплитуда"
+  ],
+  "illustration": "placeholder/upper/triceps_extension_overhead_dumbbell"
+}

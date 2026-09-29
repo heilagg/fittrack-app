@@ -1,0 +1,36 @@
+{
+  "slug": "pulldown_band",
+  "name": "Тяга резинки сверху",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.52,
+    "biceps": 0.20,
+    "traps_mid": 0.16,
+    "rear_delts": 0.12
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["lat_pulldown_machine", "pullup_bw", "row_band"],
+  "progression_family": "pulldown_band",
+  "setup_seconds": 20,
+  "cues": [
+    "Резинка закреплена выше головы, натяжение есть в исходном",
+    "Локти тянуть вниз и назад, кисти нейтральны",
+    "Возврат медленный, резинку не отпускать"
+  ],
+  "common_errors": [
+    "Работа только руками",
+    "Корпус заваливается назад под натяжением",
+    "Слишком слабая резинка, нагрузка теряется вверху"
+  ],
+  "illustration": "placeholder/upper/pulldown_band"
+}

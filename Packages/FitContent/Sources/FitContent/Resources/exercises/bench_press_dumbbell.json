@@ -1,0 +1,36 @@
+{
+  "slug": "bench_press_dumbbell",
+  "name": "Жим гантелей лёжа",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.48,
+    "triceps": 0.28,
+    "front_delts": 0.24
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["bench_press_barbell", "chest_press_machine", "pushup_bw"],
+  "progression_family": "bench_press",
+  "family_load_ratio": 0.45,
+  "setup_seconds": 45,
+  "cues": [
+    "Гантели на уровне груди, кисти над локтями",
+    "Лопатки сведены, грудь раскрыта",
+    "Вверху гантели не сталкивать"
+  ],
+  "common_errors": [
+    "Гантели уходят за голову",
+    "Локти проваливаются ниже уровня скамьи до боли в плече",
+    "Разная высота рук"
+  ],
+  "illustration": "placeholder/upper/bench_press_dumbbell"
+}

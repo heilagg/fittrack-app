@@ -1,0 +1,37 @@
+{
+  "slug": "farmer_carry_dumbbell",
+  "name": "Прогулка фермера с гантелями",
+  "pattern": "carry",
+  "muscle_contributions": {
+    "forearms": 0.35,
+    "traps_upper": 0.30,
+    "obliques": 0.15,
+    "erectors": 0.12,
+    "abs": 0.08
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "low", "hip": "low", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["shrug_dumbbell"],
+  "progression_family": "farmer_carry",
+  "setup_seconds": 20,
+  "cues": [
+    "Плечи назад и вниз, гантели не тянут корпус в сторону",
+    "Шаг короткий, корпус не качается",
+    "Дышать ровно, живот в напряжении"
+  ],
+  "common_errors": [
+    "Наклон в сторону более тяжёлой руки",
+    "Плечи скруглены вперёд",
+    "Слишком длинный шаг, походка вразвалку"
+  ],
+  "illustration": "placeholder/upper/farmer_carry_dumbbell"
+}

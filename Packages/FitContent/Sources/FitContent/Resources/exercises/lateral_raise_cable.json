@@ -1,0 +1,36 @@
+{
+  "slug": "lateral_raise_cable",
+  "name": "Махи в сторону в блоке",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "side_delts": 0.82,
+    "front_delts": 0.10,
+    "traps_upper": 0.08
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["lateral_raise_dumbbell", "lateral_raise_band"],
+  "progression_family": "lateral_raise",
+  "family_load_ratio": 1.20,
+  "setup_seconds": 30,
+  "cues": [
+    "Блок в нижнем положении, трос проходит перед корпусом",
+    "Рука почти прямая, поднимать до уровня плеча",
+    "Натяжение сохраняется в нижней точке"
+  ],
+  "common_errors": [
+    "Наклон корпуса в сторону противовеса",
+    "Плечо задрано к уху",
+    "Возврат рывком до удара стека"
+  ],
+  "illustration": "placeholder/upper/lateral_raise_cable"
+}

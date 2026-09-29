@@ -1,0 +1,36 @@
+{
+  "slug": "lateral_raise_dumbbell",
+  "name": "Махи гантелями в стороны",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "side_delts": 0.80,
+    "front_delts": 0.12,
+    "traps_upper": 0.08
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["lateral_raise_band", "lateral_raise_cable"],
+  "progression_family": "lateral_raise",
+  "family_load_ratio": 1.00,
+  "setup_seconds": 15,
+  "cues": [
+    "Поднимать до уровня плеч, не выше",
+    "Локоть ведёт движение, кисть чуть ниже локтя",
+    "Опускать медленно, не бросать"
+  ],
+  "common_errors": [
+    "Заброс веса корпусом",
+    "Плечи задраны к ушам",
+    "Слишком тяжёлые гантели, амплитуда обрезана"
+  ],
+  "illustration": "placeholder/upper/lateral_raise_dumbbell"
+}

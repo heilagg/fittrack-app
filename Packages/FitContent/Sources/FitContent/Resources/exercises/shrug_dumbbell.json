@@ -1,0 +1,35 @@
+{
+  "slug": "shrug_dumbbell",
+  "name": "Шраги с гантелями",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "traps_upper": 0.80,
+    "traps_mid": 0.13,
+    "forearms": 0.07
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "low", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["farmer_carry_dumbbell"],
+  "progression_family": "shrug",
+  "setup_seconds": 20,
+  "cues": [
+    "Плечи идут строго вверх, без вращения",
+    "В верхней точке задержка на секунду",
+    "Голова неподвижна"
+  ],
+  "common_errors": [
+    "Круговые движения плечами",
+    "Помощь бицепсом, руки сгибаются",
+    "Подбородок выдвигается вперёд"
+  ],
+  "illustration": "placeholder/upper/shrug_dumbbell"
+}

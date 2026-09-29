@@ -1,0 +1,35 @@
+{
+  "slug": "front_raise_dumbbell",
+  "name": "Подъём гантелей перед собой",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "front_delts": 0.80,
+    "side_delts": 0.12,
+    "traps_upper": 0.08
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["lateral_raise_dumbbell", "overhead_press_dumbbell"],
+  "progression_family": "front_raise",
+  "setup_seconds": 15,
+  "cues": [
+    "Поднимать до уровня плеч, кисть нейтральна",
+    "Рёбра вниз, корпус неподвижен",
+    "Опускать медленнее, чем поднимаешь"
+  ],
+  "common_errors": [
+    "Раскачивание корпусом",
+    "Подъём выше плеч с включением трапеции",
+    "Прогиб в пояснице"
+  ],
+  "illustration": "placeholder/upper/front_raise_dumbbell"
+}
