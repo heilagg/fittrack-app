@@ -71,11 +71,12 @@ final class CoverageCheckTests: XCTestCase {
     // MARK: - Список заведомо неполных комбинаций
 
     func test_relaxationInsideTheDeclaredListIsAccepted() {
-        // Тяга без турника и без гантелей недостижима физически: (pull,
-        // home_bodyweight) объявлен заведомо неполным (§20.11). На двух верхних
-        // уровнях тот же день обязан собираться полностью.
+        // Вектору верха на пустом профиле служат только жим от пола и
+        // изоляция: двух паттернов мало, и (upper, home_bodyweight) объявлен
+        // заведомо неполным (§20.11). На двух верхних уровнях тот же день
+        // обязан собираться полностью.
         let library = Fixtures.library(Fixtures.full,
-                                       [Fixtures.vector(.pull, nil, Fixtures.pullShares)])
+                                       [Fixtures.vector(.upper, nil, Fixtures.upperShares)])
         let found = run(library)
         XCTAssertEqual(found.filter { $0.subject.contains("home_bodyweight") }, [],
                        "ослабление на объявленной комбинации ошибкой не является")
@@ -84,7 +85,7 @@ final class CoverageCheckTests: XCTestCase {
     }
 
     func test_declaredCombinationWithoutVectorsIsNotCalledRedundant() {
-        // У (pull, home_bodyweight) исключение объявлено, но вектора тяги в
+        // У (upper, home_bodyweight) исключение объявлено, но вектора верха в
         // таблице нет — ни одна сборка не запускалась, и «проходит полностью»
         // утверждать нечем. Дыру в таблице называет VectorChecks, и второй раз,
         // да ещё требованием убрать исключение, она называться не должна.
@@ -95,21 +96,20 @@ final class CoverageCheckTests: XCTestCase {
     }
 
     func test_declaredCombinationThatFullyPassesIsReported() {
-        // Тяга на собственном весе вдруг набирает три паттерна — значит строке
-        // (pull, home_bodyweight) больше нечего оправдывать, и §20.11 требует
-        // её убрать. Физиологичность этих упражнений здесь не при чём:
-        // проверяется реакция валидатора на устаревшее исключение.
-        var exercises = Fixtures.bodyweightLower + Fixtures.bodyweightPush
+        // День верха на собственном весе вдруг набирает три паттерна — значит
+        // строке (upper, home_bodyweight) больше нечего оправдывать, и §20.11
+        // требует её убрать. Физиологичность этих упражнений здесь не при чём:
+        // проверяется реакция валидатора на устаревшее исключение. Именно так
+        // из списка ушли `pull` и `full_body`.
+        var exercises = Fixtures.bodyweightPush
         exercises += [
             Fixtures.exercise("towel_row", pattern: .pullH,
                               contributions: [.lats: 0.5, .trapsMid: 0.3, .biceps: 0.2]),
-            Fixtures.exercise("prone_y_raise", pattern: .pullV,
-                              contributions: [.trapsMid: 0.5, .rearDelts: 0.5]),
             Fixtures.exercise("prone_curl", pattern: .isolation,
                               contributions: [.biceps: 0.8, .forearms: 0.2]),
         ]
         let library = Fixtures.library(exercises,
-                                       [Fixtures.vector(.pull, nil, Fixtures.pullShares)])
+                                       [Fixtures.vector(.upper, nil, Fixtures.upperShares)])
         let found = run(library)
         XCTAssertTrue(found.contains { $0.message.contains("строку пора убрать") },
                       "устаревшее исключение обязано быть названо: \(found.map(\.line))")
@@ -120,7 +120,7 @@ final class CoverageCheckTests: XCTestCase {
         // библиотеке ничего нет: тренировки нет вовсе. Пустая тренировка не
         // допускается нигде, включая объявленно неполные комбинации.
         let library = Fixtures.library(Fixtures.pull,
-                                       [Fixtures.vector(.pull, nil, Fixtures.pullShares)])
+                                       [Fixtures.vector(.upper, nil, Fixtures.upperShares)])
         let found = run(library)
         XCTAssertTrue(found.contains {
             $0.subject.contains("home_bodyweight") && $0.message.contains("не собралась")
@@ -142,9 +142,7 @@ final class CoverageCheckTests: XCTestCase {
     func test_declaredIncompleteListMatchesTheSpecTable() {
         // Список — копия §20.11, и расти он обязан только правкой SPEC.
         XCTAssertEqual(CoverageCheck.declaredIncomplete, [
-            .init(kind: .pull, level: .bodyweight),
             .init(kind: .upper, level: .bodyweight),
-            .init(kind: .fullBody, level: .bodyweight),
         ])
     }
 }

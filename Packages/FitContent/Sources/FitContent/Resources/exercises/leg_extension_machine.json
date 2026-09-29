@@ -1,0 +1,33 @@
+{
+  "slug": "leg_extension_machine",
+  "name": "Разгибание ног в тренажёре",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "quads": 1.0
+  },
+  "equipment": ["machine:leg_extension"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "high", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["leg_press_machine", "squat_goblet_dumbbell", "squat_bw"],
+  "progression_family": "leg_extension",
+  "setup_seconds": 30,
+  "cues": [
+    "Ось тренажёра на уровне колена, спина прижата",
+    "Разгибать до прямой ноги без рывка",
+    "Опускать медленно, не бросать"
+  ],
+  "common_errors": [
+    "Рывок с раскачиванием корпуса",
+    "Отрыв таза от сиденья",
+    "Валик стоит слишком низко и давит на подъём стопы"
+  ],
+  "illustration": "placeholder/lower/leg_extension_machine"
+}

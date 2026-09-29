@@ -1,0 +1,216 @@
+[
+  {
+    "session_kind": "push",
+    "shares": {
+      "pecs": 0.32,
+      "triceps": 0.26,
+      "front_delts": 0.24,
+      "side_delts": 0.18
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "pecs",
+    "shares": {
+      "pecs": 0.40,
+      "triceps": 0.22,
+      "front_delts": 0.22,
+      "side_delts": 0.16
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "front_delts",
+    "shares": {
+      "front_delts": 0.38,
+      "pecs": 0.24,
+      "triceps": 0.22,
+      "side_delts": 0.16
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "side_delts",
+    "shares": {
+      "side_delts": 0.34,
+      "pecs": 0.24,
+      "front_delts": 0.22,
+      "triceps": 0.20
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "triceps",
+    "shares": {
+      "triceps": 0.38,
+      "pecs": 0.26,
+      "front_delts": 0.22,
+      "side_delts": 0.14
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "glute_max",
+    "shares": {
+      "glute_max": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "glute_med",
+    "shares": {
+      "glute_med": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "quads",
+    "shares": {
+      "quads": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "hamstrings",
+    "shares": {
+      "hamstrings": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "adductors",
+    "shares": {
+      "adductors": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "calves",
+    "shares": {
+      "calves": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "erectors",
+    "shares": {
+      "erectors": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "lats",
+    "shares": {
+      "lats": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "traps_mid",
+    "shares": {
+      "traps_mid": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "traps_upper",
+    "shares": {
+      "traps_upper": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "rear_delts",
+    "shares": {
+      "rear_delts": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "biceps",
+    "shares": {
+      "biceps": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "forearms",
+    "shares": {
+      "forearms": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "abs",
+    "shares": {
+      "abs": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  },
+  {
+    "session_kind": "push",
+    "accent_muscle": "obliques",
+    "shares": {
+      "obliques": 0.30,
+      "pecs": 0.22,
+      "triceps": 0.18,
+      "front_delts": 0.17,
+      "side_delts": 0.13
+    }
+  }
+]

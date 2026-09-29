@@ -1,0 +1,37 @@
+{
+  "slug": "overhead_press_dumbbell",
+  "name": "Жим гантелей над головой",
+  "pattern": "push_v",
+  "muscle_contributions": {
+    "front_delts": 0.44,
+    "triceps": 0.26,
+    "side_delts": 0.22,
+    "erectors": 0.08
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "high",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["overhead_press_barbell", "shoulder_press_machine", "lateral_raise_dumbbell"],
+  "progression_family": "overhead_press",
+  "family_load_ratio": 0.45,
+  "setup_seconds": 25,
+  "cues": [
+    "Старт от уровня ушей, локти чуть впереди корпуса",
+    "Рёбра вниз, поясница нейтральна",
+    "Наверху гантели над плечами, а не за головой"
+  ],
+  "common_errors": [
+    "Прогиб в пояснице под весом",
+    "Локти разведены строго в стороны",
+    "Гантели сталкиваются наверху"
+  ],
+  "illustration": "placeholder/upper/overhead_press_dumbbell"
+}

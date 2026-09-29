@@ -1,0 +1,36 @@
+{
+  "slug": "row_inverted_bw",
+  "name": "Тяга собственного веса лёжа под перекладиной",
+  "pattern": "pull_h",
+  "muscle_contributions": {
+    "lats": 0.40,
+    "traps_mid": 0.27,
+    "biceps": 0.18,
+    "rear_delts": 0.15
+  },
+  "equipment": ["pullup_bar"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["row_seated_machine", "row_band", "pullup_bw"],
+  "progression_family": "inverted_row",
+  "setup_seconds": 20,
+  "cues": [
+    "Корпус прямой линией от пяток до головы",
+    "Тянуть грудью к перекладине",
+    "Чем ниже перекладина, тем тяжелее — так регулируется нагрузка"
+  ],
+  "common_errors": [
+    "Таз провисает вниз",
+    "Неполное разгибание рук внизу",
+    "Рывок с прогибом поясницы"
+  ],
+  "illustration": "placeholder/upper/row_inverted_bw"
+}

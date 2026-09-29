@@ -1,0 +1,35 @@
+{
+  "slug": "pushup_narrow_bw",
+  "name": "Отжимание узким хватом",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "triceps": 0.45,
+    "pecs": 0.35,
+    "front_delts": 0.20
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.7,
+  "alternatives": ["pushup_bw", "triceps_extension_band", "triceps_pushdown_cable"],
+  "progression_family": "pushup_narrow",
+  "setup_seconds": 5,
+  "cues": [
+    "Кисти под плечами, указательные пальцы почти касаются",
+    "Локти скользят вдоль корпуса, а не в стороны",
+    "Корпус в одну линию, ягодицы в напряжении"
+  ],
+  "common_errors": [
+    "Локти разъезжаются наружу",
+    "Таз провисает",
+    "Слишком узкая постановка, болят запястья"
+  ],
+  "illustration": "placeholder/upper/pushup_narrow_bw"
+}

@@ -1,0 +1,34 @@
+{
+  "slug": "triceps_extension_band",
+  "name": "Разгибание рук с резинкой",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "triceps": 0.92,
+    "forearms": 0.08
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["triceps_pushdown_cable", "triceps_extension_overhead_dumbbell"],
+  "progression_family": "triceps_extension_band",
+  "setup_seconds": 15,
+  "cues": [
+    "Резинка закреплена выше головы",
+    "Локти прижаты, двигается только предплечье",
+    "В нижней точке задержка на секунду"
+  ],
+  "common_errors": [
+    "Локти поднимаются вслед за резинкой",
+    "Корпус наклоняется, чтобы дожать",
+    "Потеря натяжения в верхней точке"
+  ],
+  "illustration": "placeholder/upper/triceps_extension_band"
+}

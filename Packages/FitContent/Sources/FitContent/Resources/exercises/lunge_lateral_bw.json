@@ -1,0 +1,37 @@
+{
+  "slug": "lunge_lateral_bw",
+  "name": "Боковой выпад с собственным весом",
+  "pattern": "lunge",
+  "muscle_contributions": {
+    "adductors": 0.35,
+    "glute_med": 0.25,
+    "quads": 0.22,
+    "glute_max": 0.13,
+    "hamstrings": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.7,
+  "alternatives": ["lunge_reverse_bw", "squat_bw"],
+  "progression_family": "lateral_lunge",
+  "setup_seconds": 10,
+  "cues": [
+    "Обе стопы смотрят вперёд, рабочая нога сгибается, дальняя остаётся прямой",
+    "Таз уходит назад, как в приседе на одну ногу",
+    "Внутреннюю поверхность дальней ноги тянет — это нормально, боли быть не должно"
+  ],
+  "common_errors": [
+    "Рабочее колено уходит внутрь",
+    "Корпус складывается вперёд вместо отведения таза",
+    "Стопа дальней ноги разворачивается наружу"
+  ],
+  "illustration": "placeholder/lower/lunge_lateral_bw"
+}

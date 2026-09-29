@@ -1,0 +1,36 @@
+{
+  "slug": "pallof_press_band",
+  "name": "Жим Паллофа с резинкой",
+  "pattern": "core",
+  "muscle_contributions": {
+    "obliques": 0.55,
+    "abs": 0.30,
+    "front_delts": 0.08,
+    "erectors": 0.07
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["side_plank_bw", "russian_twist_dumbbell"],
+  "progression_family": "pallof_press",
+  "setup_seconds": 15,
+  "cues": [
+    "Резинка закреплена сбоку на уровне груди",
+    "Смысл упражнения — НЕ повернуться: корпус остаётся фронтально",
+    "Выжать руки вперёд и вернуть, не разворачиваясь"
+  ],
+  "common_errors": [
+    "Корпус разворачивается вслед за резинкой",
+    "Таз уходит в сторону",
+    "Плечи задраны к ушам"
+  ],
+  "illustration": "placeholder/full_body/pallof_press_band"
+}

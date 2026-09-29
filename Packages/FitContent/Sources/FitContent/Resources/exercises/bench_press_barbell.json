@@ -1,0 +1,36 @@
+{
+  "slug": "bench_press_barbell",
+  "name": "Жим штанги лёжа",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.50,
+    "triceps": 0.27,
+    "front_delts": 0.23
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.2,
+  "alternatives": ["bench_press_dumbbell", "chest_press_machine", "pushup_bw"],
+  "progression_family": "bench_press",
+  "family_load_ratio": 1.00,
+  "setup_seconds": 90,
+  "cues": [
+    "Лопатки сведены и прижаты к скамье",
+    "Гриф опускается к нижней части груди",
+    "Стопы упираются в пол всю амплитуду"
+  ],
+  "common_errors": [
+    "Отрыв таза от скамьи",
+    "Локти разведены на девяносто градусов",
+    "Отбивание грифа от груди"
+  ],
+  "illustration": "placeholder/upper/bench_press_barbell"
+}

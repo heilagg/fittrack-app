@@ -1,0 +1,36 @@
+{
+  "slug": "box_jump",
+  "name": "Запрыгивание на тумбу",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.38,
+    "glute_max": 0.32,
+    "calves": 0.18,
+    "hamstrings": 0.12
+  },
+  "equipment": ["plyo_box"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "high", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "medium"
+  },
+  "impact": "high",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.1,
+  "alternatives": ["squat_jump_bw", "step_up_dumbbell"],
+  "progression_family": "box_jump",
+  "setup_seconds": 30,
+  "cues": [
+    "Высота тумбы такая, чтобы приземляться почти прямыми ногами",
+    "На тумбу — прыжком, обратно — шагом",
+    "Руки работают в такт отталкиванию"
+  ],
+  "common_errors": [
+    "Спрыгивание вниз вместо шага — лишняя ударная нагрузка",
+    "Слишком высокая тумба, приземление в глубокий присед",
+    "Край тумбы задет носком"
+  ],
+  "illustration": "placeholder/lower/box_jump"
+}

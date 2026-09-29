@@ -1,0 +1,35 @@
+{
+  "slug": "hip_abduction_band",
+  "name": "Отведение ноги в сторону с резинкой",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "glute_med": 0.72,
+    "glute_max": 0.22,
+    "obliques": 0.06
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["hip_abduction_side_lying_bw", "hip_abduction_machine", "glute_kickback_band"],
+  "progression_family": "hip_abduction_band",
+  "setup_seconds": 15,
+  "cues": [
+    "Резинка чуть выше колен или на щиколотках, натяжение есть уже в исходном положении",
+    "Корпус вертикально, отводит только нога",
+    "Возврат под контролем, резинку не отпускать"
+  ],
+  "common_errors": [
+    "Наклон корпуса в сторону вместо отведения бедра",
+    "Разворот стопы наружу",
+    "Слишком жёсткая резинка, амплитуда в пару сантиметров"
+  ],
+  "illustration": "placeholder/lower/hip_abduction_band"
+}

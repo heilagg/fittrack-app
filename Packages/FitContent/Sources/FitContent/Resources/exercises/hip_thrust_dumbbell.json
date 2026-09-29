@@ -1,0 +1,38 @@
+{
+  "slug": "hip_thrust_dumbbell",
+  "name": "Ягодичный мостик с гантелью",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "glute_max": 0.58,
+    "hamstrings": 0.22,
+    "erectors": 0.11,
+    "quads": 0.09
+  },
+  "equipment": [],
+  "equipment_optional": ["pad"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["hip_thrust_barbell", "glute_bridge_bw", "back_extension_machine"],
+  "progression_family": "hip_thrust",
+  "family_load_ratio": 0.35,
+  "setup_seconds": 30,
+  "cues": [
+    "Гантель лежит на складке таза, придерживать руками",
+    "Подбородок к груди, взгляд вперёд",
+    "Подъём до линии плечи — таз — колени, не выше"
+  ],
+  "common_errors": [
+    "Гантель съезжает на живот",
+    "Переразгибание поясницы в верхней точке",
+    "Отрыв пяток от пола"
+  ],
+  "illustration": "placeholder/lower/hip_thrust_dumbbell"
+}

@@ -1,0 +1,37 @@
+{
+  "slug": "overhead_press_barbell",
+  "name": "Жим штанги стоя над головой",
+  "pattern": "push_v",
+  "muscle_contributions": {
+    "front_delts": 0.45,
+    "triceps": 0.27,
+    "side_delts": 0.18,
+    "erectors": 0.10
+  },
+  "equipment": [],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "medium", "shoulder": "high",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.2,
+  "alternatives": ["overhead_press_dumbbell", "shoulder_press_machine", "pike_pushup_bw"],
+  "progression_family": "overhead_press",
+  "family_load_ratio": 1.00,
+  "setup_seconds": 60,
+  "cues": [
+    "Рёбра вниз, ягодицы в напряжении — поясница не прогибается",
+    "Гриф идёт по прямой мимо подбородка",
+    "Наверху голова проходит вперёд под штангу"
+  ],
+  "common_errors": [
+    "Прогиб в пояснице вместо жима вверх",
+    "Гриф уходит вперёд по дуге",
+    "Подсед ногами, то есть уже другое упражнение"
+  ],
+  "illustration": "placeholder/upper/overhead_press_barbell"
+}

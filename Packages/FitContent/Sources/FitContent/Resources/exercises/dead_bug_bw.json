@@ -1,0 +1,35 @@
+{
+  "slug": "dead_bug_bw",
+  "name": "Мёртвый жук",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.65,
+    "obliques": 0.20,
+    "quads": 0.15
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["plank_bw", "hollow_hold_bw"],
+  "progression_family": "dead_bug",
+  "setup_seconds": 5,
+  "cues": [
+    "Поясница прижата к полу всю амплитуду",
+    "Опускать противоположные руку и ногу одновременно",
+    "Выдох на движении вниз"
+  ],
+  "common_errors": [
+    "Поясница отрывается от пола",
+    "Рука и нога опускаются слишком низко для текущей силы",
+    "Шея напряжена, подбородок задран"
+  ],
+  "illustration": "placeholder/full_body/dead_bug_bw"
+}

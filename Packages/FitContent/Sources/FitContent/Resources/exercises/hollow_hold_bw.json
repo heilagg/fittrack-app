@@ -1,0 +1,35 @@
+{
+  "slug": "hollow_hold_bw",
+  "name": "Удержание уголка лёжа",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.70,
+    "obliques": 0.18,
+    "quads": 0.12
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "low", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["dead_bug_bw", "plank_bw", "leg_raise_hanging"],
+  "progression_family": "hollow_hold",
+  "setup_seconds": 5,
+  "cues": [
+    "Поясница прижата к полу — это главное условие",
+    "Ноги и плечи оторваны, взгляд на носки",
+    "Чем ниже ноги, тем тяжелее: так регулируется нагрузка"
+  ],
+  "common_errors": [
+    "Поясница отрывается от пола",
+    "Шея тянется вперёд, работают мышцы шеи",
+    "Ноги опущены слишком низко для текущей силы"
+  ],
+  "illustration": "placeholder/full_body/hollow_hold_bw"
+}

@@ -1,0 +1,36 @@
+{
+  "slug": "rdl_single_leg_bw",
+  "name": "Наклон на одной ноге с собственным весом",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "hamstrings": 0.45,
+    "glute_max": 0.30,
+    "erectors": 0.15,
+    "glute_med": 0.10
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "medium", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.7,
+  "alternatives": ["rdl_dumbbell", "glute_bridge_bw", "deadlift_romanian_barbell"],
+  "progression_family": "rdl_single_leg",
+  "setup_seconds": 10,
+  "cues": [
+    "Опорное колено чуть согнуто и не меняет угол",
+    "Таз уходит назад, свободная нога уходит назад как продолжение корпуса",
+    "Таз держать ровно, не разворачивать наружу"
+  ],
+  "common_errors": [
+    "Поясница скругляется вместо наклона от таза",
+    "Таз разворачивается вслед за свободной ногой",
+    "Опорная нога выпрямляется в колене до упора"
+  ],
+  "illustration": "placeholder/lower/rdl_single_leg_bw"
+}

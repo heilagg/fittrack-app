@@ -1,0 +1,35 @@
+{
+  "slug": "hip_abduction_side_lying_bw",
+  "name": "Отведение ноги лёжа на боку",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "glute_med": 0.75,
+    "glute_max": 0.20,
+    "obliques": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["hip_abduction_band", "hip_abduction_machine", "lunge_lateral_bw"],
+  "progression_family": "hip_abduction_side_lying",
+  "setup_seconds": 5,
+  "cues": [
+    "Корпус в одну линию, таз не заваливается назад",
+    "Носок смотрит вперёд, а не в потолок",
+    "Поднимать до высоты, где таз ещё неподвижен"
+  ],
+  "common_errors": [
+    "Таз отваливается назад, и работает уже не средняя ягодичная",
+    "Разворот стопы наружу",
+    "Слишком большая амплитуда за счёт наклона корпуса"
+  ],
+  "illustration": "placeholder/lower/hip_abduction_side_lying_bw"
+}

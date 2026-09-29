@@ -1,0 +1,34 @@
+{
+  "slug": "hammer_curl_dumbbell",
+  "name": "Сгибание рук молотком",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.62,
+    "forearms": 0.38
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["curl_dumbbell", "wrist_curl_dumbbell"],
+  "progression_family": "hammer_curl",
+  "setup_seconds": 15,
+  "cues": [
+    "Кисть нейтральна всю амплитуду, ладони смотрят друг на друга",
+    "Локти у корпуса",
+    "Пауза наверху на секунду"
+  ],
+  "common_errors": [
+    "Разворот кисти в середине движения",
+    "Заброс корпусом",
+    "Локти уходят вперёд"
+  ],
+  "illustration": "placeholder/upper/hammer_curl_dumbbell"
+}

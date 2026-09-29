@@ -1,0 +1,37 @@
+{
+  "slug": "rdl_dumbbell",
+  "name": "Румынская тяга с гантелями",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "hamstrings": 0.45,
+    "glute_max": 0.32,
+    "erectors": 0.18,
+    "forearms": 0.05
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "medium", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.1,
+  "alternatives": ["deadlift_romanian_barbell", "rdl_single_leg_bw", "leg_curl_machine"],
+  "progression_family": "rdl",
+  "family_load_ratio": 0.55,
+  "setup_seconds": 20,
+  "cues": [
+    "Колени чуть согнуты и угол не меняется всю амплитуду",
+    "Гантели скользят вдоль бедра, близко к телу",
+    "Вниз — пока тянет заднюю поверхность и спина держит нейтраль"
+  ],
+  "common_errors": [
+    "Присед вместо наклона от таза",
+    "Поясница скругляется в нижней точке",
+    "Гантели уходят вперёд от бедра"
+  ],
+  "illustration": "placeholder/lower/rdl_dumbbell"
+}

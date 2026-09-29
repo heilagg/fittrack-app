@@ -1,0 +1,36 @@
+{
+  "slug": "leg_press_machine",
+  "name": "Жим ногами в тренажёре",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.50,
+    "glute_max": 0.28,
+    "hamstrings": 0.12,
+    "adductors": 0.10
+  },
+  "equipment": ["machine:leg_press"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["squat_back_barbell", "squat_goblet_dumbbell", "leg_extension_machine"],
+  "progression_family": "leg_press",
+  "setup_seconds": 45,
+  "cues": [
+    "Поясница прижата к спинке всю амплитуду",
+    "Стопы на ширине таза, давить серединой стопы",
+    "Колени в конце не выпрямлять до упора"
+  ],
+  "common_errors": [
+    "Таз отрывается от спинки в нижней точке",
+    "Колени сводятся внутрь под весом",
+    "Рывок с блокировкой коленей наверху"
+  ],
+  "illustration": "placeholder/lower/leg_press_machine"
+}

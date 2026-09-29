@@ -1,0 +1,36 @@
+{
+  "slug": "side_plank_bw",
+  "name": "Боковая планка",
+  "pattern": "core",
+  "muscle_contributions": {
+    "obliques": 0.60,
+    "abs": 0.20,
+    "glute_med": 0.15,
+    "side_delts": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["plank_bw", "pallof_press_band"],
+  "progression_family": "side_plank",
+  "setup_seconds": 5,
+  "cues": [
+    "Локоть под плечом, предплечье вперёд",
+    "Таз вытолкнуть вверх до прямой линии",
+    "Плечи и таз в одной плоскости, не заваливаться вперёд"
+  ],
+  "common_errors": [
+    "Таз провисает к полу",
+    "Корпус разворачивается лицом вниз",
+    "Опорное плечо проваливается к уху"
+  ],
+  "illustration": "placeholder/full_body/side_plank_bw"
+}

@@ -1,0 +1,34 @@
+{
+  "slug": "pec_deck_machine",
+  "name": "Сведение рук в тренажёре",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "pecs": 0.85,
+    "front_delts": 0.15
+  },
+  "equipment": ["machine:pec_deck"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["fly_dumbbell", "chest_press_machine"],
+  "progression_family": "pec_deck",
+  "setup_seconds": 30,
+  "cues": [
+    "Локти на уровне плеч, угол в них фиксирован",
+    "Сводить до касания рукоятей, пауза",
+    "Разводить до лёгкого растяжения, не дальше"
+  ],
+  "common_errors": [
+    "Слишком большая амплитуда назад, плечо уходит вперёд",
+    "Помощь корпусом, отрыв спины от спинки",
+    "Резкий возврат под весом"
+  ],
+  "illustration": "placeholder/upper/pec_deck_machine"
+}

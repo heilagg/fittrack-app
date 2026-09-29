@@ -1,0 +1,37 @@
+{
+  "slug": "step_up_dumbbell",
+  "name": "Зашагивание на возвышение с гантелями",
+  "pattern": "lunge",
+  "muscle_contributions": {
+    "quads": 0.38,
+    "glute_max": 0.36,
+    "hamstrings": 0.14,
+    "calves": 0.07,
+    "glute_med": 0.05
+  },
+  "equipment": ["step_platform"],
+  "load_type": "dumbbell",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["lunge_reverse_dumbbell", "split_squat_bulgarian_dumbbell", "box_jump"],
+  "progression_family": "step_up",
+  "setup_seconds": 30,
+  "cues": [
+    "Вся стопа стоит на возвышении, пятка не свисает",
+    "Подниматься за счёт верхней ноги, нижней не отталкиваться",
+    "Опускаться медленно, а не падать вниз"
+  ],
+  "common_errors": [
+    "Толчок нижней ногой вместо работы верхней",
+    "Слишком высокая платформа, колено выше таза",
+    "Корпус заваливается вперёд под гантелями"
+  ],
+  "illustration": "placeholder/lower/step_up_dumbbell"
+}

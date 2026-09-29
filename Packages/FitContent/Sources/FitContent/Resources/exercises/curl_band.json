@@ -1,0 +1,34 @@
+{
+  "slug": "curl_band",
+  "name": "Сгибание рук с резинкой",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.84,
+    "forearms": 0.16
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["curl_dumbbell", "curl_barbell"],
+  "progression_family": "curl_band",
+  "setup_seconds": 15,
+  "cues": [
+    "Резинка под стопами, натяжение есть в нижней точке",
+    "Локти прижаты, корпус вертикально",
+    "Возврат медленный: резинка тянет обратно сильнее, чем кажется"
+  ],
+  "common_errors": [
+    "Корпус наклоняется вперёд под натяжением",
+    "Локти уезжают назад",
+    "Резкий возврат с отскоком"
+  ],
+  "illustration": "placeholder/upper/curl_band"
+}

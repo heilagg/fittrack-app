@@ -1,0 +1,35 @@
+{
+  "slug": "curl_dumbbell",
+  "name": "Сгибание рук с гантелями",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.84,
+    "forearms": 0.16
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["curl_barbell", "curl_band", "hammer_curl_dumbbell"],
+  "progression_family": "curl",
+  "family_load_ratio": 0.45,
+  "setup_seconds": 15,
+  "cues": [
+    "Локти у корпуса, кисть разворачивается к концу подъёма",
+    "Плечо неподвижно",
+    "Внизу руки распрямляются полностью"
+  ],
+  "common_errors": [
+    "Раскачивание корпусом",
+    "Подъём плеча вслед за гантелью",
+    "Половинная амплитуда внизу"
+  ],
+  "illustration": "placeholder/upper/curl_dumbbell"
+}

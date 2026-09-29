@@ -1,0 +1,37 @@
+{
+  "slug": "lunge_reverse_dumbbell",
+  "name": "Выпад назад с гантелями",
+  "pattern": "lunge",
+  "muscle_contributions": {
+    "glute_max": 0.38,
+    "quads": 0.34,
+    "hamstrings": 0.15,
+    "adductors": 0.07,
+    "calves": 0.06
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["lunge_reverse_bw", "split_squat_bulgarian_dumbbell", "step_up_dumbbell"],
+  "progression_family": "reverse_lunge",
+  "setup_seconds": 20,
+  "cues": [
+    "Гантели висят свободно, плечи назад",
+    "Опускаться вертикально, а не наклоняясь к передней ноге",
+    "Все повторения на одну ногу, потом на другую"
+  ],
+  "common_errors": [
+    "Гантели раскачиваются и сбивают равновесие",
+    "Переднее колено уходит внутрь",
+    "Рывок задней ногой вместо работы передней"
+  ],
+  "illustration": "placeholder/lower/lunge_reverse_dumbbell"
+}

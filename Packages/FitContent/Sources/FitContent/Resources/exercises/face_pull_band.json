@@ -1,0 +1,35 @@
+{
+  "slug": "face_pull_band",
+  "name": "Тяга резинки к лицу",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "rear_delts": 0.50,
+    "traps_mid": 0.35,
+    "side_delts": 0.15
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["reverse_fly_dumbbell", "row_band"],
+  "progression_family": "face_pull_band",
+  "setup_seconds": 15,
+  "cues": [
+    "Резинка на уровне лица, локти выше кистей",
+    "Тянуть к переносице, разводя кисти в стороны",
+    "В конечной точке задержаться на секунду"
+  ],
+  "common_errors": [
+    "Локти падают вниз, работает широчайшая",
+    "Шея вытягивается навстречу резинке",
+    "Возврат броском"
+  ],
+  "illustration": "placeholder/upper/face_pull_band"
+}

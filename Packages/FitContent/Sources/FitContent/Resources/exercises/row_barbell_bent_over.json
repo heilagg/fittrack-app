@@ -1,0 +1,37 @@
+{
+  "slug": "row_barbell_bent_over",
+  "name": "Тяга штанги в наклоне",
+  "pattern": "pull_h",
+  "muscle_contributions": {
+    "lats": 0.42,
+    "traps_mid": 0.25,
+    "rear_delts": 0.13,
+    "biceps": 0.12,
+    "erectors": 0.08
+  },
+  "equipment": [],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "high", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.3,
+  "alternatives": ["row_dumbbell_one_arm", "row_seated_machine", "lat_pulldown_machine"],
+  "progression_family": "row_barbell",
+  "setup_seconds": 60,
+  "cues": [
+    "Наклон около сорока пяти градусов, спина нейтральна",
+    "Гриф ведёт к низу живота",
+    "Колени чуть согнуты, таз назад"
+  ],
+  "common_errors": [
+    "Корпус выпрямляется на каждом повторении",
+    "Поясница скругляется под весом",
+    "Рывок с отбиванием штанги от бёдер"
+  ],
+  "illustration": "placeholder/upper/row_barbell_bent_over"
+}

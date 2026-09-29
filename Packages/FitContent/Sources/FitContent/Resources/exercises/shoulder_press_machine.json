@@ -1,0 +1,35 @@
+{
+  "slug": "shoulder_press_machine",
+  "name": "Жим над головой в тренажёре",
+  "pattern": "push_v",
+  "muscle_contributions": {
+    "front_delts": 0.46,
+    "triceps": 0.28,
+    "side_delts": 0.26
+  },
+  "equipment": ["machine:shoulder_press"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["overhead_press_dumbbell", "overhead_press_barbell"],
+  "progression_family": "shoulder_press",
+  "setup_seconds": 30,
+  "cues": [
+    "Рукояти на уровне плеч в стартовом положении",
+    "Поясница прижата к спинке",
+    "Локти не выпрямлять до блокировки"
+  ],
+  "common_errors": [
+    "Сиденье слишком низкое, плечо уходит за спину",
+    "Отрыв спины от спинки",
+    "Сброс веса вниз без контроля"
+  ],
+  "illustration": "placeholder/upper/shoulder_press_machine"
+}

@@ -1,0 +1,35 @@
+{
+  "slug": "curl_barbell",
+  "name": "Сгибание рук со штангой",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.82,
+    "forearms": 0.18
+  },
+  "equipment": [],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["curl_dumbbell", "curl_band", "chinup_bw"],
+  "progression_family": "curl",
+  "family_load_ratio": 1.00,
+  "setup_seconds": 30,
+  "cues": [
+    "Локти прижаты к корпусу и не уезжают вперёд",
+    "Корпус неподвижен, работает только предплечье",
+    "Опускать до полного разгибания"
+  ],
+  "common_errors": [
+    "Заброс штанги корпусом",
+    "Локти выходят вперёд, подключается дельта",
+    "Кисти переразогнуты, болят запястья"
+  ],
+  "illustration": "placeholder/upper/curl_barbell"
+}

@@ -1,0 +1,36 @@
+{
+  "slug": "lat_pulldown_machine",
+  "name": "Тяга верхнего блока к груди",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.55,
+    "biceps": 0.20,
+    "traps_mid": 0.15,
+    "rear_delts": 0.10
+  },
+  "equipment": ["machine:lat_pulldown"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["pullup_bw", "pulldown_band", "row_seated_machine"],
+  "progression_family": "lat_pulldown",
+  "setup_seconds": 30,
+  "cues": [
+    "Бёдра под валиками, корпус чуть назад и неподвижен",
+    "Рукоять вести к верху груди, локти вниз",
+    "Возврат под контролем, до полного растяжения"
+  ],
+  "common_errors": [
+    "Отклонение корпуса назад рывком",
+    "Тяга за счёт рук при выключенной спине",
+    "Рукоять заводится за шею"
+  ],
+  "illustration": "placeholder/upper/lat_pulldown_machine"
+}

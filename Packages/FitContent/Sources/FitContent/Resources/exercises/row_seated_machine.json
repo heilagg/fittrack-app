@@ -1,0 +1,36 @@
+{
+  "slug": "row_seated_machine",
+  "name": "Горизонтальная тяга в тренажёре",
+  "pattern": "pull_h",
+  "muscle_contributions": {
+    "lats": 0.42,
+    "traps_mid": 0.28,
+    "rear_delts": 0.15,
+    "biceps": 0.15
+  },
+  "equipment": ["machine:seated_row"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["row_dumbbell_one_arm", "row_band", "lat_pulldown_machine"],
+  "progression_family": "seated_row",
+  "setup_seconds": 30,
+  "cues": [
+    "Грудь в упор, корпус не раскачивается",
+    "Сначала свести лопатки, потом тянуть локтями назад",
+    "Возврат до полного растяжения спины"
+  ],
+  "common_errors": [
+    "Раскачивание корпусом вперёд-назад",
+    "Плечи задраны к ушам",
+    "Амплитуда обрезана в начале движения"
+  ],
+  "illustration": "placeholder/upper/row_seated_machine"
+}

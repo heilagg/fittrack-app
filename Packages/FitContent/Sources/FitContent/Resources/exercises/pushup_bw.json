@@ -1,0 +1,36 @@
+{
+  "slug": "pushup_bw",
+  "name": "Отжимание от пола",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.50,
+    "triceps": 0.25,
+    "front_delts": 0.20,
+    "abs": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.7,
+  "alternatives": ["pushup_knees_bw", "bench_press_dumbbell", "chest_press_machine"],
+  "progression_family": "pushup",
+  "setup_seconds": 5,
+  "cues": [
+    "Корпус прямой линией от пяток до головы",
+    "Локти под углом около сорока пяти градусов к корпусу",
+    "Грудь опускается ниже локтей"
+  ],
+  "common_errors": [
+    "Таз провисает или задран вверх",
+    "Локти разведены строго в стороны",
+    "Работа в половину амплитуды"
+  ],
+  "illustration": "placeholder/upper/pushup_bw"
+}

@@ -1,0 +1,36 @@
+{
+  "slug": "pushup_knees_bw",
+  "name": "Отжимание с колен",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.50,
+    "triceps": 0.25,
+    "front_delts": 0.20,
+    "abs": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "none", "shoulder": "low",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.5,
+  "alternatives": ["pushup_bw", "chest_press_band"],
+  "progression_family": "pushup_knees",
+  "setup_seconds": 5,
+  "cues": [
+    "Линия от колен до головы прямая, таз не складывается",
+    "Колени на мягком, если пол жёсткий",
+    "Опускаться до касания грудью кулака"
+  ],
+  "common_errors": [
+    "Таз уходит назад, движение превращается в наклон",
+    "Кисти слишком далеко вперёд",
+    "Голова тянется к полу раньше груди"
+  ],
+  "illustration": "placeholder/upper/pushup_knees_bw"
+}

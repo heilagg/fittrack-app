@@ -1,0 +1,35 @@
+{
+  "slug": "back_extension_machine",
+  "name": "Гиперэкстензия",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "erectors": 0.45,
+    "glute_max": 0.33,
+    "hamstrings": 0.22
+  },
+  "equipment": ["machine:back_extension"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "medium", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["deadlift_romanian_barbell", "glute_bridge_bw", "hip_thrust_dumbbell"],
+  "progression_family": "back_extension",
+  "setup_seconds": 30,
+  "cues": [
+    "Валики упираются в бёдра ниже тазовых косточек",
+    "Подниматься до прямой линии, не выше",
+    "Ягодицы сжать в верхней точке"
+  ],
+  "common_errors": [
+    "Переразгибание в верхней точке с прогибом поясницы",
+    "Рывок с раскачиванием корпуса",
+    "Валики слишком высоко — таз не может двигаться"
+  ],
+  "illustration": "placeholder/lower/back_extension_machine"
+}

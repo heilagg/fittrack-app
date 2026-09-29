@@ -1,0 +1,36 @@
+{
+  "slug": "plank_bw",
+  "name": "Планка на предплечьях",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.55,
+    "obliques": 0.25,
+    "erectors": 0.12,
+    "front_delts": 0.08
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["side_plank_bw", "dead_bug_bw", "hollow_hold_bw"],
+  "progression_family": "plank",
+  "setup_seconds": 5,
+  "cues": [
+    "Локти строго под плечами",
+    "Таз подкручен, поясница не провисает",
+    "Ягодицы и живот в напряжении всё время удержания"
+  ],
+  "common_errors": [
+    "Таз провисает вниз",
+    "Таз задран вверх — нагрузка уходит",
+    "Задержка дыхания вместо ровного"
+  ],
+  "illustration": "placeholder/full_body/plank_bw"
+}

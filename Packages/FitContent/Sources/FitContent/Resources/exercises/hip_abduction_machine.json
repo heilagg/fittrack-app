@@ -1,0 +1,35 @@
+{
+  "slug": "hip_abduction_machine",
+  "name": "Разведение ног в тренажёре",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "glute_med": 0.70,
+    "glute_max": 0.25,
+    "obliques": 0.05
+  },
+  "equipment": ["machine:hip_abduction"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["hip_abduction_band", "hip_abduction_side_lying_bw", "lunge_lateral_bw"],
+  "progression_family": "hip_abduction",
+  "setup_seconds": 30,
+  "cues": [
+    "Спина прижата к спинке, руки спокойно лежат",
+    "Разводить до упора и возвращать медленно",
+    "Небольшой наклон корпуса вперёд усиливает работу средней ягодичной"
+  ],
+  "common_errors": [
+    "Рывок с отбиванием веса о стек",
+    "Отрыв спины от спинки",
+    "Возврат броском, без контроля"
+  ],
+  "illustration": "placeholder/lower/hip_abduction_machine"
+}
