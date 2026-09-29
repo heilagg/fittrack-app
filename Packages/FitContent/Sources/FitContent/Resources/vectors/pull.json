@@ -1,0 +1,261 @@
+[
+  {
+    "session_kind": "pull",
+    "shares": {
+      "lats": 0.28,
+      "biceps": 0.16,
+      "traps_mid": 0.16,
+      "rear_delts": 0.12,
+      "erectors": 0.12,
+      "forearms": 0.10,
+      "traps_upper": 0.06
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "lats",
+    "shares": {
+      "lats": 0.36,
+      "traps_mid": 0.16,
+      "biceps": 0.14,
+      "rear_delts": 0.12,
+      "erectors": 0.10,
+      "forearms": 0.08,
+      "traps_upper": 0.04
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "traps_mid",
+    "shares": {
+      "traps_mid": 0.32,
+      "lats": 0.24,
+      "rear_delts": 0.16,
+      "biceps": 0.10,
+      "erectors": 0.10,
+      "forearms": 0.05,
+      "traps_upper": 0.03
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "traps_upper",
+    "shares": {
+      "traps_upper": 0.30,
+      "lats": 0.22,
+      "traps_mid": 0.18,
+      "forearms": 0.10,
+      "erectors": 0.08,
+      "biceps": 0.07,
+      "rear_delts": 0.05
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "rear_delts",
+    "shares": {
+      "rear_delts": 0.30,
+      "traps_mid": 0.22,
+      "lats": 0.20,
+      "erectors": 0.10,
+      "biceps": 0.10,
+      "forearms": 0.05,
+      "traps_upper": 0.03
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "biceps",
+    "shares": {
+      "biceps": 0.30,
+      "lats": 0.22,
+      "traps_mid": 0.14,
+      "forearms": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.08,
+      "traps_upper": 0.04
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "forearms",
+    "shares": {
+      "forearms": 0.30,
+      "lats": 0.22,
+      "biceps": 0.18,
+      "traps_upper": 0.10,
+      "erectors": 0.10,
+      "traps_mid": 0.06,
+      "rear_delts": 0.04
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "erectors",
+    "shares": {
+      "erectors": 0.32,
+      "lats": 0.22,
+      "traps_mid": 0.14,
+      "biceps": 0.12,
+      "rear_delts": 0.10,
+      "forearms": 0.06,
+      "traps_upper": 0.04
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "glute_max",
+    "shares": {
+      "glute_max": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "glute_med",
+    "shares": {
+      "glute_med": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "quads",
+    "shares": {
+      "quads": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "hamstrings",
+    "shares": {
+      "hamstrings": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "adductors",
+    "shares": {
+      "adductors": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "calves",
+    "shares": {
+      "calves": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "pecs",
+    "shares": {
+      "pecs": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "front_delts",
+    "shares": {
+      "front_delts": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "side_delts",
+    "shares": {
+      "side_delts": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "triceps",
+    "shares": {
+      "triceps": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "abs",
+    "shares": {
+      "abs": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  },
+  {
+    "session_kind": "pull",
+    "accent_muscle": "obliques",
+    "shares": {
+      "obliques": 0.30,
+      "lats": 0.20,
+      "biceps": 0.12,
+      "traps_mid": 0.12,
+      "erectors": 0.10,
+      "rear_delts": 0.09,
+      "forearms": 0.07
+    }
+  }
+]
