@@ -67,7 +67,8 @@ do {
     // 1. Контент: байты обоих ответов и их `ETag` считаются один раз, здесь
     //    (§20.11). Разметки в пакете пока ноль, и это валидный ответ — пустой
     //    массив со своим `ETag`, а не ошибка.
-    let store = try ContentStore(library: Content.loadBundled())
+    let library = try Content.loadBundled()
+    let store = try ContentStore(library: library)
 
     // 2. Ключи. `start()` различает два вида неудачи: недоступность старту не
     //    мешает (процесс поднимется и будет отвечать `jwks_unavailable`), а
@@ -102,7 +103,7 @@ do {
     application.http.server.configuration.hostname = try env("FITTRACK_HOST", default: "127.0.0.1")
     application.http.server.configuration.port = Int(try env("FITTRACK_PORT", default: "8080")) ?? 8080
 
-    Routes.register(on: application, content: store)
+    Routes.register(on: application, content: store, library: library, database: database)
 
     // `run()` обязан крутиться всё время жизни пула — до него
     // `withUserTransaction` не получит соединения. Владельца у этой задачи нет

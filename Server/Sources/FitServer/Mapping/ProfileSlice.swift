@@ -127,6 +127,19 @@ extension Mapping {
         )
     }
 
+    /// Незаполненные из четырёх обязательных — в `details` конверта §20.3.
+    ///
+    /// `details` машинный и клиенту нужен для одного: понять, на какой экран
+    /// онбординга возвращать. Пользовательнице он не показывается никогда,
+    /// поэтому имена здесь колоночные, а не человеческие.
+    public static func missingProfileFields(_ slice: ProfileSlice) -> [String] {
+        var missing: [String] = []
+        if slice.level == nil { missing.append("experience_level") }
+        if slice.goal == nil { missing.append("goal") }
+        if slice.trainingWeekdays?.isEmpty ?? true { missing.append("training_weekdays") }
+        return missing
+    }
+
     /// Даты тренировочных дней недели, начинающейся в `weekStart` (§7.2).
     ///
     /// `Planner.weekGrid` принимает даты, а не номера: набор дней задаёт и типы

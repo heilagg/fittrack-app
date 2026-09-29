@@ -2,15 +2,11 @@
 //
 //  ── Что смонтировано ───────────────────────────────────────────────────────
 //
-//  Из четырнадцати путей §20.3 — два: `GET /v1/content/exercises` и
-//  `/v1/content/stretches`. Они единственные, кому не нужен ни `Mapping/`, ни
-//  `DB/`, ни `FitCore`, и потому единственные, которые можно смонтировать, не
-//  выбрав молча ни одного решения из тех, что §20.3 оставил открытыми
-//  (server-domain §1).
-//
-//  Остальные двенадцать ждут `Mapping/` и решений по форме ответа. Пустой
-//  каркас под них здесь не заводится: смонтированный путь, отвечающий
-//  заглушкой, для клиента неотличим от реализованного.
+//  Из четырнадцати путей §20.3 смонтированы шесть: два контентных и четыре
+//  недельных. Остальные восемь — тренировочный блок и `/today`, `/preview`,
+//  `/alternatives` — ждут своей очереди. Пустой каркас под них не заводится:
+//  смонтированный путь, отвечающий заглушкой, для клиента неотличим от
+//  реализованного.
 //
 //  ── Версия в пути ──────────────────────────────────────────────────────────
 //
@@ -28,6 +24,7 @@
 //  дополняется: его `ErrorMiddleware` рисует свой конверт `{"error": true,
 //  "reason": …}`, то есть ровно второй формат ошибки на той же границе.
 
+import FitContent
 import Vapor
 
 /// Монтаж `/v1` (SPEC §20.3).
@@ -38,11 +35,13 @@ public enum Routes {
     /// `content` передаётся значением, а не читается из `Application`: store —
     /// это уже посчитанные байты и их `ETag` (§20.11), и владеть ими должен
     /// тот, кто их посчитал при старте.
-    public static func register(on application: Application, content: ContentStore) {
+    public static func register(on application: Application, content: ContentStore,
+                                library: ContentLibrary, database: Database) {
         application.middleware = Middlewares()
         application.middleware.use(APIErrorMiddleware())
 
         let v1 = application.grouped("v1")
         ContentRoutes.register(on: v1, store: content)
+        WeekPlanRoutes.register(on: v1, database: database, library: library)
     }
 }

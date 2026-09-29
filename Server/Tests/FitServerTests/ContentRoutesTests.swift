@@ -12,9 +12,17 @@ import Testing
 import Foundation
 import FitAPI
 import FitContent
+import Logging
 import Vapor
 import VaporTesting
 @testable import FitServer
+
+/// Источник ключей, который никогда не отвечает: контентные пути токена не
+/// читают (§20.5), и настоящий JWKS им не нужен.
+private struct UnreachableJWKS: JWKSSource {
+    struct Never: Error {}
+    func fetch() async throws -> String { throw Never() }
+}
 
 @Suite("Роуты контента /v1/content/* (§20.3, §20.11)")
 struct ContentRoutesTests {
@@ -45,10 +53,32 @@ struct ContentRoutesTests {
         )
     }
 
+    /// Пул, который никуда не ходит.
+    ///
+    /// `Routes.register` монтирует ВСЁ, что есть, одним вызовом (иначе путь
+    /// однажды окажется смонтирован без конверта ошибок), поэтому база ему
+    /// нужна. Здесь она нужна только как значение: `Database.init` соединений
+    /// не открывает — их берёт `run()`, который тут не запускается, — а
+    /// контентные пути к ней не обращаются вовсе (§20.5).
+    static func idleDatabase() throws -> Database {
+        let auth = try AuthConfiguration(issuer: "https://example.test/auth/v1")
+        var logger = Logger(label: "test.content-routes")
+        logger.logLevel = .critical
+        return Database(
+            configuration: try DatabaseConfiguration(host: "127.0.0.1", port: 1,
+                                                     password: "irrelevant", tls: .disable,
+                                                     minimumConnections: 0),
+            verifier: TokenVerifier(configuration: auth,
+                                    cache: JWKSCache(source: UnreachableJWKS(), configuration: auth)),
+            logger: logger
+        )
+    }
+
     static func withServer(_ body: (Application, ContentStore) async throws -> Void) async throws {
         let store = try ContentStore(library: library())
+        let database = try idleDatabase()
         try await withApp { app in
-            Routes.register(on: app, content: store)
+            Routes.register(on: app, content: store, library: library(), database: database)
             try await body(app, store)
         }
     }

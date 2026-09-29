@@ -255,6 +255,21 @@ extension Mapping {
         return result
     }
 
+    /// `planned_day_id` тренировок, которые начаты и не закрыты.
+    ///
+    /// `WeekContext.startedDayIDs` — правило неприкосновенности §7.1: начатую
+    /// тренировку пересборка не трогает. Завершённые сюда не входят: их день
+    /// уже несёт `status = done`, и `classify` разбирает его раньше.
+    public static func readStartedDayIDs(_ tx: UserTransaction) async throws -> Set<String> {
+        let rows = try await tx.query("""
+            select planned_day_id::text from workouts
+             where finished_at is null and deleted_at is null and planned_day_id is not null
+            """)
+        var result: Set<String> = []
+        for try await row in rows { result.insert(try row.decode(String.self)) }
+        return result
+    }
+
     // MARK: - Журнал подходов
 
     /// Все подходы пользователя с их упражнением и тренировкой.
@@ -264,13 +279,18 @@ extension Mapping {
     /// запроса, а следствие того, что все четверо читают одну и ту же строку
     /// разными правилами (§20.6).
     ///
-    /// `since` ограничивает выборку: свёртке §9 нужна история упражнения, а не
-    /// вся жизнь аккаунта. Границу выбирает вызывающая сторона — у недельного
-    /// плана и у старта тренировки она разная.
-    public static func readSets(_ tx: UserTransaction, since: CalendarDay,
+    /// `since` ограничивает выборку, и `nil` означает «вся история».
+    ///
+    /// Умолчания у границы нет намеренно. `Progression.rebuildStates` — свёртка
+    /// ПО ВСЕМУ журналу: базовая линия строится с нуля, поэтому усечение меняет
+    /// её, а не ускоряет тот же ответ. Правило, какую историю достаточно
+    /// прочитать, SPEC не задаёт, и придумывать его здесь значило бы менять
+    /// веса незаметно. Пока граница не назначена, вызывающая сторона передаёт
+    /// `nil`.
+    public static func readSets(_ tx: UserTransaction, since: CalendarDay?,
                                 timeZone: TimeZone) async throws -> [SetRow] {
         let zone = timeZone.identifier
-        let from = LocalTime.iso(since)
+        let from = since.map(LocalTime.iso) ?? "0001-01-01"
         let rows = try await tx.query("""
             select we.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
                    s.actual_reps, s.feedback, s.skipped, s.pain_flag, we.is_calibration,
@@ -303,11 +323,11 @@ extension Mapping {
     /// Двумя запросами, а не одним: ключ у них разный — там день, здесь
     /// `workouts.id`, — и складывать оба в один `select` значило бы завести
     /// правило «какая колонка чья» там, где его сейчас нет.
-    public static func readCompleted(_ tx: UserTransaction, since: CalendarDay,
+    public static func readCompleted(_ tx: UserTransaction, since: CalendarDay?,
                                      timeZone: TimeZone) async throws
         -> (rows: [CompletedWorkoutRow], sets: [String: [SetRow]]) {
         let zone = timeZone.identifier
-        let from = LocalTime.iso(since)
+        let from = since.map(LocalTime.iso) ?? "0001-01-01"
 
         var workouts: [CompletedWorkoutRow] = []
         let workoutRows = try await tx.query("""
