@@ -1,0 +1,38 @@
+{
+  "slug": "squat_goblet_dumbbell",
+  "name": "Гоблет-присед с гантелью",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.42,
+    "glute_max": 0.28,
+    "hamstrings": 0.10,
+    "adductors": 0.10,
+    "erectors": 0.10
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "medium", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["squat_back_barbell", "squat_bw", "leg_press_machine"],
+  "progression_family": "squat",
+  "family_load_ratio": 0.35,
+  "setup_seconds": 30,
+  "cues": [
+    "Гантель у груди, локти внутри колен",
+    "Рёбра вниз, корпус не заваливать вперёд",
+    "Толкаться всей стопой"
+  ],
+  "common_errors": [
+    "Гантель уходит вперёд и тянет корпус",
+    "Колени сводятся на подъёме",
+    "Работа в четверть амплитуды"
+  ],
+  "illustration": "placeholder/lower/squat_goblet_dumbbell"
+}

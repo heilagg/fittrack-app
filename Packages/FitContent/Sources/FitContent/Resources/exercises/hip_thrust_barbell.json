@@ -1,0 +1,37 @@
+{
+  "slug": "hip_thrust_barbell",
+  "name": "Ягодичный мостик со штангой",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "glute_max": 0.60,
+    "hamstrings": 0.20,
+    "quads": 0.10,
+    "erectors": 0.10
+  },
+  "equipment": ["bench_flat"],
+  "equipment_optional": ["pad"],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "medium", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.0,
+  "alternatives": ["hip_thrust_dumbbell", "glute_bridge_bw", "back_extension_machine"],
+  "progression_family": "hip_thrust",
+  "family_load_ratio": 1.0,
+  "setup_seconds": 90,
+  "cues": [
+    "Подбородок к груди",
+    "Рёбра вниз",
+    "Сжать ягодицы в верхней точке"
+  ],
+  "common_errors": [
+    "Переразгибание поясницы",
+    "Отрыв пяток"
+  ],
+  "illustration": "placeholder/lower/hip_thrust_barbell"
+}

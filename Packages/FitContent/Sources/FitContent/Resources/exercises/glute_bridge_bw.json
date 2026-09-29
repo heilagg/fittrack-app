@@ -1,0 +1,36 @@
+{
+  "slug": "glute_bridge_bw",
+  "name": "Ягодичный мостик с пола",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "glute_max": 0.55,
+    "hamstrings": 0.25,
+    "erectors": 0.12,
+    "quads": 0.08
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["hip_thrust_dumbbell", "hip_thrust_barbell", "glute_kickback_band"],
+  "progression_family": "glute_bridge",
+  "setup_seconds": 10,
+  "cues": [
+    "Пятки под коленями, носки можно чуть приподнять",
+    "Рёбра вниз: подъём идёт тазом, а не прогибом поясницы",
+    "Сжать ягодицы в верхней точке и задержаться на секунду"
+  ],
+  "common_errors": [
+    "Переразгибание поясницы вместо разгибания таза",
+    "Пятки слишком далеко — работает задняя поверхность бедра",
+    "Проваливание таза между повторениями"
+  ],
+  "illustration": "placeholder/lower/glute_bridge_bw"
+}

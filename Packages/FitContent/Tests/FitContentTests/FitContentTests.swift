@@ -289,8 +289,23 @@ final class FitContentTests: XCTestCase {
                 atPath: exercises.appendingPathComponent("_schema.example.json").path),
             "эталон схемы не доехал до бандла — каталог пуст не по делу")
 
+        // Каталог векторов появился вместе с первой партией разметки, и его
+        // раскладка проверяется по той же причине, что и у упражнений.
+        let vectors = root.appendingPathComponent("vectors")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: vectors.path, isDirectory: &isDirectory),
+            "в бандле нет Resources/vectors — таблица векторов до сервера не доедет")
+        XCTAssertTrue(isDirectory.boolValue)
+
+        // Раньше здесь стояло «бандл пуст»: разметки не существовало, и пустота
+        // была единственным, что про него можно было утверждать. С первой
+        // партией (§17, этап 2) утверждается то, ради чего тест и написан, —
+        // что разметка доезжает до бандла. Сколько именно её там, тест не
+        // фиксирует: это данные, и такой тест ломался бы каждой переразметкой.
         let library = try Content.loadBundled()
-        XCTAssertTrue(library.exercises.isEmpty,
-                      "в бандле сегодня только эталон схемы, а он не упражнение")
+        XCTAssertFalse(library.exercises.isEmpty,
+                       "в бандл не доехало ни одного упражнения")
+        XCTAssertFalse(library.vectors.vectors.isEmpty,
+                       "в бандл не доехал ни один целевой вектор")
     }
 }

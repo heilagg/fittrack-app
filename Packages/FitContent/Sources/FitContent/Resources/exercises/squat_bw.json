@@ -1,0 +1,37 @@
+{
+  "slug": "squat_bw",
+  "name": "Приседание с собственным весом",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.45,
+    "glute_max": 0.30,
+    "hamstrings": 0.10,
+    "adductors": 0.10,
+    "erectors": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.7,
+  "alternatives": ["squat_goblet_dumbbell", "lunge_reverse_bw", "leg_press_machine"],
+  "progression_family": "squat_bw",
+  "setup_seconds": 10,
+  "cues": [
+    "Вес на всю стопу, пятки не отрывать",
+    "Колени идут в сторону носков, а не внутрь",
+    "Опускаться до глубины, где поясница ещё держит нейтраль"
+  ],
+  "common_errors": [
+    "Колени заваливаются внутрь",
+    "Поясница скругляется в нижней точке",
+    "Вес уходит на носки"
+  ],
+  "illustration": "placeholder/lower/squat_bw"
+}

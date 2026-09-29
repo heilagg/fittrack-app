@@ -1,0 +1,38 @@
+{
+  "slug": "squat_back_barbell",
+  "name": "Присед со штангой на спине",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.40,
+    "glute_max": 0.28,
+    "erectors": 0.12,
+    "hamstrings": 0.10,
+    "adductors": 0.10
+  },
+  "equipment": [],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "high", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.3,
+  "alternatives": ["squat_goblet_dumbbell", "leg_press_machine", "squat_bw"],
+  "progression_family": "squat",
+  "family_load_ratio": 1.0,
+  "setup_seconds": 90,
+  "cues": [
+    "Штанга лежит на трапециях, не на шее",
+    "Вдох и напряжение живота до того, как пошли вниз",
+    "Таз и грудь поднимаются одновременно"
+  ],
+  "common_errors": [
+    "Таз выходит раньше груди, корпус ложится вперёд",
+    "Поясница скругляется у нижней точки",
+    "Колени заваливаются внутрь на подъёме"
+  ],
+  "illustration": "placeholder/lower/squat_back_barbell"
+}

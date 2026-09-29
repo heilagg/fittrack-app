@@ -1,0 +1,36 @@
+{
+  "slug": "squat_jump_bw",
+  "name": "Выпрыгивание из приседа",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.40,
+    "glute_max": 0.30,
+    "calves": 0.20,
+    "hamstrings": 0.10
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "high", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "medium"
+  },
+  "impact": "high",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["box_jump", "squat_bw"],
+  "progression_family": "squat_jump",
+  "setup_seconds": 10,
+  "cues": [
+    "Приземляться мягко, сначала носок, потом пятка",
+    "Колени смотрят в сторону носков и в прыжке, и на приземлении",
+    "Каждое повторение начинать с полной остановки"
+  ],
+  "common_errors": [
+    "Жёсткое приземление на прямые ноги",
+    "Колени заваливаются внутрь при касании пола",
+    "Повторения слиты в серию отскоков без контроля"
+  ],
+  "illustration": "placeholder/lower/squat_jump_bw"
+}

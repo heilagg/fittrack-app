@@ -1,0 +1,37 @@
+{
+  "slug": "deadlift_romanian_barbell",
+  "name": "Румынская тяга со штангой",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "hamstrings": 0.44,
+    "glute_max": 0.32,
+    "erectors": 0.19,
+    "forearms": 0.05
+  },
+  "equipment": [],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "high", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.4,
+  "alternatives": ["rdl_dumbbell", "rdl_single_leg_bw", "back_extension_machine"],
+  "progression_family": "rdl",
+  "family_load_ratio": 1.0,
+  "setup_seconds": 60,
+  "cues": [
+    "Штанга едет по бедру, не отрываясь от него",
+    "Лопатки сведены, спина одной линией от таза до головы",
+    "Толкать таз назад, а не опускать плечи вниз"
+  ],
+  "common_errors": [
+    "Поясница скругляется у нижней точки",
+    "Гриф уходит вперёд и тянет за собой корпус",
+    "Переразгибание поясницы наверху"
+  ],
+  "illustration": "placeholder/lower/deadlift_romanian_barbell"
+}

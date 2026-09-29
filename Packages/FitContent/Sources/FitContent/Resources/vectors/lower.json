@@ -1,0 +1,257 @@
+[
+  {
+    "session_kind": "lower",
+    "shares": {
+      "quads": 0.30,
+      "glute_max": 0.25,
+      "hamstrings": 0.25,
+      "glute_med": 0.08,
+      "adductors": 0.06,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "glute_max",
+    "shares": {
+      "glute_max": 0.40,
+      "hamstrings": 0.20,
+      "quads": 0.18,
+      "glute_med": 0.10,
+      "adductors": 0.06,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "glute_med",
+    "shares": {
+      "glute_med": 0.32,
+      "glute_max": 0.24,
+      "quads": 0.18,
+      "hamstrings": 0.14,
+      "adductors": 0.06,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "quads",
+    "shares": {
+      "quads": 0.40,
+      "glute_max": 0.22,
+      "hamstrings": 0.18,
+      "glute_med": 0.08,
+      "adductors": 0.06,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "hamstrings",
+    "shares": {
+      "hamstrings": 0.38,
+      "glute_max": 0.24,
+      "quads": 0.18,
+      "erectors": 0.08,
+      "glute_med": 0.06,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "adductors",
+    "shares": {
+      "adductors": 0.30,
+      "quads": 0.24,
+      "glute_max": 0.20,
+      "glute_med": 0.10,
+      "hamstrings": 0.10,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "calves",
+    "shares": {
+      "calves": 0.32,
+      "quads": 0.22,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "erectors",
+    "shares": {
+      "erectors": 0.30,
+      "hamstrings": 0.22,
+      "glute_max": 0.20,
+      "quads": 0.16,
+      "glute_med": 0.06,
+      "calves": 0.06
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "abs",
+    "shares": {
+      "abs": 0.30,
+      "quads": 0.19,
+      "glute_max": 0.17,
+      "hamstrings": 0.15,
+      "obliques": 0.06,
+      "glute_med": 0.05,
+      "adductors": 0.04,
+      "calves": 0.04
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "obliques",
+    "shares": {
+      "obliques": 0.30,
+      "quads": 0.18,
+      "glute_max": 0.17,
+      "hamstrings": 0.15,
+      "adductors": 0.07,
+      "abs": 0.06,
+      "glute_med": 0.04,
+      "calves": 0.03
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "forearms",
+    "shares": {
+      "forearms": 0.30,
+      "quads": 0.19,
+      "glute_max": 0.17,
+      "hamstrings": 0.17,
+      "erectors": 0.06,
+      "glute_med": 0.05,
+      "adductors": 0.03,
+      "calves": 0.03
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "traps_upper",
+    "shares": {
+      "traps_upper": 0.30,
+      "quads": 0.19,
+      "glute_max": 0.17,
+      "hamstrings": 0.16,
+      "erectors": 0.07,
+      "glute_med": 0.05,
+      "adductors": 0.03,
+      "calves": 0.03
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "lats",
+    "shares": {
+      "lats": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "traps_mid",
+    "shares": {
+      "traps_mid": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "rear_delts",
+    "shares": {
+      "rear_delts": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "side_delts",
+    "shares": {
+      "side_delts": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "front_delts",
+    "shares": {
+      "front_delts": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "pecs",
+    "shares": {
+      "pecs": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "biceps",
+    "shares": {
+      "biceps": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  },
+  {
+    "session_kind": "lower",
+    "accent_muscle": "triceps",
+    "shares": {
+      "triceps": 0.30,
+      "quads": 0.20,
+      "glute_max": 0.18,
+      "hamstrings": 0.16,
+      "glute_med": 0.06,
+      "adductors": 0.05,
+      "calves": 0.05
+    }
+  }
+]

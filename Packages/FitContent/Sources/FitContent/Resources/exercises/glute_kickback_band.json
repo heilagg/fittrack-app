@@ -1,0 +1,36 @@
+{
+  "slug": "glute_kickback_band",
+  "name": "Отведение ноги назад с резинкой",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "glute_max": 0.62,
+    "hamstrings": 0.20,
+    "erectors": 0.10,
+    "glute_med": 0.08
+  },
+  "equipment": ["bands"],
+  "load_type": "band",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["glute_bridge_bw", "hip_abduction_band", "hip_thrust_dumbbell"],
+  "progression_family": "glute_kickback_band",
+  "setup_seconds": 20,
+  "cues": [
+    "Движение только в тазобедренном суставе, поясница неподвижна",
+    "Нога уходит назад ровно, не в сторону",
+    "Возврат медленный, до лёгкого натяжения резинки"
+  ],
+  "common_errors": [
+    "Прогиб в пояснице вместо отведения бедра",
+    "Разворот таза вслед за ногой",
+    "Рывок с отскоком резинки"
+  ],
+  "illustration": "placeholder/lower/glute_kickback_band"
+}

@@ -1,0 +1,37 @@
+{
+  "slug": "lunge_reverse_bw",
+  "name": "Выпад назад с собственным весом",
+  "pattern": "lunge",
+  "muscle_contributions": {
+    "quads": 0.38,
+    "glute_max": 0.35,
+    "hamstrings": 0.15,
+    "adductors": 0.07,
+    "calves": 0.05
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.8,
+  "alternatives": ["lunge_reverse_dumbbell", "lunge_lateral_bw", "split_squat_bulgarian_dumbbell"],
+  "progression_family": "reverse_lunge_bw",
+  "setup_seconds": 10,
+  "cues": [
+    "Шаг назад достаточно длинный, чтобы переднее колено осталось над стопой",
+    "Вес на передней ноге, задняя только придерживает равновесие",
+    "Корпус вертикально, подниматься через переднюю пятку"
+  ],
+  "common_errors": [
+    "Короткий шаг, колено уезжает далеко за носок",
+    "Заднее колено бьётся об пол",
+    "Корпус валится вперёд на подъёме"
+  ],
+  "illustration": "placeholder/lower/lunge_reverse_bw"
+}

@@ -1,0 +1,34 @@
+{
+  "slug": "leg_curl_machine",
+  "name": "Сгибание ног в тренажёре",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "hamstrings": 0.85,
+    "calves": 0.15
+  },
+  "equipment": ["machine:leg_curl"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["rdl_dumbbell", "deadlift_romanian_barbell", "rdl_single_leg_bw"],
+  "progression_family": "leg_curl",
+  "setup_seconds": 30,
+  "cues": [
+    "Ось тренажёра на уровне колена",
+    "Таз прижат, поясница не отрывается",
+    "Возврат медленнее, чем сгибание"
+  ],
+  "common_errors": [
+    "Таз подбрасывается вверх на усилии",
+    "Неполная амплитуда в верхней точке",
+    "Сброс веса вниз без контроля"
+  ],
+  "illustration": "placeholder/lower/leg_curl_machine"
+}

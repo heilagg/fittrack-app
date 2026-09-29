@@ -1,0 +1,33 @@
+{
+  "slug": "calf_raise_bw",
+  "name": "Подъём на носки стоя",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "calves": 1.0
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["calf_raise_machine"],
+  "progression_family": "calf_raise_bw",
+  "setup_seconds": 5,
+  "cues": [
+    "Подниматься максимально высоко и задерживаться наверху",
+    "Опускаться медленно, до полного растяжения",
+    "Держаться за опору только для равновесия"
+  ],
+  "common_errors": [
+    "Быстрые пружинящие повторения без верхней точки",
+    "Заваливание веса на внешний край стопы",
+    "Подтягивание себя руками за опору"
+  ],
+  "illustration": "placeholder/lower/calf_raise_bw"
+}

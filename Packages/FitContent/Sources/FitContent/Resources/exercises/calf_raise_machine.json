@@ -1,0 +1,33 @@
+{
+  "slug": "calf_raise_machine",
+  "name": "Подъём на носки в тренажёре",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "calves": 1.0
+  },
+  "equipment": ["machine:calf_raise"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.4,
+  "alternatives": ["calf_raise_bw"],
+  "progression_family": "calf_raise",
+  "setup_seconds": 30,
+  "cues": [
+    "Носки на платформе, пятки свободно опускаются ниже",
+    "Полная амплитуда: растяжение внизу, пауза наверху",
+    "Колени слегка мягкие, но угол не меняется"
+  ],
+  "common_errors": [
+    "Работа в четверть амплитуды с большим весом",
+    "Сгибание коленей, чтобы подтолкнуть вес",
+    "Резкий сброс вниз без контроля"
+  ],
+  "illustration": "placeholder/lower/calf_raise_machine"
+}
