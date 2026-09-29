@@ -59,10 +59,12 @@ public enum CoverageCheck {
     /// Список — копия §20.11, и расти он обязан только правкой SPEC. Поэтому
     /// здесь он константа, а не вывод из данных: вычисляемый список молча
     /// оправдывал бы любую дыру, ради чего его и нельзя вычислять.
+    /// На принятом срезе строка одна. Ожидалось три — `pull` и `full_body`
+    /// сняты прогоном: тянущего паттерна на пустом профиле нет, но полное
+    /// правило они набирают другими паттернами, а требования «в дне спины
+    /// обязана быть тяга» §20.11 не вводит.
     public static let declaredIncomplete: Set<Combination> = [
-        Combination(kind: .pull, level: .bodyweight),
         Combination(kind: .upper, level: .bodyweight),
-        Combination(kind: .fullBody, level: .bodyweight),
     ]
 
     public struct Combination: Hashable, Sendable {
