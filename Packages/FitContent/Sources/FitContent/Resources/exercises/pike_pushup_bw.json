@@ -16,7 +16,7 @@
     "wrist": "medium", "neck": "low", "hip": "none", "ankle": "none"
   },
   "impact": "none",
-  "skill_level": "intermediate",
+  "skill_level": "novice",
   "default_rest_seconds": 90,
   "fatigue_cost": 0.8,
   "alternatives": ["overhead_press_dumbbell", "pushup_bw"],

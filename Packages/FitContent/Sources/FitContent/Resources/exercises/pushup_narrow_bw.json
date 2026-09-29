@@ -15,7 +15,7 @@
     "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
   },
   "impact": "none",
-  "skill_level": "intermediate",
+  "skill_level": "novice",
   "default_rest_seconds": 60,
   "fatigue_cost": 0.7,
   "alternatives": ["pushup_bw", "triceps_extension_band", "triceps_pushdown_cable"],
