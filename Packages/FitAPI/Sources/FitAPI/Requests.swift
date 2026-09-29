@@ -78,7 +78,20 @@ public struct PatchPlannedDayRequest: Sendable, Equatable, Codable {
 
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
-        if let accentMuscle { try c.encodeRawIfPresent(accentMuscle, forKey: .accentMuscle) }
+        // Три состояния, а не два, и средним нельзя пренебречь. `nil` —
+        // ключа нет («не трогать»); `.some(nil)` — ключ есть со значением
+        // `null` («снять акцент»); `.some(m)` — слаг. Здесь стояло
+        // `encodeRawIfPresent`, и оно схлопывало первые два: снятие акцента
+        // уезжало как отсутствие ключа, то есть плановое решение §7.2 молча
+        // превращалось в «ничего не менять». Поймано контрактным тестом тел
+        // запросов — до него конструктора у этого типа не было ни одного.
+        if let accentMuscle {
+            if let muscle = accentMuscle {
+                try c.encodeRaw(muscle, forKey: .accentMuscle)
+            } else {
+                try c.encodeNil(forKey: .accentMuscle)
+            }
+        }
         try c.encodeRawIfPresent(sessionKind, forKey: .sessionKind)
         try c.encodeRawIfPresent(status, forKey: .status)
         try c.encode(date, forKey: .date)
@@ -134,11 +147,22 @@ public struct StartWorkoutRequest: Sendable, Equatable, Codable {
 /// механизм идемпотентности 20e. Тело без `id` отклоняется кодом
 /// `set_id_required`, а не получает ключ от сервера — сгенерированный сервером
 /// ключ снял бы саму возможность отличить ретрай от нового подхода.
+///
+/// **`prescribed_kg` тут есть, а `prescribed_reps` нет, и асимметрия несущая**
+/// (§20.3). Вес подходов со второго назначило дерево §20.9 во фронтенде, и
+/// сервер его не видел — восстановить он его может только проигрыванием дерева,
+/// которое обрывает любой ввод вне предикатов. У повторов такого довода нет:
+/// верх действующего диапазона уже лежит в `workout_exercises.target_rep_max`,
+/// записанном сервером при старте из того же вызова `Planner.repRange`. Поле в
+/// запросе завело бы второй источник одного числа там, где расхождение нечем
+/// обнаружить: колонку `sets.prescribed_reps` не читает ни одно правило §9
+/// (§20.6), она для показа и истории.
+///
+/// В ОТВЕТЕ (`SetDTO`) `prescribed_reps` есть и обязателен — его пишет сервер.
 public struct LogSetRequest: Sendable, Equatable, Codable {
     public var id: String
     public var setIndex: Int
     public var prescribedKg: Double?
-    public var prescribedReps: Int
     public var actualKg: Double?
     public var actualReps: Int?
     public var feedback: Feedback?
@@ -153,20 +177,19 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, setIndex = "set_index", prescribedKg = "prescribed_kg",
-             prescribedReps = "prescribed_reps", actualKg = "actual_kg",
+             actualKg = "actual_kg",
              actualReps = "actual_reps", feedback, painFlag = "pain_flag",
              restSeconds = "rest_seconds", completedAt = "completed_at",
              skipped, date, tz
     }
 
-    public init(id: String, setIndex: Int, prescribedKg: Double? = nil, prescribedReps: Int,
+    public init(id: String, setIndex: Int, prescribedKg: Double? = nil,
                 actualKg: Double? = nil, actualReps: Int? = nil, feedback: Feedback? = nil,
                 painFlag: Bool = false, restSeconds: Int? = nil, completedAt: String? = nil,
                 skipped: Bool = false, day: DayContext) {
         self.id = id
         self.setIndex = setIndex
         self.prescribedKg = prescribedKg
-        self.prescribedReps = prescribedReps
         self.actualKg = actualKg
         self.actualReps = actualReps
         self.feedback = feedback
@@ -183,7 +206,6 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
         id = try c.decode(String.self, forKey: .id)
         setIndex = try c.decode(Int.self, forKey: .setIndex)
         prescribedKg = try c.decodeIfPresent(Double.self, forKey: .prescribedKg)
-        prescribedReps = try c.decode(Int.self, forKey: .prescribedReps)
         actualKg = try c.decodeIfPresent(Double.self, forKey: .actualKg)
         actualReps = try c.decodeIfPresent(Int.self, forKey: .actualReps)
         feedback = try c.decodeRawIfPresent(Feedback.self, forKey: .feedback)
@@ -200,7 +222,6 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
         try c.encode(id, forKey: .id)
         try c.encode(setIndex, forKey: .setIndex)
         try c.encodeIfPresent(prescribedKg, forKey: .prescribedKg)
-        try c.encode(prescribedReps, forKey: .prescribedReps)
         try c.encodeIfPresent(actualKg, forKey: .actualKg)
         try c.encodeIfPresent(actualReps, forKey: .actualReps)
         try c.encodeRawIfPresent(feedback, forKey: .feedback)
@@ -211,6 +232,25 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
         try c.encode(date, forKey: .date)
         try c.encode(tz, forKey: .tz)
     }
+}
+
+/// `GET /v1/workouts/{id}/exercises/{we_id}/alternatives?purpose=` (§20.3).
+///
+/// Списков два, и они разные: `userChoice` (§13.4, замена в один тап) отбирает
+/// по близости профиля вкладов мышц, `pain` (§8.4 п.2) сверх того требует, чтобы
+/// альтернатива грузила названные суставы СТРОГО меньше заменяемого. Без
+/// параметра один из двух сценариев нечем реализовать.
+///
+/// Суставы клиент не присылает: при `pain` сервер берёт их из
+/// `sets.pain_joints` последнего подхода с флагом боли на этом
+/// `workout_exercises` — из колонки, которую §20.6 велит читать, а не выводить
+/// заново. Иначе клиент мог бы назвать суставы, которых в событии не было.
+///
+/// Умолчание — `userChoice`: §13.4 описывает основной путь экрана, а §8.4 п.2 —
+/// ветку, в которую попадают по флагу.
+public enum AlternativesPurpose: String, Sendable, Equatable, CaseIterable, Codable {
+    case userChoice = "user_choice"
+    case pain
 }
 
 /// `POST /v1/workouts/{id}/exercises/{we_id}/substitute`. Словарь причин — из
