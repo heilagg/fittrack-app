@@ -28,6 +28,11 @@ final class ContractTests: XCTestCase {
             .weekShortfallByTime(muscle: .lats, sets: 3),
             .workoutGenerationDisabled,
             .noFeasibleExercises,
+            // §20.3: причина без причины — `GET` недели увидел расхождение со
+            // снимком и не знает, чем оно вызвано. Список ведётся руками, и
+            // случай, забытый в нём, остаётся без формулировки и без сверки
+            // round-trip'а — то есть ровно без того, ради чего файл и есть.
+            .planChanged,
             .dayVectorMissing(kind: .lower, accent: .gluteMax),
             .dayVectorMissing(kind: .fullBody, accent: nil),
             .substitutionKeepsLeadingMuscle(muscle: .gluteMax),

@@ -40,6 +40,7 @@ extension ReasonDTO {
         case .patternMinimumRelaxedByTime: return "pattern_minimum_relaxed_by_time"
         case .patternMinimumRelaxedByLimit: return "pattern_minimum_relaxed_by_limit"
         case .planRebuilt: return "plan_rebuilt"
+        case .planChanged: return "plan_changed"
         case .plannedVolumeLoss: return "planned_volume_loss"
         case .weekShortfallByTime: return "week_shortfall_by_time"
         case .workoutGenerationDisabled: return "workout_generation_disabled"
@@ -174,7 +175,7 @@ extension ReasonDTO: Codable {
         case .weekShortfallByTime(let muscle, let sets):
             try p.encode(muscle.rawValue, forKey: .muscle)
             try p.encode(sets, forKey: .sets)
-        case .workoutGenerationDisabled, .noFeasibleExercises:
+        case .planChanged, .workoutGenerationDisabled, .noFeasibleExercises:
             break
         case .dayVectorMissing(let kind, let accent):
             try p.encode(kind.rawValue, forKey: .kind)
@@ -221,6 +222,8 @@ extension ReasonDTO: Codable {
             reason = .patternMinimumRelaxedByLimit(fitted: try p.decode(Int.self, forKey: .fitted), limit: limit)
         case "plan_rebuilt":
             reason = .planRebuilt(cause: try p.decode(RebuildCauseDTO.self, forKey: .cause).cause)
+        case "plan_changed":
+            reason = .planChanged
         case "planned_volume_loss":
             guard let cause = Self.dayCause(try p.decode(String.self, forKey: .cause))
             else { throw fail("неизвестная причина потери объёма") }

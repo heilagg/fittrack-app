@@ -174,6 +174,12 @@ public enum ReasonStrings {
         case .planRebuilt(let cause):
             return "План обновлён: \(message(for: cause))"
 
+        case .planChanged:
+            // Причины у этого случая нет, и выдумывать её нельзя (§20.3).
+            // Формулировка говорит об изменении и молчит о том, чего не знает,
+            // — §13.5 запрещает не только пугать, но и делать вид.
+            return "План на оставшиеся дни обновился"
+
         case .plannedVolumeLoss(let muscle, let sets, let cause):
             return "На этой неделе выйдет на \(self.sets(sets)) меньше по \(dative(muscle)): \(phrase(cause))"
 
