@@ -1,0 +1,35 @@
+{
+  "slug": "russian_twist_dumbbell",
+  "name": "Повороты корпуса с гантелью",
+  "pattern": "core",
+  "muscle_contributions": {
+    "obliques": 0.60,
+    "abs": 0.30,
+    "erectors": 0.10
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "medium", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.5,
+  "alternatives": ["pallof_press_band", "side_plank_bw"],
+  "progression_family": "russian_twist",
+  "setup_seconds": 15,
+  "cues": [
+    "Спина прямая, наклон корпуса фиксирован",
+    "Поворот идёт от грудного отдела, а не от рук",
+    "Гантель ведётся близко к корпусу"
+  ],
+  "common_errors": [
+    "Поясница скругляется под наклоном",
+    "Руки болтают гантелью, корпус неподвижен",
+    "Темп слишком быстрый, движение по инерции"
+  ],
+  "illustration": "placeholder/full_body/russian_twist_dumbbell"
+}

@@ -1,0 +1,34 @@
+{
+  "slug": "crunch_machine",
+  "name": "Скручивание в тренажёре",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.80,
+    "obliques": 0.20
+  },
+  "equipment": ["machine:ab_crunch"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "medium", "shoulder": "none",
+    "wrist": "none", "neck": "low", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["cable_crunch", "leg_raise_hanging", "plank_bw"],
+  "progression_family": "ab_crunch",
+  "setup_seconds": 30,
+  "cues": [
+    "Движение — скругление спины, а не наклон корпусом",
+    "Таз прижат к сиденью",
+    "Возврат под контролем, вес не бросать"
+  ],
+  "common_errors": [
+    "Тяга руками за рукояти",
+    "Наклон прямой спиной от таза",
+    "Слишком большой вес и амплитуда в пару сантиметров"
+  ],
+  "illustration": "placeholder/full_body/crunch_machine"
+}

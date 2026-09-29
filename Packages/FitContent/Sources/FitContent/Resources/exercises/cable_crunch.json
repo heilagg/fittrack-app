@@ -1,0 +1,34 @@
+{
+  "slug": "cable_crunch",
+  "name": "Скручивание в блоке",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.78,
+    "obliques": 0.22
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "low", "lower_back": "medium", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["crunch_machine", "leg_raise_hanging"],
+  "progression_family": "cable_crunch",
+  "setup_seconds": 30,
+  "cues": [
+    "Кисти зафиксированы у головы и не двигаются",
+    "Скручивать позвоночник, локти идут к бёдрам",
+    "Таз неподвижен, работает только корпус"
+  ],
+  "common_errors": [
+    "Тяга руками вместо скручивания",
+    "Наклон от таза с прямой спиной",
+    "Возврат рывком"
+  ],
+  "illustration": "placeholder/full_body/cable_crunch"
+}

@@ -1,0 +1,36 @@
+{
+  "slug": "leg_raise_hanging",
+  "name": "Подъём ног в висе",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.55,
+    "obliques": 0.20,
+    "forearms": 0.15,
+    "lats": 0.10
+  },
+  "equipment": ["pullup_bar"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "medium", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["crunch_machine", "hollow_hold_bw", "cable_crunch"],
+  "progression_family": "hanging_leg_raise",
+  "setup_seconds": 15,
+  "cues": [
+    "Плечи активны, не висеть на связках",
+    "Подъём начинается с подкручивания таза, а не со сгибания бедра",
+    "Опускать медленно, без раскачки"
+  ],
+  "common_errors": [
+    "Раскачивание корпусом и заброс ног",
+    "Работа только бедром, таз неподвижен",
+    "Плечи провисают к ушам"
+  ],
+  "illustration": "placeholder/full_body/leg_raise_hanging"
+}

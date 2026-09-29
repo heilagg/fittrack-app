@@ -1,0 +1,36 @@
+{
+  "slug": "bird_dog_bw",
+  "name": "Птица-собака",
+  "pattern": "core",
+  "muscle_contributions": {
+    "erectors": 0.40,
+    "abs": 0.25,
+    "glute_max": 0.25,
+    "obliques": 0.10
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["plank_bw", "back_extension_machine"],
+  "progression_family": "bird_dog",
+  "setup_seconds": 5,
+  "cues": [
+    "Рука и противоположная нога вытягиваются до прямой линии",
+    "Таз не разворачивается, спина неподвижна",
+    "Пауза в вытянутом положении на секунду"
+  ],
+  "common_errors": [
+    "Поясница прогибается, нога поднимается выше таза",
+    "Таз заваливается на сторону",
+    "Движение быстрое, без контроля"
+  ],
+  "illustration": "placeholder/full_body/bird_dog_bw"
+}
