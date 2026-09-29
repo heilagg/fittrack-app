@@ -295,6 +295,7 @@ public enum ReasonStrings {
         case .workoutNotStarted: return "Тренировка не начата"
         case .workoutFinished: return "Тренировка уже завершена"
         case .dayNotPlanned: return "Этот день уже закрыт"
+        case .profileIncomplete: return "Закончите настройку, чтобы составить план"
         case .generatorDisabled: return "Подбор тренировок выключен"
         case .internal: return "Что-то пошло не так с нашей стороны"
         }

@@ -361,7 +361,7 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(APIErrorCode.dateSkew.httpStatus, 422)
         XCTAssertEqual(APIErrorCode.setImmutable.httpStatus, 409)
         XCTAssertEqual(APIErrorCode.unlinkedAccount.httpStatus, 403)
-        XCTAssertEqual(APIErrorCode.allCases.count, 15, "словарь §20.3 закрыт")
+        XCTAssertEqual(APIErrorCode.allCases.count, 16, "словарь §20.3 закрыт")
     }
 
     func test_errorEnvelopeShape() throws {
