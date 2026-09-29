@@ -266,11 +266,18 @@ extension Planner {
     /// `storedBaseline` — сырая хранимая базовая линия: направление округления
     /// сравнивается именно с ней, иначе срез детренированности сам себя
     /// округлял бы вверх.
+    ///
+    /// Вход — `PrescriptionInput`, а не `SessionInput`, и берёт его сборка тоже:
+    /// девять полей, которые читает эта функция, и есть весь вход предписания
+    /// (§20.3), поэтому узкий тип стоит здесь, а широкий переводится в него
+    /// один раз. Принимай она `SessionInput`, список из девяти снова стал бы
+    /// неявным, а `prescribe` пришлось бы либо строить полный вход из ничего,
+    /// либо завести вторую копию этих формул.
     static func exerciseNumbers(
         _ c: ExerciseCandidate,
         state: ExerciseState?,
         storedBaseline: Double?,
-        input: SessionInput
+        input: PrescriptionInput
     ) -> (rir: Int, weightReadiness: Double, prescribedKg: Double?, reps: ClosedRange<Int>) {
         let table = goalTable(input.goal)
         let baseRIR = input.safety.level == .novice ? table.rir.upperBound : table.rir.lowerBound
@@ -847,13 +854,16 @@ private struct Builder {
 
         // Числа упражнения (§7.3 «Повторы и RIR», §7.6) — одной функцией на
         // сборку и на пересчёт §20.3, состояние берётся после stateForSession.
+        // Вход переводится в узкий ОДИН раз, до цикла: он же — единственное
+        // место, где записано, какие девять полей читает предписание.
+        let numbers = PrescriptionInput(input, day: day)
         var exercises: [PrescribedExercise] = []
         var volumeItems: [(ExerciseCandidate, Int)] = []
         for (index, p) in ordered.enumerated() {
             let c = pool[p].candidate
             let n = Planner.exerciseNumbers(c, state: states[c.slug],
                                             storedBaseline: input.exerciseStates[c.slug]?.baselineKg,
-                                            input: input)
+                                            input: numbers)
             exercises.append(PrescribedExercise(
                 slug: c.slug, orderIndex: index, targetSets: finalSets[index],
                 targetRepMin: n.reps.lowerBound,

@@ -16,6 +16,79 @@
 //  подняло RIR, и разорвать эту пару значило бы выдать вес, не соответствующий
 //  собственному порогу.
 
+/// Вход `Planner.prescribe` — девять величин, и ни одной сверх (SPEC §20.3).
+///
+/// **Тип узкий не ради краткости, а ради контракта.** `prescribe` читала ровно
+/// эти девять полей `SessionInput` и не читала восемь остальных — `dayIndex`,
+/// `availability`, `sessionMinutes`, `weekDone`, `previousWorkoutSlugs`,
+/// `isDeloadWeek`, `seed`, `weights`. Все восемь принадлежат ПОДБОРУ, а подбор
+/// к моменту вызова уже состоялся, поэтому совпадение не случайно.
+///
+/// Пока вход был широким, этот список существовал только в голове читающего:
+/// он нигде не записан и ничем не проверяется, и первая же правка, после
+/// которой `exerciseNumbers` начнёт читать `weekDone`, превратила бы
+/// подставленный вызывающей стороной ноль в тихо неверный вес. Узкий тип
+/// делает список контрактом — поля, которого нет, нельзя прочитать, а появление
+/// нового становится видимой правкой публичного API.
+///
+/// Цена принята явно: у сборки и у предписания два разных входных типа, и
+/// разойтись они могут в том, что значит «то же самое утомление». Против этого
+/// — единственная точка перевода (`init(_:day:)` ниже, которым пользуется сама
+/// сборка) и тест §20.15 20l: предписание на НЕИЗМЕНЁННОМ утомлении не двигает
+/// ни одного из трёх чисел.
+public struct PrescriptionInput: Sendable {
+
+    /// День, к которому относится сессия. Целиком, а не одной датой: по `id`
+    /// проверяется, что сессия собрана на этом входе, и без этой проверки
+    /// `prescribe` молча выдала бы веса чужого дня.
+    public var day: PlannedDay
+    public var library: [ExerciseCandidate]
+    public var exerciseStates: [String: ExerciseState]
+    public var equipment: EquipmentProfile
+    public var goal: Goal
+    public var safety: SafetyProfile
+
+    /// Утомление НА НУЖНЫЙ МОМЕНТ — единственное поле, которое у предписания
+    /// отличается от того, чем собиралась сессия (§20.3): состав считается на
+    /// 12:00, числа — на фактический момент старта.
+    public var fatigue: [MuscleSlug: Double]
+    public var readiness: Double
+    public var cycleState: CycleState
+
+    public init(
+        day: PlannedDay,
+        library: [ExerciseCandidate],
+        exerciseStates: [String: ExerciseState],
+        equipment: EquipmentProfile,
+        goal: Goal,
+        safety: SafetyProfile,
+        fatigue: [MuscleSlug: Double],
+        readiness: Double,
+        cycleState: CycleState
+    ) {
+        self.day = day
+        self.library = library
+        self.exerciseStates = exerciseStates
+        self.equipment = equipment
+        self.goal = goal
+        self.safety = safety
+        self.fatigue = fatigue
+        self.readiness = readiness
+        self.cycleState = cycleState
+    }
+
+    /// Единственный перевод из входа сборки. Существует затем, чтобы
+    /// соответствие девяти полей было записано ОДИН раз: им пользуется сама
+    /// сборка, когда считает числа упражнений, поэтому разойтись два типа
+    /// могут только здесь — и только видимой правкой.
+    public init(_ input: SessionInput, day: PlannedDay) {
+        self.init(day: day, library: input.library, exerciseStates: input.exerciseStates,
+                  equipment: input.equipment, goal: input.goal, safety: input.safety,
+                  fatigue: input.fatigue, readiness: input.readiness,
+                  cycleState: input.cycleState)
+    }
+}
+
 extension Planner {
 
     /// Предписание на утомление другого момента поверх УЖЕ СОБРАННОЙ сессии.
@@ -42,16 +115,17 @@ extension Planner {
     /// прежними по той же причине: ни одна из этих величин утомления не читает
     /// (время — от готовности §13.3, объём — от состава, причины — от фазы).
     ///
-    /// `nil` — сессия собрана не на этом входе: у её дня нет строки в
-    /// `input.week` либо упражнения нет в срезе библиотеки. Молча вернуть
-    /// сессию как есть нельзя: это дало бы веса по 12:00 там, где контракт
-    /// обещает веса момента старта, и не упало бы ни на одном тесте.
-    public static func prescribe(_ session: BuiltSession, input: SessionInput) -> BuiltSession? {
-        // День ищется по `dayID` сессии, а не по `input.dayIndex`: индекс
-        // принадлежит вызывающей стороне и мог быть посчитан на неделе в другом
-        // порядке (`buildSession` сортирует её сам), а `dayID` — то, чем
-        // сессия себя называет.
-        guard let day = input.week.first(where: { $0.id == session.dayID }) else { return nil }
+    /// `nil` — сессия собрана не на этом входе: день не тот либо упражнения нет
+    /// в срезе библиотеки. Молча вернуть сессию как есть нельзя: это дало бы
+    /// веса по 12:00 там, где контракт обещает веса момента старта, и не упало
+    /// бы ни на одном тесте.
+    public static func prescribe(_ session: BuiltSession, on input: PrescriptionInput) -> BuiltSession? {
+        // Сверка по `dayID`, а не по индексу: индекс принадлежит вызывающей
+        // стороне и мог быть посчитан на неделе в другом порядке
+        // (`buildSession` сортирует её сам), а `dayID` — то, чем сессия себя
+        // называет.
+        guard input.day.id == session.dayID else { return nil }
+        let day = input.day
         let bySlug = Dictionary(input.library.map { ($0.slug, $0) }, uniquingKeysWith: { first, _ in first })
 
         var exercises: [PrescribedExercise] = []
