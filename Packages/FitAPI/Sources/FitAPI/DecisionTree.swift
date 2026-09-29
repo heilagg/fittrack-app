@@ -15,8 +15,12 @@
 import FitCore
 
 /// Состояние узла (§20.9) — тройка, а не пара: третья компонента появилась
-/// вместе с лимитом калибровки §9.8. Счётчик нигде не хранится, он выражен
-/// структурой дерева.
+/// вместе с лимитом калибровки §9.8.
+///
+/// Счётчик нигде не хранится и выводится из журнала подходов упражнения за эту
+/// сессию (§20.6): дерево строится заново после КАЖДОГО подхода (§20.3), и
+/// «выражается структурой дерева» было бы верно только при единственном
+/// построении на упражнение.
 public struct TreeState: Sendable, Equatable, Hashable {
     /// `nil` — упражнение без веса (`ladder == .none`): квантовать нечего, и
     /// стартового веса не существует (§20.9).
@@ -112,11 +116,28 @@ public enum DecisionTree {
     ///
     /// `remainingSets` — сколько подходов ещё предстоит после текущего. Ноль
     /// даёт единственный узел: решать нечего.
+    ///
+    /// **`previousWasFailed` и `calibrationIncreasesUsed` описывают корень, и
+    /// умолчаний у них нет намеренно.** Дерево строится не один раз за
+    /// упражнение: `POST …/sets` отдаёт новое после каждого подхода, а
+    /// `GET /v1/workouts/{id}` — дерево уже начатого (§20.3). Забытый аргумент
+    /// неотличим по поведению от «ничего не было», и цена этой неотличимости
+    /// ровно та, о которой предупреждает §20.15: досрочное завершение §9.3 не
+    /// сработает (предыдущий `failed` остался в журнале, а не в дереве), а
+    /// лимит §9.8 перестанет действовать — молча и ровно в калибровке. Правило
+    /// то же, по которому нет умолчания у `calibrationIncreasesUsed` в самой
+    /// `nextSet`: пусть лучше не компилируется.
+    ///
+    /// Откуда эти два значения берутся — §20.6: из журнала подходов, а не из
+    /// хранилища. Пропущенные подходы и подходы с флагом боли их не двигают
+    /// (§20.9).
     public static func build(
         weightKg: Double?,
         remainingSets: Int,
         range: ClosedRange<Int>,
         isCalibration: Bool,
+        previousWasFailed: Bool,
+        calibrationIncreasesUsed: Int,
         ladder: WeightLadder
     ) -> DecisionTreeDTO {
         var nodes: [String: DecisionNode] = [:]
@@ -206,7 +227,9 @@ public enum DecisionTree {
         }
 
         let rootKey = NodeKey(
-            state: TreeState(weightKg: weightKg, previousWasFailed: false, calibrationIncreasesUsed: 0),
+            state: TreeState(weightKg: weightKg,
+                             previousWasFailed: previousWasFailed,
+                             calibrationIncreasesUsed: calibrationIncreasesUsed),
             remaining: remainingSets)
         let rootID = allocate(rootKey)!
         expand(rootKey, id: rootID)

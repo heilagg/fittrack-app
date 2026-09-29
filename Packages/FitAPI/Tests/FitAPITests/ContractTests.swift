@@ -257,6 +257,7 @@ final class ContractTests: XCTestCase {
 
     private var tree: DecisionTreeDTO {
         DecisionTree.build(weightKg: 40, remainingSets: 2, range: 8...12, isCalibration: false,
+                           previousWasFailed: false, calibrationIncreasesUsed: 0,
                            ladder: .arithmetic(step: 2.5))
     }
 
