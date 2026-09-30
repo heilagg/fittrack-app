@@ -27,6 +27,9 @@ extension WeekPlanRoutes {
         plans.get(":week_start") { request async throws -> Response in
             try await show(request, database: database, library: library)
         }
+        plans.get(":week_start", "preview") { request async throws -> Response in
+            try await preview(request, database: database, library: library)
+        }
         plans.patch(":week_start", "days", ":day_id") { request async throws -> Response in
             try await patchDay(request, database: database, library: library)
         }
@@ -173,6 +176,77 @@ extension WeekPlanRoutes {
             let (plan, notice) = try await planAndNotice(tx, weekPlanID: week.id,
                                                          context: context, cause: nil)
             return try json(response(plan, notice: notice))
+        }
+    }
+
+    // MARK: - GET /v1/week-plans/{week_start}/preview
+
+    /// Дата среза — параметр `day`, а не `date` (§20.3).
+    ///
+    /// Две даты у одного пути существуют по необходимости: `date` израсходован
+    /// на «сегодня» планировщика, а `week_start` в пути позволяет спросить не
+    /// текущую неделю, куда присланная дата не попадает вовсе.
+    ///
+    /// Несоответствие неделе — `validation_failed`, а не пустой срез: пустой
+    /// ответ здесь неотличим от законного дня отдыха.
+    static func sliceDate(_ input: RawInput, weekStart: CalendarDay) throws -> CalendarDay {
+        guard let raw = input.query["day"], let target = Mapping.LocalTime.day(iso: raw) else {
+            throw APIError(.validationFailed, details: ["field": .string("day")])
+        }
+        guard target >= weekStart, target < weekStart.adding(days: 7) else {
+            throw APIError(.validationFailed, details: [
+                "field": .string("day"),
+                "week_start": .string(Mapping.LocalTime.iso(weekStart))
+            ])
+        }
+        return target
+    }
+
+    /// Проекция недели на один день (§20.3).
+    ///
+    /// Своего расчёта нет и не нужно: заморозка состояния будущего дня (§18,
+    /// 31b) уже внутри `planRemainingDays` — готовность считается от состояния
+    /// цикла на дату дня без check-in и оверрайда, утомление с распадом до
+    /// момента оценки ЭТОГО дня. Здесь остаётся только срез.
+    ///
+    /// **Снимок не пишется — ни целиком, ни частью** (§20.6). Срез по одной
+    /// дате, положенный в снимок, заставил бы следующую пересборку счесть
+    /// исчезнувшими все остальные дни и напечатать «План обновлён» там, где
+    /// ничего не менялось. Отсюда же `notice` — всегда `null`: путь, который не
+    /// записал показанное, не вправе о нём и сообщать, иначе строка повторится
+    /// на следующем чтении недели.
+    ///
+    /// `status_lines` — недельные, без фильтрации (§20.3): потеря объёма и
+    /// недобор по времени считаются по ВСЕЙ неделе, и отфильтрованное число не
+    /// совпало бы с недельным экраном.
+    static func preview(_ request: Request, database: Database,
+                        library: ContentLibrary) async throws -> Response {
+        let input = RawInput(request)
+        let path = request.parameters.get("week_start")
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            let weekStart = try self.weekStart(path)
+            let day = try input.day()
+            let target = try self.sliceDate(input, weekStart: weekStart)
+
+            guard let week = try await loadWeek(tx, weekStart: weekStart) else {
+                // §20.3: срезать нечего. Не 404 — неделя не «не найдена», её
+                // просто ещё не генерировали, и это законное состояние.
+                return try json(response(WeekPlan(days: [:], statusLines: []), notice: nil))
+            }
+            let inputs = try await self.inputs(tx, on: day)
+            let context = self.context(inputs, weekStart: weekStart, today: day.date,
+                                       days: week.days, isDeload: week.isDeload, library: library,
+                                       userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
+            let plan = Planner.planRemainingDays(context)
+
+            // Дней с одной датой в неделе не больше одного — это держит схема
+            // (`unique (week_plan_id, planned_date)`), — но срез написан через
+            // множество, а не через `first`: полагаться здесь на уникальность
+            // значило бы отдать клиенту один день из двух молча.
+            let ids = Set(week.days.filter { $0.date == target }.map(\.id))
+            let sliced = WeekPlan(days: plan.days.filter { ids.contains($0.key) },
+                                  statusLines: plan.statusLines)
+            return try json(response(sliced, notice: nil))
         }
     }
 
