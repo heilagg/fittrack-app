@@ -192,6 +192,140 @@ extension Mapping {
             """)
     }
 
+
+    // MARK: - Профиль целиком (`GET`/`PATCH /v1/profile`, §20.3)
+
+    /// Профиль и настройки цикла одним чтением.
+    ///
+    /// Отдельно от `readProfile`, потому что вопросы разные: тому нужен вход
+    /// планировщика (шесть колонок), этому — тело ответа (все, плюс строка
+    /// `cycle_profiles`). Общего `select` на оба не делается: недельные пути
+    /// читаются на каждом запросе, и таскать в них рост и год рождения незачем.
+    public static func readProfileBody(_ tx: UserTransaction) async throws -> ProfileDTO {
+        var slice: ProfileSlice?
+        var birthYear: Int?
+        var heightCm: Double?
+        let rows = try await tx.query("""
+            select experience_level, goal, training_weekdays, session_minutes,
+                   cycle_tracking, sex_at_birth, birth_year, height_cm::float8
+              from profiles
+            """)
+        for try await row in rows {
+            let (level, goal, weekdays, minutes, tracking, sex, year, height) =
+                try row.decode((String?, String?, [Int16]?, Int, String, String?, Int?, Double?).self)
+            slice = profile(from: ProfileRow(
+                experienceLevel: level, goal: goal, trainingWeekdays: weekdays?.map(Int.init),
+                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex))
+            birthYear = year
+            heightCm = height
+        }
+        guard let slice else { throw ReadFailure.missingRow("profiles") }
+
+        var cycle: CycleProfileDTO?
+        let cycleRows = try await tx.query("""
+            select typical_cycle_length_days, typical_period_length_days, declared_regularity,
+                   phase_mode, no_phase_reason
+              from cycle_profiles
+            """)
+        for try await row in cycleRows {
+            let (length, period, regularity, mode, reason) =
+                try row.decode((Int?, Int?, String?, String, String?).self)
+            cycle = CycleProfileDTO(
+                typicalCycleLengthDays: length, typicalPeriodLengthDays: period,
+                declaredRegularity: regularity.flatMap(DeclaredRegularity.init(rawValue:)),
+                // Значение вне словаря читается как «без фаз» — то же правило,
+                // что в `cycleProfile(from:tracking:)`.
+                phaseMode: PhaseMode(rawValue: mode) ?? .noPhases,
+                noPhaseReason: reason.flatMap(NoPhaseReason.init(rawValue:)))
+        }
+
+        return ProfileDTO(
+            sexAtBirth: slice.sexAtBirth, birthYear: birthYear, heightCm: heightCm,
+            experienceLevel: slice.level, goal: slice.goal,
+            daysPerWeek: slice.trainingWeekdays?.count, trainingWeekdays: slice.trainingWeekdays,
+            sessionMinutes: slice.sessionMinutes, cycleTracking: slice.cycleTracking,
+            isComplete: slice.complete != nil, cycle: cycle)
+    }
+
+    /// Пишет `profiles`, создавая строку при первом обращении (§20.3).
+    ///
+    /// Три состояния каждого поля доезжают до SQL отдельным флагом: в параметре
+    /// третьего состояния нет, поэтому «трогать ли» и «чем» разведены — как в
+    /// `updatePlannedDay`.
+    ///
+    /// `days_per_week` не принимается значением: он выводится из длины набора
+    /// дней, и схема это проверяет (§3.1). Пара пишется целиком либо не
+    /// пишется вовсе — `profiles_weekdays_paired` (миграция `0010`).
+    public static func upsertProfile(_ tx: UserTransaction, userID: UUID,
+                                     _ patch: PatchProfileRequest) async throws {
+        let touchesWeekdays = patch.trainingWeekdays != nil
+        let weekdays: [Int16]? = patch.trainingWeekdays.flatMap { $0 }.map { $0.sorted().map(Int16.init) }
+        let days: Int? = weekdays?.count
+
+        _ = try await tx.query("""
+            insert into profiles (id, sex_at_birth, birth_year, height_cm, experience_level,
+                                  goal, days_per_week, training_weekdays, session_minutes,
+                                  cycle_tracking, updated_at)
+            values (\(userID),
+                    \(patch.sexAtBirth.flatMap { $0 }),
+                    \(patch.birthYear.flatMap { $0 }),
+                    \(patch.heightCm.flatMap { $0 }),
+                    \(patch.experienceLevel.flatMap { $0 }?.rawValue),
+                    \(patch.goal.flatMap { $0 }?.rawValue),
+                    \(days), \(weekdays),
+                    coalesce(\(patch.sessionMinutes), 45),
+                    coalesce(\(patch.cycleTracking?.rawValue), 'off'),
+                    now())
+            on conflict (id) do update set
+                sex_at_birth = case when \(patch.sexAtBirth != nil)
+                                    then \(patch.sexAtBirth.flatMap { $0 })
+                                    else profiles.sex_at_birth end,
+                birth_year   = case when \(patch.birthYear != nil)
+                                    then \(patch.birthYear.flatMap { $0 })
+                                    else profiles.birth_year end,
+                height_cm    = case when \(patch.heightCm != nil)
+                                    then \(patch.heightCm.flatMap { $0 })
+                                    else profiles.height_cm end,
+                experience_level = case when \(patch.experienceLevel != nil)
+                                        then \(patch.experienceLevel.flatMap { $0 }?.rawValue)
+                                        else profiles.experience_level end,
+                goal = case when \(patch.goal != nil)
+                            then \(patch.goal.flatMap { $0 }?.rawValue)
+                            else profiles.goal end,
+                days_per_week = case when \(touchesWeekdays) then \(days)
+                                     else profiles.days_per_week end,
+                training_weekdays = case when \(touchesWeekdays) then \(weekdays)
+                                         else profiles.training_weekdays end,
+                session_minutes = coalesce(\(patch.sessionMinutes), profiles.session_minutes),
+                cycle_tracking  = coalesce(\(patch.cycleTracking?.rawValue), profiles.cycle_tracking),
+                updated_at = now()
+            """)
+    }
+
+    /// Пишет `cycle_profiles`, создавая строку при первом обращении.
+    ///
+    /// Удаления не бывает (§20.3): «не отслеживаю» — это `phase_mode` с
+    /// причиной, а не отсутствие записи. Поэтому объект либо есть в теле и
+    /// перезаписывает поля, либо его нет и строка не трогается.
+    public static func upsertCycleProfile(_ tx: UserTransaction, userID: UUID,
+                                          _ cycle: CycleProfileDTO) async throws {
+        _ = try await tx.query("""
+            insert into cycle_profiles (user_id, typical_cycle_length_days,
+                                        typical_period_length_days, declared_regularity,
+                                        phase_mode, no_phase_reason, updated_at)
+            values (\(userID), \(cycle.typicalCycleLengthDays), \(cycle.typicalPeriodLengthDays),
+                    \(cycle.declaredRegularity?.rawValue), \(cycle.phaseMode.rawValue),
+                    \(cycle.noPhaseReason?.rawValue), now())
+            on conflict (user_id) do update set
+                typical_cycle_length_days  = excluded.typical_cycle_length_days,
+                typical_period_length_days = excluded.typical_period_length_days,
+                declared_regularity        = excluded.declared_regularity,
+                phase_mode                 = excluded.phase_mode,
+                no_phase_reason            = excluded.no_phase_reason,
+                updated_at                 = now()
+            """)
+    }
+
     // MARK: - Правка дня
 
     /// `PATCH .../days/{day_id}` (§20.3). Отсутствующее поле не трогается —

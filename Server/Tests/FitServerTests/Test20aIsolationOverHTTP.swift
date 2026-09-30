@@ -51,10 +51,11 @@ struct LiveWeekPlanTests {
         let alice = try await Live.signUpAnonymous()
         let bob = try await Live.signUpAnonymous()
         let logger = Live.quietLogger("test.20a")
-        try await Live.seedProfile(alice, logger: logger)
-        try await Live.seedProfile(bob, logger: logger)
 
         try await Live.withServer("test.20a") { app in
+            try await Live.seed(app, alice, logger: logger)
+            try await Live.seed(app, bob, logger: logger)
+
             let (status, plan) = try await self.generate(app, as: alice)
             #expect(status == 201, "Алиса сгенерировала свою неделю")
             let aliceDays = Set((plan?.plan.days ?? []).map(\.dayID))
@@ -121,9 +122,10 @@ struct LiveWeekPlanTests {
     @Test("дата, расходящаяся с серверной больше чем на сутки → 422 (§20.7)")
     func test20d_dateSkew() async throws {
         let user = try await Live.signUpAnonymous()
-        try await Live.seedProfile(user, logger: Live.quietLogger("test.20d"))
 
         try await Live.withServer("test.20d") { app in
+            try await Live.seed(app, user, logger: Live.quietLogger("test.20d"))
+
             let skewed = DayContext(date: Mapping.LocalTime.iso(self.today.adding(days: 5)),
                                     tz: "Europe/Moscow")
             let body = GenerateWeekPlanRequest(
@@ -150,9 +152,10 @@ struct LiveWeekPlanTests {
     @Test("вчера и завтра принимаются: полночь и запись вчерашней тренировки")
     func test20d_toleranceIsADay() async throws {
         let user = try await Live.signUpAnonymous()
-        try await Live.seedProfile(user, logger: Live.quietLogger("test.20d.ok"))
 
         try await Live.withServer("test.20d.ok") { app in
+            try await Live.seed(app, user, logger: Live.quietLogger("test.20d.ok"))
+
             for offset in [-1, 0, 1] {
                 let context = DayContext(date: Mapping.LocalTime.iso(self.today.adding(days: offset)),
                                          tz: "Europe/Moscow")
@@ -172,10 +175,10 @@ struct LiveWeekPlanTests {
     @Test("повторный POST не создаёт второй недели и не перегенерирует первую")
     func test20j_idempotent() async throws {
         let user = try await Live.signUpAnonymous()
-        let logger = Live.quietLogger("test.20j")
-        try await Live.seedProfile(user, logger: logger)
 
         try await Live.withServer("test.20j") { app in
+            try await Live.seed(app, user, logger: Live.quietLogger("test.20j"))
+
             let (firstStatus, first) = try await self.generate(app, as: user)
             #expect(firstStatus == 201)
             let firstDays = try #require(first?.plan.days)
@@ -196,9 +199,10 @@ struct LiveWeekPlanTests {
     @Test("прошлая неделя не генерируется вовсе (§20.3)")
     func test20j_pastWeekRejected() async throws {
         let user = try await Live.signUpAnonymous()
-        try await Live.seedProfile(user, logger: Live.quietLogger("test.20j.past"))
 
         try await Live.withServer("test.20j.past") { app in
+            try await Live.seed(app, user, logger: Live.quietLogger("test.20j.past"))
+
             let (status, _) = try await self.generate(app, as: user,
                                                       weekStart: self.weekStart.adding(days: -7))
             #expect(status == 422, "прошлая неделя отклоняется")
@@ -212,9 +216,10 @@ struct LiveWeekPlanTests {
     @Test("ближайшая следующая неделя генерируется")
     func test20j_nextWeekAllowed() async throws {
         let user = try await Live.signUpAnonymous()
-        try await Live.seedProfile(user, logger: Live.quietLogger("test.20j.next"))
 
         try await Live.withServer("test.20j.next") { app in
+            try await Live.seed(app, user, logger: Live.quietLogger("test.20j.next"))
+
             let (status, _) = try await self.generate(app, as: user,
                                                       weekStart: self.weekStart.adding(days: 7))
             #expect(status == 201)

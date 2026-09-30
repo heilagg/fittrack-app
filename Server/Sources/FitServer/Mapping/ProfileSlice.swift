@@ -23,18 +23,27 @@ import FoundationEssentials
 #else
 import Foundation
 #endif
+import FitAPI
 import FitCore
+
+// Имя модуля `FitAPI` занято одноимённым пространством имён внутри него, так что
+// `FitAPI.CycleTracking` разрешается не туда. Псевдоним на файловом уровне
+// снимает двусмысленность до того, как вложенное имя объявлено.
+public typealias WireCycleTracking = CycleTracking
 
 extension Mapping {
 
-    /// Источник данных о цикле — `profiles.cycle_tracking` (§3.1). НЕ режим
-    /// фаз: режим живёт в `cycle_profiles.phase_mode`, и путать их нельзя —
-    /// «отслеживаю вручную» и «работаю по фазам» независимы.
-    public enum CycleTracking: String, Sendable, Equatable, CaseIterable {
-        case off
-        case manual
-        case healthkit
-    }
+    public typealias CycleTracking = WireCycleTracking
+
+    /// Источник данных о цикле — `profiles.cycle_tracking` (§3.1).
+    ///
+    /// Псевдоним, а не своё объявление: тот же словарь едет на проводе в
+    /// `ProfileDTO` (§20.3), и два одинаковых enum'а в двух модулях — это два
+    /// описания одного, обязанные совпадать и ничем не связанные. Живёт он в
+    /// `FitAPI` по общему правилу §20.2: форму границы описывает он.
+    ///
+    /// НЕ режим фаз: режим живёт в `cycle_profiles.phase_mode`, и путать их
+    /// нельзя — «отслеживаю вручную» и «работаю по фазам» независимы.
 
     /// Четыре значения, без которых планировщик не работает (§20.6).
     ///

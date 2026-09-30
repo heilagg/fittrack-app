@@ -28,9 +28,11 @@ extension StartWorkoutRequest: @retroactive Content {}
 extension LogSetRequest: @retroactive Content {}
 extension SubstituteExerciseRequest: @retroactive Content {}
 extension FinishWorkoutRequest: @retroactive Content {}
+extension PatchProfileRequest: @retroactive Content {}
 
 // Ответы (§20.3).
 extension WeekPlanResponseDTO: @retroactive Content {}
+extension ProfileDTO: @retroactive Content {}
 extension TodayCardDTO: @retroactive Content {}
 extension WorkoutDTO: @retroactive Content {}
 extension WorkoutExerciseDTO: @retroactive Content {}

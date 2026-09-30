@@ -19,21 +19,24 @@
 //  схема (§20.4), и после `supabase db reset` его нужно задать заново: CLI
 //  пересоздаёт кастомные роли без пароля.
 //
-//  ── Почему профиль сеется SQL-ом в обход границы ──────────────────────────
+//  ── Посев идёт через границу, а не мимо неё ───────────────────────────────
 //
-//  Потому что пути записи `profiles` пока нет: решение A1 его завело в §20.3,
-//  но `PATCH /v1/profile` не реализован. Посев идёт от `postgres`, то есть мимо
-//  RLS и мимо сервера, и это осознанная временная мера — она НЕ ослабляет 20a:
-//  тот проверяет, что эндпоинты не отдают чужих строк, и посев чужими руками
-//  делает утверждение только строже. Когда `PATCH /v1/profile` появится, посев
-//  обязан переехать на него: сегодняшний обход — единственное место во всём
-//  наборе, где тест знает про схему больше, чем клиент.
+//  Профиль ставится `PATCH /v1/profile` — тем же путём, которым его поставит
+//  онбординг §5. Раньше здесь был прямой SQL от `postgres`, потому что пути не
+//  существовало; он снят, и это не косметика: посев мимо границы означал, что
+//  тесты проверяют сервер на состоянии, которого сервер сам создать не умеет.
+//
+//  Обход остался ровно один и другого рода — `equipment_profiles`,
+//  `user_restrictions` и `parq_responses` фронтенд пишет НАПРЯМУЮ (§20.6), и
+//  пути к ним нет и не будет. Для теста это тот же прямой SQL, но он повторяет
+//  то, что делает клиент, а не обходит его.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
 import Foundation
 #endif
+import FitAPI
 import FitContent
 import Logging
 import PostgresNIO
@@ -105,22 +108,36 @@ enum Live {
         return PostgresClient(configuration: configuration, backgroundLogger: logger)
     }
 
-    /// Минимальный профиль: четыре обязательных значения и инвентарь.
+    /// Минимальный профиль через `PATCH /v1/profile` — тем же путём, что и
+    /// онбординг §5.
     ///
     /// Три дня (пн/ср/пт) и уровень выше новичка — чтобы сетка §7.2 дала три
     /// РАЗНЫХ типа дня (верх / низ / full body), а не три одинаковых: на
     /// одинаковых часть утверждений о плане выродилась бы.
-    static func seedProfile(_ user: User, logger: Logger) async throws {
+    static func seedProfile(_ app: Application, _ user: User) async throws {
+        let body = PatchProfileRequest(
+            sexAtBirth: .some("female"), birthYear: .some(1994), heightCm: .some(168),
+            experienceLevel: .some(.intermediate), goal: .some(.hypertrophy),
+            trainingWeekdays: .some([1, 3, 5]), sessionMinutes: 60, cycleTracking: .off)
+        try await app.testing().test(.PATCH, "/v1/profile", headers: user.headers,
+                                     beforeRequest: { try $0.content.encode(body) }) { response in
+            guard response.status == .ok else {
+                throw Failure.seed("PATCH /v1/profile → \(response.status.code): "
+                                   + String(buffer: response.body))
+            }
+            let profile = try JSONDecoder().decode(ProfileDTO.self, from: Data(buffer: response.body))
+            guard profile.isComplete else { throw Failure.seed("профиль неполон после посева") }
+        }
+    }
+
+    /// То, что фронтенд пишет НАПРЯМУЮ (§20.6): инвентарь, ограничения, PAR-Q.
+    /// Пути к ним нет и не планируется, так что тест повторяет клиента, а не
+    /// обходит границу.
+    static func seedClientOwnedTables(_ user: User, logger: Logger) async throws {
         let client = ownerClient(logger)
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { await client.run() }
             group.addTask {
-                _ = try await client.query("""
-                    insert into profiles (id, experience_level, goal, days_per_week,
-                                          training_weekdays, session_minutes)
-                    values (\(user.id), 'intermediate', 'hypertrophy', 3, '{1,3,5}', 60)
-                    on conflict (id) do nothing
-                    """, logger: logger)
                 _ = try await client.query("""
                     insert into equipment_profiles (id, user_id, name, is_default, dumbbells_kg,
                                                     plates_kg, barbell_kg, bands, pullup_bar, bench)
@@ -139,6 +156,14 @@ enum Live {
             try await group.next()
             group.cancelAll()
         }
+    }
+
+    /// Полный посев: профиль через границу, остальное — как это делает
+    /// фронтенд. Порядок несущий: `equipment_profiles` ссылается на `profiles`
+    /// внешним ключом, так что профиль обязан появиться первым.
+    static func seed(_ app: Application, _ user: User, logger: Logger) async throws {
+        try await seedProfile(app, user)
+        try await seedClientOwnedTables(user, logger: logger)
     }
 
     // MARK: - Сервер
