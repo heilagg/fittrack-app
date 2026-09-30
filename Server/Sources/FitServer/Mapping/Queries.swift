@@ -33,6 +33,7 @@ import FoundationEssentials
 #else
 import Foundation
 #endif
+import FitAPI
 import FitCore
 import PostgresNIO
 
@@ -47,6 +48,20 @@ extension Mapping {
         /// Колонка `date` не разобралась. Означает рассогласование схемы с
         /// кодом, а не плохие данные: Postgres не хранит невалидных дат.
         case malformedDate(String)
+
+        /// Код §20.3. Без него оба случая доезжали до клиента как `internal`:
+        /// «профиля ещё нет» — это ответ, а не поломка, и `GET /v1/profile` у
+        /// не начавшей онбординг обязан говорить `not_found`.
+        ///
+        /// `malformedDate` остаётся `internal` намеренно: невалидной даты в
+        /// колонке `date` быть не может, значит разошлись схема и код — наша
+        /// поломка, и клиенту по ней делать нечего.
+        public var code: APIErrorCode {
+            switch self {
+            case .missingRow: return .notFound
+            case .malformedDate: return .internal
+            }
+        }
     }
 
     static func day(_ iso: String, column: String) throws -> CalendarDay {

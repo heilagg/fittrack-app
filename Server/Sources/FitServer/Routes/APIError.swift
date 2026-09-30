@@ -96,6 +96,10 @@ public struct APIErrorMiddleware: AsyncMiddleware {
             return APIError(failure.code)
         case let failure as DatabaseFailure:
             return APIError(failure.code)
+        // `Mapping/` различает «строки нет» и «схема разошлась с кодом», и
+        // первое — ответ клиенту, а не поломка.
+        case let failure as Mapping.ReadFailure:
+            return APIError(failure.code)
         // §20.3 требует класть в `details` путь к невалидному полю, и
         // единственное место, где этот путь вообще существует, — здесь.
         case let decoding as DecodingError:

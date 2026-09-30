@@ -40,16 +40,15 @@ extension WeekPlanRoutes {
     /// Понедельник из пути. Не «любая дата недели»: `week_plans.week_start`
     /// хранит именно понедельник (§3.1), и принимать вторник значило бы завести
     /// два написания одной недели в URL.
-    static func weekStart(_ request: Request) throws -> CalendarDay {
-        guard let raw = request.parameters.get("week_start"),
-              let day = Mapping.LocalTime.day(iso: raw),
+    static func weekStart(_ raw: String?) throws -> CalendarDay {
+        guard let raw, let day = Mapping.LocalTime.day(iso: raw),
               day == Mapping.LocalTime.mondayOfWeek(day)
         else { throw APIError(.validationFailed, details: ["field": .string("week_start")]) }
         return day
     }
 
-    static func uuid(_ request: Request, _ name: String) throws -> UUID {
-        guard let raw = request.parameters.get(name), let id = UUID(uuidString: raw)
+    static func uuid(_ raw: String?, _ name: String) throws -> UUID {
+        guard let raw, let id = UUID(uuidString: raw)
         else { throw APIError(.validationFailed, details: ["field": .string(name)]) }
         return id
     }
@@ -77,26 +76,26 @@ extension WeekPlanRoutes {
     /// создаёт. Отсюда последовательность: сетка → вставка строк → план.
     static func generate(_ request: Request, database: Database,
                          library: ContentLibrary) async throws -> Response {
-        let body = try request.content.decode(GenerateWeekPlanRequest.self)
-        let day = try RequestDay.validated(date: body.date, tz: body.tz)
-        guard let weekStart = Mapping.LocalTime.day(iso: body.weekStart),
-              weekStart == Mapping.LocalTime.mondayOfWeek(weekStart)
-        else { throw APIError(.validationFailed, details: ["field": .string("week_start")]) }
+        let input = RawInput(request)
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            // Всё, что ниже, — уже после проверки токена (§20.5).
+            let body = try input.decode(GenerateWeekPlanRequest.self)
+            let day = try RequestDay.validated(date: body.date, tz: body.tz)
+            guard let weekStart = Mapping.LocalTime.day(iso: body.weekStart),
+                  weekStart == Mapping.LocalTime.mondayOfWeek(weekStart)
+            else { throw APIError(.validationFailed, details: ["field": .string("week_start")]) }
 
-        // §20.3: принимаются только текущая и ближайшая следующая. Прошлые не
-        // генерируются вовсе, дальние не имеют смысла, пока набор дней может
-        // смениться (§7.1).
-        let thisWeek = Mapping.LocalTime.mondayOfWeek(day.date)
-        guard weekStart == thisWeek || weekStart == thisWeek.adding(days: 7) else {
-            throw APIError(.validationFailed, details: [
-                "field": .string("week_start"),
-                "this_week": .string(Mapping.LocalTime.iso(thisWeek))
-            ])
-        }
+            // §20.3: принимаются только текущая и ближайшая следующая. Прошлые
+            // не генерируются вовсе, дальние не имеют смысла, пока набор дней
+            // может смениться (§7.1).
+            let thisWeek = Mapping.LocalTime.mondayOfWeek(day.date)
+            guard weekStart == thisWeek || weekStart == thisWeek.adding(days: 7) else {
+                throw APIError(.validationFailed, details: [
+                    "field": .string("week_start"),
+                    "this_week": .string(Mapping.LocalTime.iso(thisWeek))
+                ])
+            }
 
-        let body_ = body
-        return try await database.withUserTransaction(authorization: request.headers.bearerAuthorization
-                                                        .map { "Bearer \($0.token)" }) { tx in
             let inputs = try await self.inputs(tx, on: day)
             let userSeed = Mapping.userSeed(canonicalUUID: tx.token.subject)
             let slots = Planner.weekGrid(
@@ -157,10 +156,11 @@ extension WeekPlanRoutes {
     /// перед этим сравнивает. Причины у него нет, поэтому строка — `plan_changed`.
     static func show(_ request: Request, database: Database,
                      library: ContentLibrary) async throws -> Response {
-        let weekStart = try weekStart(request)
-        let day = try RequestDay.fromQuery(request)
-        return try await database.withUserTransaction(authorization: request.headers.bearerAuthorization
-                                                        .map { "Bearer \($0.token)" }) { tx in
+        let input = RawInput(request)
+        let path = request.parameters.get("week_start")
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            let weekStart = try self.weekStart(path)
+            let day = try input.day()
             guard let week = try await loadWeek(tx, weekStart: weekStart) else {
                 throw APIError(.notFound, details: [
                     "week_start": .string(Mapping.LocalTime.iso(weekStart))
@@ -184,19 +184,21 @@ extension WeekPlanRoutes {
     /// изменилось в теле; клиент её не называет.
     static func patchDay(_ request: Request, database: Database,
                          library: ContentLibrary) async throws -> Response {
-        let weekStart = try weekStart(request)
-        let dayID = try uuid(request, "day_id")
-        let body = try request.content.decode(PatchPlannedDayRequest.self)
-        let day = try RequestDay.validated(date: body.date, tz: body.tz)
+        let input = RawInput(request)
+        let path = request.parameters.get("week_start")
+        let rawDayID = request.parameters.get("day_id")
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            let weekStart = try self.weekStart(path)
+            let dayID = try self.uuid(rawDayID, "day_id")
+            let body = try input.decode(PatchPlannedDayRequest.self)
+            let day = try RequestDay.validated(date: body.date, tz: body.tz)
 
-        // §20.3: `rest` этим путём не ставится — день отдыха живёт оверрайдом
-        // §11.4, один день и без перебалансировки недели.
-        if body.sessionKind == .rest {
-            throw APIError(.validationFailed, details: ["field": .string("session_kind")])
-        }
+            // §20.3: `rest` этим путём не ставится — день отдыха живёт
+            // оверрайдом §11.4, один день и без перебалансировки недели.
+            if body.sessionKind == .rest {
+                throw APIError(.validationFailed, details: ["field": .string("session_kind")])
+            }
 
-        return try await database.withUserTransaction(authorization: request.headers.bearerAuthorization
-                                                        .map { "Bearer \($0.token)" }) { tx in
             guard let week = try await loadWeek(tx, weekStart: weekStart),
                   week.days.contains(where: { $0.id == dayID.uuidString.lowercased() })
             else { throw APIError(.notFound, details: ["day_id": .string(dayID.uuidString)]) }
@@ -224,12 +226,13 @@ extension WeekPlanRoutes {
     /// события — хранить его негде, `cycle_events` пишет фронтенд напрямую.
     static func rebuild(_ request: Request, database: Database,
                         library: ContentLibrary) async throws -> Response {
-        let weekStart = try weekStart(request)
-        let body = try request.content.decode(RebuildWeekPlanRequest.self)
-        let day = try RequestDay.validated(date: body.date, tz: body.tz)
+        let input = RawInput(request)
+        let path = request.parameters.get("week_start")
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            let weekStart = try self.weekStart(path)
+            let body = try input.decode(RebuildWeekPlanRequest.self)
+            let day = try RequestDay.validated(date: body.date, tz: body.tz)
 
-        return try await database.withUserTransaction(authorization: request.headers.bearerAuthorization
-                                                        .map { "Bearer \($0.token)" }) { tx in
             guard let week = try await loadWeek(tx, weekStart: weekStart) else {
                 throw APIError(.notFound, details: [
                     "week_start": .string(Mapping.LocalTime.iso(weekStart))
