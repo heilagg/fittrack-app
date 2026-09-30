@@ -189,6 +189,71 @@ final class ContractTests: XCTestCase {
                         "grid_stretch", "markup_missing", "pregnancy"])
     }
 
+    /// §20.3: проводной словарь причин дня на одно значение ШИРЕ ядерного.
+    /// Десятое значение в `Planner.DayOutcome.Cause` отсутствует намеренно —
+    /// `classify` принимает `PlannedDay`, а у дня отдыха его нет.
+    func test_wireDayCauseDictionaryIsTheTenOfTheSpec() {
+        XCTAssertEqual(Set(DayCause.allCases.map(\.rawValue)),
+                       ["rest_override", "skipped", "replaced", "started", "done", "past",
+                        "grid_stretch", "markup_missing", "pregnancy", "not_a_training_day"])
+    }
+
+    /// Девять проводных значений обязаны сводиться к ядерным, десятое — нет.
+    /// Без этого утверждения снимок §20.6, который читается ОБРАТНО в значения
+    /// FitCore, однажды получил бы причину, которой в ядре нет.
+    func test_nineWireCausesMapBackToCoreAndTheTenthDoesNot() {
+        for cause in DayCause.allCases where cause != .notATrainingDay {
+            XCTAssertNotNil(cause.core, "\(cause.rawValue) обязан сводиться к ядерному")
+        }
+        XCTAssertNil(DayCause.notATrainingDay.core)
+        for cause in allDayCauses {
+            XCTAssertEqual(DayCause(cause).core, cause, "перевод туда-обратно не теряет случай")
+        }
+    }
+
+    /// Формулировку отдаёт сервер для ВСЕХ причин (§20.3), включая десятую,
+    /// у которой ядерного источника строки нет.
+    func test_everyWireDayCauseCarriesAFormulation() {
+        for cause in DayCause.allCases {
+            XCTAssertFalse(ReasonStrings.message(for: cause).isEmpty, cause.rawValue)
+        }
+    }
+
+    /// День без строки `planned_days` (§20.3): `day_id` не едет вовсе — ни
+    /// значением, ни `null`. Синтетический идентификатор был бы ключом, по
+    /// которому клиент однажды сходит в `PATCH .../days/{day_id}`.
+    func test_dayWithoutARowCarriesNoIdentifier() throws {
+        for cause in [DayCause?.none, .some(.notATrainingDay)] {
+            let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+                with: try encoder.encode(DayOutcomeDTO.notBuilt(cause: cause))) as? [String: Any])
+            XCTAssertNil(json["day_id"], "ключа нет")
+            XCTAssertEqual(json["kind"] as? String, "not_built")
+            XCTAssertEqual(json["loses_planned_volume"] as? Bool, false)
+            XCTAssertNil(json["session"])
+        }
+    }
+
+    /// Два пустых дня §20.3 различаются ровно причиной, и это то, по чему
+    /// клиент выбирает между «сегодня отдых» и «неделя не сгенерирована».
+    func test_theTwoEmptyDaysDifferOnlyByCause() throws {
+        let noWeek = DayOutcomeDTO.notBuilt(cause: nil)
+        let restDay = DayOutcomeDTO.notBuilt(cause: .notATrainingDay)
+        XCTAssertNil(noWeek.cause)
+        XCTAssertEqual(restDay.cause?.cause, .notATrainingDay)
+        XCTAssertEqual(noWeek.kind, restDay.kind)
+        XCTAssertEqual(noWeek.dayID, restDay.dayID)
+
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: try encoder.encode(restDay)) as? [String: Any])
+        let cause = try XCTUnwrap(json["cause"] as? [String: Any])
+        XCTAssertEqual(cause["code"] as? String, "not_a_training_day")
+        XCTAssertFalse((cause["message"] as? String ?? "").isEmpty)
+
+        for day in [noWeek, restDay] {
+            XCTAssertEqual(try decoder.decode(DayOutcomeDTO.self, from: try encoder.encode(day)), day)
+        }
+    }
+
     /// §20.3: словарь веток показа закрыт и состоит из пяти значений.
     func test_dayKindDictionaryIsTheFiveOfTheSpec() {
         let kinds: [DayOutcome.Kind] = [.session, .stretching, .notBuilt, .vectorMissing, .generatorDisabled]

@@ -61,7 +61,13 @@ public struct BuiltSessionDTO: Sendable, Equatable, Codable {
 
 /// Итог дня недели (§7.1).
 public struct DayOutcomeDTO: Sendable, Equatable, Codable {
-    public var dayID: String
+    /// `null` — строки `planned_days` под этот день нет: либо неделя ещё не
+    /// сгенерирована, либо дата не тренировочная (§20.3). Синтетического
+    /// идентификатора здесь не выдаётся: по нему клиент однажды сходил бы в
+    /// `PATCH .../days/{day_id}`. Ключ при этом ОПУСКАЕТСЯ, а не едет как
+    /// `null`, — общее правило кодирования `FitAPI`, то же, что у всех
+    /// необязательных полей `Profile` (§5).
+    public var dayID: String?
     /// Ветка показа, закрытый словарь §20.3: `session`, `stretching`,
     /// `not_built`, `vector_missing`, `generator_disabled`. Строкой, а не
     /// конвертом причины: это не причина, а то, что рисовать, и формулировки у
@@ -84,6 +90,34 @@ public struct DayOutcomeDTO: Sendable, Equatable, Codable {
         cause = o.cause.map { DayCauseDTO($0) }
         losesPlannedVolume = o.losesPlannedVolume
         session = o.session.map(BuiltSessionDTO.init)
+    }
+
+    /// День, которому не соответствует ни одна строка `planned_days` (§20.3).
+    ///
+    /// Значения ядра здесь нет и быть не может: `DayOutcome` описывает, что
+    /// планировщик сделал с КОНКРЕТНЫМ `PlannedDay`, а его нет. Поэтому день
+    /// собирается прямо в проводном типе, и собирается ровно один раз — обоими
+    /// случаями §20.3, которые отличаются только причиной:
+    ///
+    ///   `cause == nil`                  неделя ещё не сгенерирована
+    ///   `cause == .notATrainingDay`     неделя есть, дата не тренировочная
+    ///
+    /// `loses_planned_volume` — `false`: планового объёма на этот день не было,
+    /// значит и терять нечего (§7.1 считает потерей только пропуск, оверрайд и
+    /// замену).
+    public static func notBuilt(cause: DayCause?) -> DayOutcomeDTO {
+        DayOutcomeDTO(dayID: nil, kind: ReasonDTO.code(for: DayOutcome.Kind.notBuilt),
+                      cause: cause.map { DayCauseDTO($0) },
+                      losesPlannedVolume: false, session: nil)
+    }
+
+    init(dayID: String?, kind: String, cause: DayCauseDTO?,
+         losesPlannedVolume: Bool, session: BuiltSessionDTO?) {
+        self.dayID = dayID
+        self.kind = kind
+        self.cause = cause
+        self.losesPlannedVolume = losesPlannedVolume
+        self.session = session
     }
 }
 

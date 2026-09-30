@@ -58,8 +58,14 @@ struct LiveWeekPlanTests {
 
             let (status, plan) = try await self.generate(app, as: alice)
             #expect(status == 201, "Алиса сгенерировала свою неделю")
-            let aliceDays = Set((plan?.plan.days ?? []).map(\.dayID))
+            // `compactMap`, а не `map`: `day_id` необязателен с тех пор, как
+            // §20.3 завела день без строки `planned_days`. У настоящей недели
+            // такого дня нет, и это утверждается счётом — иначе `nil`
+            // проскользнул бы в множество и дальше в URL как `Optional("…")`.
+            let aliceDayList = plan?.plan.days ?? []
+            let aliceDays = Set(aliceDayList.compactMap(\.dayID))
             #expect(!aliceDays.isEmpty)
+            #expect(aliceDays.count == aliceDayList.count, "у каждого дня недели есть id")
 
             let path = "/v1/week-plans/\(Mapping.LocalTime.iso(self.weekStart))"
                 + "?date=\(self.day.date)&tz=Europe%2FMoscow"
@@ -69,7 +75,7 @@ struct LiveWeekPlanTests {
                 #expect(response.status == .ok)
                 let body = try JSONDecoder().decode(WeekPlanResponseDTO.self,
                                                     from: Data(buffer: response.body))
-                #expect(Set(body.plan.days.map(\.dayID)) == aliceDays)
+                #expect(Set(body.plan.days.compactMap(\.dayID)) == aliceDays)
             }
 
             // Чужая — нет. Не «пустая неделя», а 404: RLS не отдала строку, и
@@ -101,7 +107,7 @@ struct LiveWeekPlanTests {
             // Боб генерирует свою — и она своя, не Алисина.
             let (bobStatus, bobPlan) = try await self.generate(app, as: bob)
             #expect(bobStatus == 201)
-            let bobDays = Set((bobPlan?.plan.days ?? []).map(\.dayID))
+            let bobDays = Set((bobPlan?.plan.days ?? []).compactMap(\.dayID))
             #expect(bobDays.isDisjoint(with: aliceDays), "ни одного общего дня")
         }
     }
@@ -187,7 +193,7 @@ struct LiveWeekPlanTests {
             #expect(secondStatus == 200, "повтор — не создание")
             let secondDays = try #require(second?.plan.days)
 
-            #expect(secondDays.map(\.dayID) == firstDays.map(\.dayID), "те же дни")
+            #expect(secondDays.compactMap(\.dayID) == firstDays.compactMap(\.dayID), "те же дни")
             #expect(secondDays.map(\.kind) == firstDays.map(\.kind), "те же типы")
             #expect(secondDays.map { $0.session?.exercises.map(\.slug) }
                     == firstDays.map { $0.session?.exercises.map(\.slug) }, "тот же состав")

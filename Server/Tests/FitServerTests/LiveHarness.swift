@@ -38,6 +38,7 @@ import Foundation
 #endif
 import FitAPI
 import FitContent
+import FitCore
 import Logging
 import PostgresNIO
 import Testing
@@ -114,11 +115,16 @@ enum Live {
     /// Три дня (пн/ср/пт) и уровень выше новичка — чтобы сетка §7.2 дала три
     /// РАЗНЫХ типа дня (верх / низ / full body), а не три одинаковых: на
     /// одинаковых часть утверждений о плане выродилась бы.
-    static func seedProfile(_ app: Application, _ user: User) async throws {
+    /// Набор дней задаётся параметром, потому что `/today` проверяется на обоих
+    /// его исходах: «сегодня тренировочный» и «сегодня нет». Подменить сам день
+    /// нельзя — §20.7 держит присланную дату в сутках от серверной, — поэтому
+    /// двигается профиль, а не календарь.
+    static func seedProfile(_ app: Application, _ user: User,
+                            weekdays: [Int] = [1, 3, 5]) async throws {
         let body = PatchProfileRequest(
             sexAtBirth: .some("female"), birthYear: .some(1994), heightCm: .some(168),
             experienceLevel: .some(.intermediate), goal: .some(.hypertrophy),
-            trainingWeekdays: .some([1, 3, 5]), sessionMinutes: 60, cycleTracking: .off)
+            trainingWeekdays: .some(weekdays), sessionMinutes: 60, cycleTracking: .off)
         try await app.testing().test(.PATCH, "/v1/profile", headers: user.headers,
                                      beforeRequest: { try $0.content.encode(body) }) { response in
             guard response.status == .ok else {
@@ -161,9 +167,31 @@ enum Live {
     /// Полный посев: профиль через границу, остальное — как это делает
     /// фронтенд. Порядок несущий: `equipment_profiles` ссылается на `profiles`
     /// внешним ключом, так что профиль обязан появиться первым.
-    static func seed(_ app: Application, _ user: User, logger: Logger) async throws {
-        try await seedProfile(app, user)
+    static func seed(_ app: Application, _ user: User, logger: Logger,
+                     weekdays: [Int] = [1, 3, 5]) async throws {
+        try await seedProfile(app, user, weekdays: weekdays)
         try await seedClientOwnedTables(user, logger: logger)
+    }
+
+    /// Оверрайд дня — тоже прямым SQL и по той же причине, что инвентарь:
+    /// `daily_checkins` фронтенд пишет НАПРЯМУЮ (§20.6), пути к ним нет.
+    static func setOverride(_ user: User, on date: CalendarDay, value: String,
+                            logger: Logger) async throws {
+        let client = ownerClient(logger)
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { await client.run() }
+            group.addTask {
+                _ = try await client.query("""
+                    insert into daily_checkins (id, user_id, checkin_date, override)
+                    values (\(UUID()), \(user.id), \(Mapping.LocalTime.iso(date))::date,
+                            \(value))
+                    on conflict (user_id, checkin_date)
+                      do update set override = excluded.override
+                    """, logger: logger)
+            }
+            try await group.next()
+            group.cancelAll()
+        }
     }
 
     // MARK: - Сервер

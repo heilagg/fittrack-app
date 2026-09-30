@@ -274,8 +274,27 @@ public enum ReasonStrings {
     /// строке потери объёма и в карточке дня. Второй каталог разошёлся бы
     /// ровно так же тихо, как разошлись бы два каталога у веба и iOS (§20.2).
     public static func message(for cause: DayOutcome.Cause) -> String {
-        let text = phrase(cause)
-        return text.prefix(1).uppercased() + text.dropFirst()
+        capitalized(phrase(cause))
+    }
+
+    /// То же для проводного словаря (§20.3), который на одно значение шире.
+    ///
+    /// Девять случаев переадресуются в `phrase` ядерного словаря, а не
+    /// переписываются вторым списком: один и тот же факт не вправе звучать
+    /// по-разному в строке потери объёма и в карточке дня. Десятому своего
+    /// значения в ядре нет, и формулировка у него здесь.
+    public static func message(for cause: DayCause) -> String {
+        guard let core = cause.core else {
+            // §13.5: констатация плана, а не отсутствия тренировки. «Отдых» не
+            // называется выбором — в отличие от оверрайда §11.4, этот день
+            // выбран на онбординге и является частью сетки §7.2.
+            return capitalized("в этот день тренировка не запланирована")
+        }
+        return message(for: core)
+    }
+
+    private static func capitalized(_ text: String) -> String {
+        text.prefix(1).uppercased() + text.dropFirst()
     }
 
     // MARK: - Ошибки

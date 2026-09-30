@@ -323,6 +323,53 @@ public struct RebuildCauseDTO: Sendable, Equatable, Codable {
     }
 }
 
+/// Словарь причин дня НА ПРОВОДЕ (SPEC §20.3), закрытый и на одно значение
+/// шире ядерного.
+///
+/// Девять значений отвечают `Planner.DayOutcome.Cause` один к одному.
+/// Десятое — `notATrainingDay` — в ядре отсутствует намеренно:
+/// `Planner.classify` принимает `PlannedDay` и отвечает, что стало С НИМ, а у
+/// дня, который не выбран для тренировок, строки `planned_days` нет вовсе
+/// (§7.2: `weekGrid` раздаёт слоты только выбранным дням). Случай, который ядро
+/// не может ни вернуть, ни принять, в его перечислении был бы мёртвым.
+///
+/// Обратная сторона названа там же, в §20.3: снимок `last_shown_plan` (§20.6)
+/// остаётся на девяти и читается в значения FitCore, потому что хранит дни по
+/// `day_id` — ровно те, у которых строка есть.
+public enum DayCause: String, Sendable, Equatable, Hashable, CaseIterable, Codable {
+    case restOverride = "rest_override"
+    case skipped
+    case replaced
+    case started
+    case done
+    case past
+    case gridStretch = "grid_stretch"
+    case markupMissing = "markup_missing"
+    case pregnancy
+    /// Неделя сгенерирована, но эта дата тренировочной не является (§20.3).
+    case notATrainingDay = "not_a_training_day"
+
+    public init(_ cause: DayOutcome.Cause) {
+        switch cause {
+        case .restOverride: self = .restOverride
+        case .skipped: self = .skipped
+        case .replaced: self = .replaced
+        case .started: self = .started
+        case .done: self = .done
+        case .past: self = .past
+        case .gridStretch: self = .gridStretch
+        case .markupMissing: self = .markupMissing
+        case .pregnancy: self = .pregnancy
+        }
+    }
+
+    /// Значение ядра, если оно есть. `nil` — только у `notATrainingDay`, и это
+    /// единственное место, где проводной словарь не сводится к ядерному.
+    public var core: DayOutcome.Cause? {
+        ReasonDTO.dayCause(rawValue)
+    }
+}
+
 /// Итог дня на проводе (§20.3). Тот же конверт `{code, params, message}`, что у
 /// `ReasonDTO` и `RebuildCauseDTO`, — и это не единообразие ради единообразия.
 ///
@@ -332,18 +379,25 @@ public struct RebuildCauseDTO: Sendable, Equatable, Codable {
 /// клиенту пришлось бы собрать русский текст самому, то есть завести тот самый
 /// второй каталог, который расходится тихо и чинится релизом в App Store.
 ///
-/// `params` пуст у всех девяти случаев: ассоциированных значений у
-/// `DayOutcome.Cause` нет. Форму из-за этого не сплющиваем — один конверт
-/// разбирается на клиенте одним куском кода на все причины сразу, а
-/// появившийся однажды параметр не сменит форму ответа у двух развёрнутых
-/// клиентов (§20.8).
+/// `params` пуст у всех десяти случаев: ассоциированных значений ни у одного
+/// нет. Форму из-за этого не сплющиваем — один конверт разбирается на клиенте
+/// одним куском кода на все причины сразу, а появившийся однажды параметр не
+/// сменит форму ответа у двух развёрнутых клиентов (§20.8).
 public struct DayCauseDTO: Sendable, Equatable {
-    public var cause: DayOutcome.Cause
+    public var cause: DayCause
     public var message: String
 
-    public init(_ cause: DayOutcome.Cause, message: String? = nil) {
+    public init(_ cause: DayCause, message: String? = nil) {
         self.cause = cause
         self.message = message ?? ReasonStrings.message(for: cause)
+    }
+
+    /// Перевод из значения ядра. Отдельным инициализатором, а не общим: девять
+    /// случаев приходят из `Planner.classify`, десятый не приходит ниоткуда,
+    /// кроме сервера, и смешивать эти два источника в одной сигнатуре значило бы
+    /// сделать проводной словарь похожим на ядерный сильнее, чем он есть.
+    public init(_ cause: DayOutcome.Cause, message: String? = nil) {
+        self.init(DayCause(cause), message: message)
     }
 }
 
@@ -353,7 +407,7 @@ extension DayCauseDTO: Codable {
 
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: Key.self)
-        try c.encode(ReasonDTO.code(for: cause), forKey: .code)
+        try c.encode(cause.rawValue, forKey: .code)
         try c.encode(message, forKey: .message)
         try c.encode(NoParams(), forKey: .params)
     }
@@ -361,7 +415,7 @@ extension DayCauseDTO: Codable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: Key.self)
         let code = try c.decode(String.self, forKey: .code)
-        guard let cause = ReasonDTO.dayCause(code) else {
+        guard let cause = DayCause(rawValue: code) else {
             throw DecodingError.dataCorruptedError(forKey: .code, in: c,
                                                    debugDescription: "неизвестная причина дня: \(code)")
         }

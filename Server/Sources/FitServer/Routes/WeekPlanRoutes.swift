@@ -71,10 +71,26 @@ enum WeekPlanRoutes {
                 "missing": .string(Mapping.missingProfileFields(profile).joined(separator: ","))
             ])
         }
-        let equipment = try await Mapping.readEquipment(tx, id: nil)
-        let safety = try await Mapping.readSafety(tx, level: complete.level, timeZone: day.timeZone)
         let cycle = try await Mapping.readCycle(tx, tracking: profile.cycleTracking)
         let (checkin, override) = try await Mapping.readCheckin(tx, on: day.date)
+        return try await inputs(tx, on: day, profile: profile, complete: complete, cycle: cycle,
+                                checkin: checkin, override: override)
+    }
+
+    /// Тот же вход, но с уже прочитанными профилем, циклом и чек-ином.
+    ///
+    /// Нужен `/today` (§20.3): он обязан ответить и на НЕПОЛНОМ профиле, то есть
+    /// принять решение о полноте сам, а не получить `profile_incomplete` из
+    /// общего чтения. Читать те же три среза во второй раз значило бы держать в
+    /// одной транзакции два их экземпляра — §20.4 обещает согласованный срез, и
+    /// дважды прочитанное `daily_checkins` этому обещанию не противоречит лишь
+    /// до первой правки.
+    static func inputs(_ tx: UserTransaction, on day: RequestDay,
+                       profile: Mapping.ProfileSlice, complete: Mapping.CompleteProfile,
+                       cycle: CycleInputs, checkin: DailyCheckin,
+                       override: Override?) async throws -> WeekPlanInputs {
+        let equipment = try await Mapping.readEquipment(tx, id: nil)
+        let safety = try await Mapping.readSafety(tx, level: complete.level, timeZone: day.timeZone)
         let fatigue = try await Mapping.readFatigue(tx)
         // Граница журнала не назначена (§9 сворачивает всю историю), поэтому
         // `nil` — см. `readSets`.
