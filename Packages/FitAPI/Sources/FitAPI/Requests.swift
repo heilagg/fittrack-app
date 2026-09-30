@@ -290,3 +290,108 @@ public struct FinishWorkoutRequest: Sendable, Equatable, Codable {
         self.tz = day.tz
     }
 }
+
+/// `PATCH /v1/profile` (§20.3, §5).
+///
+/// Три состояния у каждого поля, которое схема разрешает снять: отсутствие
+/// ключа — «не трогать», явный `null` — «снять значение», значение — поставить.
+/// Различать первые два обязательно: онбординг шлёт подмножества полей, и
+/// «поле не прислали» не означает «сними его» (та же двойная опциональность,
+/// что у `accent_muscle` в правке дня).
+///
+/// `session_minutes` и `cycle_tracking` — исключение и двухсостоянийны: в схеме
+/// они `not null` с умолчанием, снимать нечего.
+///
+/// **`days_per_week` принимается как контрольная сумма, а не как значение.**
+/// Схема требует `cardinality(training_weekdays) = days_per_week` (§3.1), то
+/// есть число выводится из набора и своей информации не несёт. Прислать его
+/// можно — расхождение с длиной набора даёт `validation_failed`, — но записан
+/// будет размер набора. Без этой проверки рассогласование доехало бы до `check`
+/// базы и вернулось бы как `internal`.
+public struct PatchProfileRequest: Sendable, Equatable {
+    public var sexAtBirth: String??
+    public var birthYear: Int??
+    public var heightCm: Double??
+    public var experienceLevel: ExperienceLevel??
+    public var goal: Goal??
+    public var daysPerWeek: Int?
+    public var trainingWeekdays: [Int]??
+    public var sessionMinutes: Int?
+    public var cycleTracking: CycleTracking?
+    /// Настройки цикла вложенным объектом (§20.3): шаг 9 онбординга заполняет
+    /// обе таблицы одним экраном. Явный `null` вместо объекта ЗАПРЕЩЁН —
+    /// удаления `cycle_profiles` не существует ни в одном сценарии, «не
+    /// отслеживаю» это `phase_mode = no_phases` с причиной.
+    public var cycle: CycleProfileDTO?
+
+    public init(sexAtBirth: String?? = nil, birthYear: Int?? = nil, heightCm: Double?? = nil,
+                experienceLevel: ExperienceLevel?? = nil, goal: Goal?? = nil,
+                daysPerWeek: Int? = nil, trainingWeekdays: [Int]?? = nil,
+                sessionMinutes: Int? = nil, cycleTracking: CycleTracking? = nil,
+                cycle: CycleProfileDTO? = nil) {
+        self.sexAtBirth = sexAtBirth
+        self.birthYear = birthYear
+        self.heightCm = heightCm
+        self.experienceLevel = experienceLevel
+        self.goal = goal
+        self.daysPerWeek = daysPerWeek
+        self.trainingWeekdays = trainingWeekdays
+        self.sessionMinutes = sessionMinutes
+        self.cycleTracking = cycleTracking
+        self.cycle = cycle
+    }
+}
+
+extension PatchProfileRequest: Codable {
+    enum CodingKeys: String, CodingKey {
+        case sexAtBirth = "sex_at_birth", birthYear = "birth_year", heightCm = "height_cm"
+        case experienceLevel = "experience_level", goal
+        case daysPerWeek = "days_per_week", trainingWeekdays = "training_weekdays"
+        case sessionMinutes = "session_minutes", cycleTracking = "cycle_tracking", cycle
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func present<T>(_ key: CodingKeys, _ read: (CodingKeys) throws -> T?) rethrows -> T?? {
+            c.contains(key) ? .some(try read(key)) : nil
+        }
+        sexAtBirth = try present(.sexAtBirth) { try c.decodeIfPresent(String.self, forKey: $0) }
+        birthYear = try present(.birthYear) { try c.decodeIfPresent(Int.self, forKey: $0) }
+        heightCm = try present(.heightCm) { try c.decodeIfPresent(Double.self, forKey: $0) }
+        experienceLevel = try present(.experienceLevel) {
+            try c.decodeRawIfPresent(ExperienceLevel.self, forKey: $0)
+        }
+        goal = try present(.goal) { try c.decodeRawIfPresent(Goal.self, forKey: $0) }
+        trainingWeekdays = try present(.trainingWeekdays) {
+            try c.decodeIfPresent([Int].self, forKey: $0)
+        }
+        daysPerWeek = try c.decodeIfPresent(Int.self, forKey: .daysPerWeek)
+        sessionMinutes = try c.decodeIfPresent(Int.self, forKey: .sessionMinutes)
+        cycleTracking = try c.decodeRawIfPresent(CycleTracking.self, forKey: .cycleTracking)
+        cycle = try c.decodeIfPresent(CycleProfileDTO.self, forKey: .cycle)
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        func write<T: Encodable>(_ value: T??, _ key: CodingKeys) throws {
+            guard let value else { return }
+            if let inner = value { try c.encode(inner, forKey: key) } else { try c.encodeNil(forKey: key) }
+        }
+        func writeRaw<T: RawRepresentable>(_ value: T??, _ key: CodingKeys) throws
+        where T.RawValue == String {
+            guard let value else { return }
+            if let inner = value { try c.encode(inner.rawValue, forKey: key) }
+            else { try c.encodeNil(forKey: key) }
+        }
+        try write(sexAtBirth, .sexAtBirth)
+        try write(birthYear, .birthYear)
+        try write(heightCm, .heightCm)
+        try writeRaw(experienceLevel, .experienceLevel)
+        try writeRaw(goal, .goal)
+        try write(trainingWeekdays, .trainingWeekdays)
+        try c.encodeIfPresent(daysPerWeek, forKey: .daysPerWeek)
+        try c.encodeIfPresent(sessionMinutes, forKey: .sessionMinutes)
+        try c.encodeRawIfPresent(cycleTracking, forKey: .cycleTracking)
+        try c.encodeIfPresent(cycle, forKey: .cycle)
+    }
+}
