@@ -76,13 +76,19 @@ extension Mapping {
 
     /// `id` — из тела `POST /v1/workouts`; `nil` берёт профиль с `is_default`
     /// (§20.3).
+    ///
+    /// Касты `::uuid` у параметра обязательны и лишними не являются: в
+    /// `$1 is null` Postgres тип вывести не может и отвечает `42P18`
+    /// («could not determine data type of parameter»). Проверка `EXPLAIN` этого
+    /// не ловит, если писать литерал `null::uuid` руками — каст тогда стоит в
+    /// проверке, а не в коде.
     public static func readEquipment(_ tx: UserTransaction, id: UUID?) async throws -> EquipmentSlice {
         let rows = try await tx.query("""
             select dumbbells_kg::float8[], plates_kg::float8[], barbell_kg::float8,
                    machine_step_kg::float8, has_kettlebells, kettlebells_kg::float8[],
                    bands, pullup_bar, bench, cable_machine, machines, step_platform, plyo_box
               from equipment_profiles
-             where (\(id) is null and is_default) or id = \(id)
+             where (\(id)::uuid is null and is_default) or id = \(id)::uuid
              limit 1
             """)
         for try await row in rows {
