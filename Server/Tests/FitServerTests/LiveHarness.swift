@@ -222,6 +222,18 @@ enum Live {
     /// `withUserTransaction` соединения не получит.
     static func withServer(_ label: String,
                            _ body: @escaping @Sendable (Application) async throws -> Void) async throws {
+        try await withServer(label) { app, _ in try await body(app) }
+    }
+
+    /// То же, но телу достаётся и пул: часть утверждений ставится НЕ на тело
+    /// ответа, а на строки, которые путь записал (`exercise_states`,
+    /// `workouts`). Читаются они транзакцией той же пользовательницы, то есть
+    /// через RLS §3.2 и ту же точку входа, что у сервера, — а не владельцем
+    /// базы в обход.
+    static func withServer(
+        _ label: String,
+        _ body: @escaping @Sendable (Application, Database) async throws -> Void
+    ) async throws {
         let logger = quietLogger(label)
         let database = try await makeDatabase(logger)
         let library = try Content.loadBundled()
@@ -233,7 +245,7 @@ enum Live {
                 try await withApp { app in
                     app.logger = logger
                     Routes.register(on: app, content: store, library: library, database: database)
-                    try await body(app)
+                    try await body(app, database)
                 }
             }
             try await group.next()

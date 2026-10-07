@@ -160,6 +160,101 @@ extension Mapping {
         return result
     }
 
+    // MARK: - Старт тренировки (`POST /v1/workouts`, §20.3, §20.6)
+
+    /// Вставляет `workouts` и возвращает `id`.
+    ///
+    /// `started_at` — `now()` серверных часов: это НАСТОЯЩИЙ момент, а не
+    /// значение шкалы FitCore, и §20.7 оставляет такие колонки `timestamptz` и
+    /// в расчёт не подставляет.
+    ///
+    /// `cycle_phase` и `cycle_confidence` пишутся СЫРЫМИ, без порога
+    /// называемости §11.3, которым `CycleStateDTO` срезает фазу перед показом.
+    /// Колонка заведена под разбор «почему мне это дали» (§3.1), то есть должна
+    /// хранить то, чем пользовался алгоритм, а не то, что увидела
+    /// пользовательница. Срезанная до `null` фаза сделала бы низкую уверенность
+    /// неотличимой от режима без фаз — ровно в тех случаях, ради которых
+    /// колонку и завели.
+    ///
+    /// `is_calibration` тренировки — баннер §9.8 и аналитика, в расчёт не идёт
+    /// вовсе (§20.6): подходы из утомления исключает флаг УПРАЖНЕНИЯ.
+    public static func insertWorkout(
+        _ tx: UserTransaction, userID: UUID, plannedDayID: UUID, sessionKind: SessionKind,
+        accent: MuscleSlug?, equipmentProfileID: UUID?, readiness: Double,
+        cyclePhase: Phase?, cycleConfidence: Double?, isCalibration: Bool
+    ) async throws -> UUID {
+        let id = UUID()
+        _ = try await tx.query("""
+            insert into workouts (id, user_id, planned_day_id, started_at, session_kind,
+                                  accent_muscle, equipment_profile_id, cycle_phase,
+                                  cycle_confidence, readiness, is_calibration)
+            values (\(id), \(userID), \(plannedDayID), now(), \(sessionKind.rawValue),
+                    \(accent?.rawValue), \(equipmentProfileID), \(cyclePhase?.rawValue),
+                    \(cycleConfidence), \(readiness), \(isCalibration))
+            """)
+        return id
+    }
+
+    /// Вставляет состав тренировки и возвращает пары (id, упражнение) в том же
+    /// порядке — чтобы собрать тело ответа, не перечитывая таблицу.
+    ///
+    /// `calibration` — снимок `exercise_states.in_calibration` (§20.6).
+    /// Отсутствующий слаг даёт `true`: упражнение, которое ни разу не делали,
+    /// в калибровке по определению (§9.8).
+    public static func insertWorkoutExercises(
+        _ tx: UserTransaction, workoutID: UUID, exercises: [PrescribedExercise],
+        calibration: [String: Bool]
+    ) async throws -> [(id: UUID, exercise: PrescribedExercise, isCalibration: Bool)] {
+        var result: [(id: UUID, exercise: PrescribedExercise, isCalibration: Bool)] = []
+        for exercise in exercises {
+            let id = UUID()
+            let inCalibration = calibration[exercise.slug] ?? true
+            _ = try await tx.query("""
+                insert into workout_exercises (id, workout_id, exercise_slug, order_index,
+                                               target_sets, target_rep_min, target_rep_max,
+                                               target_rir, prescribed_kg, weight_readiness,
+                                               is_calibration)
+                values (\(id), \(workoutID), \(exercise.slug), \(exercise.orderIndex),
+                        \(exercise.targetSets), \(exercise.targetRepMin),
+                        \(exercise.targetRepMax), \(exercise.targetRIR),
+                        \(exercise.prescribedKg), \(exercise.weightReadiness),
+                        \(inCalibration))
+                """)
+            result.append((id, exercise, inCalibration))
+        }
+        return result
+    }
+
+    /// Пишет `exercise_states.current_rep_min`/`current_rep_max` (§20.6).
+    ///
+    /// Значения приходят из `PrescribedExercise`, то есть из того же вызова
+    /// `Planner.repRange`, который дал `workout_exercises.target_rep_*` и
+    /// диапазон дерева §20.9. Своего вызова слой не делает: состояние после
+    /// сбросов §9.7 накладывает СБОРКА, и повторить его снаружи нечем.
+    ///
+    /// Строка может ещё не существовать — упражнение делают впервые, — поэтому
+    /// `upsert`, а не `update`. Остальные колонки остаются на умолчаниях схемы,
+    /// и это верно: `baseline_kg` у неначатого упражнения `null`,
+    /// `in_calibration` — `true` (§9.8).
+    ///
+    /// Трогаются только упражнения СЕССИИ: колонки — снимок последней сессии, а
+    /// не текущее значение (§3.1).
+    public static func writeSessionRepRanges(_ tx: UserTransaction, userID: UUID,
+                                             ranges: [String: ClosedRange<Int>]) async throws {
+        // Порядок по слагу — ради воспроизводимости: внутри одной транзакции он
+        // ничего не меняет, но делает два прогона одинаковыми в логе.
+        for (slug, range) in ranges.sorted(by: { $0.key < $1.key }) {
+            _ = try await tx.query("""
+                insert into exercise_states (user_id, exercise_slug,
+                                             current_rep_min, current_rep_max)
+                values (\(userID), \(slug), \(range.lowerBound), \(range.upperBound))
+                on conflict (user_id, exercise_slug)
+                  do update set current_rep_min = excluded.current_rep_min,
+                                current_rep_max = excluded.current_rep_max
+                """)
+        }
+    }
+
     // MARK: - Снимок показанного плана
 
     /// Читает `week_plans.last_shown_plan` (§20.6).

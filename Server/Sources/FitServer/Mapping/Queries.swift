@@ -291,6 +291,32 @@ extension Mapping {
         return result
     }
 
+    // MARK: - Состояния упражнений
+
+    /// Снимок `exercise_states.in_calibration` по слагам (§20.6).
+    ///
+    /// Нужен ровно на старте тренировки: `workout_exercises.is_calibration`
+    /// ставится СНИМКОМ этой колонки, а не join'ом на чтении — по тому же
+    /// доводу, по которому §19.2 п.8 зафиксировал `pain_joints` на момент
+    /// события. Калибровка кончается по упражнению (§9.8), и тренировка,
+    /// начатая в калибровке, обязана остаться такой в журнале, даже когда
+    /// упражнение из неё вышло.
+    ///
+    /// Отсутствующая строка — `true` у вызывающей стороны: упражнение, которое
+    /// ни разу не делали, находится в калибровке по определению (§9.8), и
+    /// схема говорит то же самое (`in_calibration boolean not null default
+    /// true`). Подставлять умолчание здесь нельзя — словарь не знает, о каких
+    /// слагах его спросят.
+    public static func readCalibrationFlags(_ tx: UserTransaction) async throws -> [String: Bool] {
+        var flags: [String: Bool] = [:]
+        let rows = try await tx.query("select exercise_slug, in_calibration from exercise_states")
+        for try await row in rows {
+            let (slug, flag) = try row.decode((String, Bool).self)
+            flags[slug] = flag
+        }
+        return flags
+    }
+
     // MARK: - Журнал подходов
 
     /// Все подходы пользователя с их упражнением и тренировкой.
