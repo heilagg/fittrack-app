@@ -178,7 +178,15 @@ struct MappingTreeRootTests {
 
     @Test("упражнение без веса: весов нет ни на одном узле, ветка завершения жива")
     func weightlessKeepsNoWeights() {
-        let r = root([set(1, "ok", reps: 15, actual: nil)], start: nil)
+        // Признак «без веса» — ЛЕСТНИЦА (§20.9), поэтому она здесь `.none`, а
+        // не весовая. Раньше этот тест звал `root(…, start: nil)`, то есть
+        // весовую лестницу без стартового веса, и утверждал ровно ту подмену,
+        // которую §20.9 не делает: `prescribed_kg` пуст и у штанги в
+        // калибровке. Тест, проверяющий не то, что называет, второй случай и
+        // прятал — см. `calibrationWithoutBaselineStillTracksWeight` ниже.
+        let r = Mapping.treeRoot(sets: [set(1, "ok", reps: 15, actual: nil)],
+                                 startWeightKg: nil, range: range, isCalibration: false,
+                                 ladder: .none)
         #expect(r.weightKg == nil)
 
         let terminated = Mapping.treeRoot(
@@ -186,6 +194,36 @@ struct MappingTreeRootTests {
             startWeightKg: nil, range: range, isCalibration: false, ladder: .none)
         #expect(terminated.terminated, "два failed подряд завершают и отжимания (§9.3)")
         #expect(terminated.weightKg == nil)
+    }
+
+    @Test("штанга в калибровке без базовой линии: вес приходит из введённого (§9.8, §20.9)")
+    func calibrationWithoutBaselineStillTracksWeight() {
+        // `prescribed_kg` пуст — базовой линии ещё нет (§9.8), — но лестница
+        // весовая, и §20.9 велит брать вес из `actual_kg` последнего подхода.
+        let entered = Mapping.treeRoot(
+            sets: [set(1, "easy", reps: 12, actual: 40)],
+            startWeightKg: nil, range: range, isCalibration: true, ladder: ladder)
+        #expect(entered.weightKg == 47.5, "×1.15 от 40 и вверх по лестнице 2.5")
+        #expect(entered.calibrationIncreasesUsed == 1)
+
+        // То же состояние прямым вызовом ядра: корень обязан совпадать с
+        // источником, а не приближаться к нему (§20.15, 20c).
+        let direct = Progression.nextSet(priorFeedback: nil, current: 40, feedback: .easy,
+                                         actualReps: 12, range: range, isCalibration: true,
+                                         calibrationIncreasesUsed: 0, ladder: ladder)
+        #expect(direct == .nextWeight(47.5))
+
+        // До первого введённого веса его действительно нет: алгоритм не знает,
+        // с чего она начнёт, и выдумывать число нельзя.
+        let untouched = Mapping.treeRoot(sets: [], startWeightKg: nil, range: range,
+                                         isCalibration: true, ladder: ladder)
+        #expect(untouched.weightKg == nil)
+
+        // И он держится дальше по цепочке, а не теряется на втором подходе.
+        let second = Mapping.treeRoot(
+            sets: [set(1, "easy", reps: 12, actual: 40), set(2, "ok", reps: 10, actual: 47.5)],
+            startWeightKg: nil, range: range, isCalibration: true, ladder: ladder)
+        #expect(second.weightKg == 47.5, "«нормально» вес не двигает")
     }
 
     // MARK: - Стык с построением дерева
