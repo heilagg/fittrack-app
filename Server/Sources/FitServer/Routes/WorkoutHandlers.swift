@@ -193,4 +193,148 @@ extension WorkoutRoutes {
             return try WeekPlanRoutes.json(await body(tx, workout: workout, library: library))
         }
     }
+
+    // MARK: - POST /v1/workouts/{id}/exercises/{we_id}/sets
+
+    /// Тело запроса до полного разбора — только вопрос «есть ли `id`».
+    ///
+    /// §20.6 и тест 20e требуют отдельного кода на его отсутствие:
+    /// сгенерированный сервером ключ снял бы саму возможность отличить ретрай
+    /// от нового подхода, поэтому «без `id`» — это не «поле не прошло схему», а
+    /// своё различимое поведение клиента. Полный разбор `LogSetRequest` на
+    /// отсутствующем `id` дал бы `validation_failed`, то есть ответ не о том.
+    private struct SetIdentityProbe: Decodable {
+        let id: String?
+    }
+
+    /// Логирование подхода и новое дерево §20.9 в ответ.
+    ///
+    /// Порядок здесь несущий и весь продиктован §20.6:
+    ///
+    ///   1. сверить тренировку и упражнение — `we_id` приходит из пути отдельно
+    ///      от `id`, и без сверки подход лёг бы в чужую тренировку ТОЙ ЖЕ
+    ///      пользовательницы, чего RLS не ловит;
+    ///   2. проверить иммутабельность завершённого подхода (§4.3, тест 20f) —
+    ///      ДО записи, иначе отказ не отказ;
+    ///   3. upsert по клиентскому `id` (тест 20e);
+    ///   4. пересчитать `exercise_states` — на каждом подходе, потому что их
+    ///      читает следующий же запрос;
+    ///   5. **`muscle_fatigue` НЕ трогать** — она считается один раз, на
+    ///      `/finish` (§20.6). В пределах тренировки её не читает никто, а
+    ///      пересчёт на каждом подходе положил бы свёртку §8.1 на горячий путь
+    ///      §13.2 без единого читателя.
+    static func logSet(_ request: Request, database: Database,
+                       library: ContentLibrary) async throws -> Response {
+        let input = RawInput(request)
+        let rawWorkout = request.parameters.get("id")
+        let rawExercise = request.parameters.get("we_id")
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            let workoutID = try WeekPlanRoutes.uuid(rawWorkout, "id")
+            let exerciseID = try WeekPlanRoutes.uuid(rawExercise, "we_id")
+
+            // Проба отдельно от разбора: негодный JSON обязан дать
+            // `validation_failed`, а не `set_id_required`, поэтому бросает
+            // только явно отсутствующий ключ при разобранном теле.
+            if let probe = try? input.decode(SetIdentityProbe.self), probe.id == nil {
+                throw APIError(.setIDRequired)
+            }
+            let body = try input.decode(LogSetRequest.self)
+            let day = try RequestDay.validated(date: body.date, tz: body.tz)
+            let setID = try WeekPlanRoutes.uuid(body.id, "id")
+
+            guard let workout = try await Mapping.readWorkout(tx, id: workoutID) else {
+                throw APIError(.workoutNotStarted, details: ["id": .string(workoutID.uuidString)])
+            }
+            guard workout.finishedAt == nil else {
+                throw APIError(.workoutFinished, details: ["id": .string(workoutID.uuidString)])
+            }
+            guard let location = try await Mapping.readWorkoutExercise(tx, id: exerciseID),
+                  location.workoutID == workout.id
+            else { throw APIError(.notFound, details: ["we_id": .string(exerciseID.uuidString)]) }
+            let exercise = location.row
+
+            if let stored = try await Mapping.inspectSet(tx, id: setID, against: body) {
+                guard stored.workoutExerciseID == exercise.id else {
+                    // Тот же `id` на другом упражнении — не ретрай, а коллизия
+                    // ключа. Молча перенести подход нельзя: журнал обоих
+                    // упражнений стал бы неверным.
+                    throw APIError(.validationFailed, details: [
+                        "field": .string("id"),
+                        "reason": .string("belongs_to_another_exercise")
+                    ])
+                }
+                // Ретрай с ТЕМИ ЖЕ значениями отказом не является (§20.6):
+                // иначе клиент, потерявший ответ, не доедет никогда.
+                if stored.isCompleted, stored.differs {
+                    throw APIError(.setImmutable, details: ["id": .string(setID.uuidString)])
+                }
+            }
+
+            let profile = try await Mapping.readProfile(tx)
+            guard let complete = profile.complete else {
+                throw APIError(.profileIncomplete, details: [
+                    "missing": .string(Mapping.missingProfileFields(profile).joined(separator: ","))
+                ])
+            }
+            // Инвентарь ТРЕНИРОВКИ: лестница принадлежит тому, на чём она идёт.
+            let equipment = try await Mapping.readEquipment(
+                tx, id: workout.equipmentProfileID.flatMap(UUID.init(uuidString:)))
+            let candidate = library.candidates.first { $0.slug == exercise.slug }
+            let ladder = candidate.map {
+                WeightLadder.build(loadType: $0.loadType, profile: equipment.profile)
+            } ?? .none
+
+            // §20.6: суставы кладёт сервер, из `joint_stress` упражнения и на
+            // момент события — переразметка контента уже случившееся не меняет.
+            // Второй реализации «максимума» не заводится: правило §8.4 п.5
+            // живёт в `Recovery.painJoints`.
+            let joints = body.painFlag
+                ? Recovery.painJoints(from: candidate?.jointStress ?? [:])
+                    .map(\.rawValue).sorted()
+                : []
+
+            // `prescribed_reps` — верх ДЕЙСТВУЮЩЕГО диапазона, и берётся он из
+            // `workout_exercises.target_rep_max` (§20.3), а не вторым вызовом
+            // `repRange`: тот дал бы диапазон на состояние ПОСЛЕ подхода.
+            try await Mapping.upsertSet(tx, id: setID, workoutExerciseID: exerciseID, body: body,
+                                        prescribedReps: exercise.targetRepMax, painJoints: joints)
+
+            guard let userID = UUID(uuidString: tx.token.subject) else { throw APIError(.internal) }
+            let journal = try await Mapping.readSets(tx, since: nil, timeZone: day.timeZone)
+            // Свёртка та же, что у планировщика: `Planner.exerciseStates` зовёт
+            // `rebuildStates` с диапазоном от цели и лестницей инвентаря.
+            // Своей свёртки слой не делает (§20.6).
+            let states = Planner.exerciseStates(history: Mapping.exerciseHistory(from: journal),
+                                                library: library.candidates, goal: complete.goal,
+                                                equipment: equipment.profile)
+            if let state = states[exercise.slug] {
+                guard try await Mapping.writeExerciseState(tx, userID: userID,
+                                                           slug: exercise.slug, state: state)
+                else {
+                    // Строку завёл старт тренировки; её отсутствие означает, что
+                    // состав и журнал разошлись, и молча пройти мимо нельзя.
+                    throw APIError(.internal)
+                }
+            }
+            // Состояния может не быть законно: журнал, состоящий из одних
+            // пропусков, свёртка не читает вовсе (§9.3), и сворачивать нечего.
+
+            let after = try await Mapping.readWorkoutSets(tx, workoutID: workoutID)
+            let root = Mapping.treeRoot(
+                sets: after.journal[exercise.id] ?? [], startWeightKg: exercise.prescribedKg,
+                range: exercise.range, isCalibration: exercise.isCalibration, ladder: ladder)
+            let remaining = max(0, exercise.targetSets - (after.body[exercise.id]?.count ?? 0))
+            let tree = root.terminated
+                ? DecisionTree.terminated
+                : DecisionTree.build(
+                    weightKg: root.weightKg, remainingSets: remaining, range: exercise.range,
+                    isCalibration: exercise.isCalibration,
+                    previousWasFailed: root.previousWasFailed,
+                    calibrationIncreasesUsed: root.calibrationIncreasesUsed, ladder: ladder)
+            // Только дерево, без готового следующего подхода (§20.3): клиент уже
+            // применил ветку, и второй источник того же числа разошёлся бы с
+            // показанным после того, как она его увидела.
+            return try WeekPlanRoutes.json(LogSetResponseDTO(decisionTree: tree))
+        }
+    }
 }

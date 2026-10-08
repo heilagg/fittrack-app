@@ -230,6 +230,89 @@ extension Mapping {
         return nil
     }
 
+    /// Одна строка `workout_exercises` вместе с тренировкой, которой она
+    /// принадлежит.
+    ///
+    /// `workoutID` возвращается не для удобства: `we_id` приходит из пути
+    /// отдельно от `id` тренировки, и без сверки подход лёг бы в упражнение
+    /// ЧУЖОЙ тренировки той же пользовательницы — RLS этого не ловит, строки обе
+    /// её.
+    public struct WorkoutExerciseLocation: Sendable, Equatable {
+        public var row: WorkoutExerciseRow
+        public var workoutID: String
+    }
+
+    public static func readWorkoutExercise(_ tx: UserTransaction,
+                                           id: UUID) async throws -> WorkoutExerciseLocation? {
+        let rows = try await tx.query("""
+            select id::text, exercise_slug, order_index, target_sets, target_rep_min,
+                   target_rep_max, target_rir, prescribed_kg::float8, weight_readiness::float8,
+                   is_calibration, substituted_from, substitution_reason, workout_id::text
+              from workout_exercises
+             where id = \(id)
+            """)
+        for try await row in rows {
+            let (rowID, slug, order, sets, repMin, repMax, rir, kg, readiness, calibration,
+                 from, reason, workoutID) =
+                try row.decode((String, String, Int, Int, Int, Int, Int, Double?, Double, Bool,
+                                String?, String?, String).self)
+            return WorkoutExerciseLocation(
+                row: WorkoutExerciseRow(
+                    id: rowID, slug: slug, orderIndex: order, targetSets: sets,
+                    targetRepMin: repMin, targetRepMax: repMax, targetRIR: rir, prescribedKg: kg,
+                    weightReadiness: readiness, isCalibration: calibration,
+                    substitutedFrom: from, substitutionReason: reason),
+                workoutID: workoutID)
+        }
+        return nil
+    }
+
+    // MARK: - Иммутабельность подхода (§4.3, тест 20f)
+
+    /// Что известно про уже лежащую строку `sets` с этим `id`.
+    public struct StoredSet: Sendable, Equatable {
+        /// Чьё это упражнение — сверяется с тем, что назвал путь.
+        public var workoutExerciseID: String
+        /// `completed_at` непуст, то есть подход завершён (§4.3).
+        public var isCompleted: Bool
+        /// Присланное отличается от лежащего хотя бы одним полем клиента.
+        public var differs: Bool
+    }
+
+    /// Строка по `id` вместе с ответом «отличается ли она от присланного».
+    ///
+    /// **Сравнение делает Postgres, а не Swift**, и это не оптимизация.
+    /// `completed_at` приезжает строкой ISO 8601 с произвольным смещением, а
+    /// лежит `timestamptz`; сравнение строк объявило бы идемпотентный ретрай
+    /// (§20.6, тест 20e) ИЗМЕНЕНИЕМ, если клиент повторил тот же момент в другой
+    /// зоне, — и 20f отказал бы там, где отказывать нельзя. `is distinct from`
+    /// по колонке сравнивает моменты и масштабы `numeric` по значению.
+    ///
+    /// `prescribed_reps` и `pain_joints` в сравнение не входят: их пишет сервер
+    /// (§20.6), клиент их не присылает, и расхождение в них означало бы, что
+    /// сервер посчитал иначе, а не что подход изменили.
+    public static func inspectSet(_ tx: UserTransaction, id: UUID,
+                                  against body: LogSetRequest) async throws -> StoredSet? {
+        let rows = try await tx.query("""
+            select workout_exercise_id::text, completed_at is not null,
+                   (set_index, prescribed_kg, actual_kg, actual_reps, feedback, pain_flag,
+                    rest_seconds, completed_at, skipped)
+                     is distinct from
+                   (\(body.setIndex), \(body.prescribedKg)::numeric(6,2),
+                    \(body.actualKg)::numeric(6,2), \(body.actualReps),
+                    \(body.feedback?.rawValue), \(body.painFlag), \(body.restSeconds),
+                    \(body.completedAt)::timestamptz, \(body.skipped))
+              from sets
+             where id = \(id)
+            """)
+        for try await row in rows {
+            let (exerciseID, completed, differs) = try row.decode((String, Bool, Bool).self)
+            return StoredSet(workoutExerciseID: exerciseID, isCompleted: completed,
+                             differs: differs)
+        }
+        return nil
+    }
+
     // MARK: - День плана по идентификатору
 
     /// Строка `planned_days` вместе с неделей, которой она принадлежит.

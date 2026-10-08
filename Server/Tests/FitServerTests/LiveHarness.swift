@@ -194,6 +194,59 @@ enum Live {
         }
     }
 
+    // MARK: - Начатая тренировка
+
+    /// Профиль, неделя из одного СЕГОДНЯШНЕГО дня и начатая по нему тренировка.
+    ///
+    /// Фикстур общий на все тренировочные тесты: три копии одного посева
+    /// разъехались бы в мелочи (другой набор дней, другой инвентарь), и
+    /// утверждения разных файлов перестали бы говорить об одном и том же.
+    ///
+    /// День ровно один и он сегодняшний: только такой можно начать, и
+    /// утверждения не зависят от того, в какой день недели идёт прогон.
+    static func startedWorkout(_ app: Application, _ user: User,
+                               logger: Logger) async throws -> WorkoutDTO {
+        let today = Mapping.LocalTime.day(of: Date(), in: TimeZone(identifier: "Europe/Moscow")!)
+        let weekday = (today.dayNumber + 3) % 7 + 1
+        let day = DayContext(date: Mapping.LocalTime.iso(today), tz: "Europe/Moscow")
+        try await seed(app, user, logger: logger, weekdays: [weekday])
+
+        let generate = GenerateWeekPlanRequest(
+            weekStart: Mapping.LocalTime.iso(Mapping.LocalTime.mondayOfWeek(today)), day: day)
+        var dayID: String?
+        try await app.testing().test(.POST, "/v1/week-plans", headers: user.headers,
+                                     beforeRequest: { try $0.content.encode(generate) }) { response in
+            guard response.status == .created else {
+                throw Failure.seed("POST /v1/week-plans → \(response.status.code): "
+                                   + String(buffer: response.body))
+            }
+            dayID = try JSONDecoder().decode(WeekPlanResponseDTO.self,
+                                             from: Data(buffer: response.body))
+                .plan.days.first?.dayID
+        }
+        guard let dayID else { throw Failure.seed("неделя без дней") }
+
+        var workout: WorkoutDTO?
+        let start = StartWorkoutRequest(plannedDayID: dayID, day: day)
+        try await app.testing().test(.POST, "/v1/workouts", headers: user.headers,
+                                     beforeRequest: { try $0.content.encode(start) }) { response in
+            guard response.status == .created else {
+                throw Failure.seed("POST /v1/workouts → \(response.status.code): "
+                                   + String(buffer: response.body))
+            }
+            workout = try JSONDecoder().decode(WorkoutDTO.self, from: Data(buffer: response.body))
+        }
+        guard let workout else { throw Failure.seed("старт без тела") }
+        return workout
+    }
+
+    /// Пара `date`/`tz`, которой пользуются тренировочные тесты.
+    static var today: DayContext {
+        let zone = TimeZone(identifier: "Europe/Moscow")!
+        return DayContext(date: Mapping.LocalTime.iso(Mapping.LocalTime.day(of: Date(), in: zone)),
+                          tz: zone.identifier)
+    }
+
     // MARK: - Сервер
 
     static func quietLogger(_ label: String) -> Logger {

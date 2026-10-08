@@ -255,6 +255,74 @@ extension Mapping {
         }
     }
 
+    // MARK: - Подход (`POST …/sets`, §20.6)
+
+    /// Строка `sets` — **upsert по клиентскому `id`, а не insert** (§20.6).
+    ///
+    /// Это и есть механизм идемпотентности, которого требует 20e: ретрай после
+    /// таймаута приходит с тем же `id`, попадает в ту же строку, второй не
+    /// создаёт, и пересчёт производных идёт от того же журнала, а не от
+    /// удвоенного.
+    ///
+    /// **`workout_exercise_id` на конфликте НЕ обновляется.** Ретрай обязан
+    /// попасть в ту же строку, а не перенести подход в другое упражнение; сверку
+    /// «тот же ли это упражнение» делает вызывающая сторона до записи, и
+    /// оставленное здесь обновление её бы обессмыслило.
+    ///
+    /// `prescribed_reps` и `pain_joints` приходят параметрами, а не из тела:
+    /// первое — верх действующего диапазона (§20.6), второе — множество
+    /// суставов на момент события (§8.4 п.5). Оба считает сервер.
+    public static func upsertSet(
+        _ tx: UserTransaction, id: UUID, workoutExerciseID: UUID, body: LogSetRequest,
+        prescribedReps: Int, painJoints: [String]
+    ) async throws {
+        _ = try await tx.query("""
+            insert into sets (id, workout_exercise_id, set_index, prescribed_kg, prescribed_reps,
+                              actual_kg, actual_reps, feedback, pain_flag, pain_joints,
+                              rest_seconds, completed_at, skipped)
+            values (\(id), \(workoutExerciseID), \(body.setIndex), \(body.prescribedKg),
+                    \(prescribedReps), \(body.actualKg), \(body.actualReps),
+                    \(body.feedback?.rawValue), \(body.painFlag), \(painJoints),
+                    \(body.restSeconds), \(body.completedAt)::timestamptz, \(body.skipped))
+            on conflict (id) do update
+               set set_index      = excluded.set_index,
+                   prescribed_kg  = excluded.prescribed_kg,
+                   prescribed_reps = excluded.prescribed_reps,
+                   actual_kg      = excluded.actual_kg,
+                   actual_reps    = excluded.actual_reps,
+                   feedback       = excluded.feedback,
+                   pain_flag      = excluded.pain_flag,
+                   pain_joints    = excluded.pain_joints,
+                   rest_seconds   = excluded.rest_seconds,
+                   completed_at   = excluded.completed_at,
+                   skipped        = excluded.skipped
+            """)
+    }
+
+    /// Производное состояние прогрессии (§20.6).
+    ///
+    /// `current_rep_min`/`current_rep_max` НЕ трогаются: они снимок последней
+    /// СЕССИИ (§3.1, §20.6) и пишутся только вместе с ней. Поэтому `update`, а
+    /// не `upsert`: строка к этому моменту обязана существовать — её завёл
+    /// старт тренировки, — и `returning` превращает её отсутствие в отказ
+    /// вместо молчаливой потери состояния.
+    public static func writeExerciseState(_ tx: UserTransaction, userID: UUID, slug: String,
+                                          state: ExerciseState) async throws -> Bool {
+        let rows = try await tx.query("""
+            update exercise_states
+               set baseline_kg       = \(state.baselineKg),
+                   rep_extension     = \(state.repExtension),
+                   extra_sets_added  = \(state.extraSetsAdded),
+                   stall_count       = \(state.stallCount),
+                   last_performed_at = \(state.lastPerformedAt.map(LocalTime.iso))::date,
+                   in_calibration    = \(state.isInCalibration)
+             where user_id = \(userID) and exercise_slug = \(slug)
+            returning exercise_slug
+            """)
+        for try await _ in rows { return true }
+        return false
+    }
+
     // MARK: - Снимок показанного плана
 
     /// Читает `week_plans.last_shown_plan` (§20.6).

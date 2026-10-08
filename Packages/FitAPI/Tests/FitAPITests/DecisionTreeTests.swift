@@ -247,4 +247,20 @@ final class DecisionTreeTests: XCTestCase {
             }
         }
     }
+
+    /// §20.3: тело `POST …/sets` несёт дерево обязательно, а у упражнения,
+    /// закрывшегося двумя `failed` подряд, решать нечего. Завершение доезжает
+    /// «из узла с `terminates`» — и это ровно один такой узел, без переходов.
+    func test_terminatedTreeIsOneTerminalNode() throws {
+        let tree = DecisionTree.terminated
+        XCTAssertEqual(tree.nodes.count, 1)
+        let root = try XCTUnwrap(tree.nodes[tree.start])
+        XCTAssertTrue(root.terminates)
+        XCTAssertTrue(root.transitions.isEmpty, "предлагать следующий подход тут нечем")
+        XCTAssertNil(root.weightKg, "веса у несуществующего подхода нет")
+        XCTAssertFalse(root.truncated, "это не обрезка по пределу, а конец упражнения")
+
+        let json = try JSONEncoder().encode(tree)
+        XCTAssertEqual(try JSONDecoder().decode(DecisionTreeDTO.self, from: json), tree)
+    }
 }
