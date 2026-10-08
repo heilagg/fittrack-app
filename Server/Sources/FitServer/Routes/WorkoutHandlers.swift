@@ -62,7 +62,7 @@ extension WorkoutRoutes {
                     ])
                 }
                 return try WeekPlanRoutes.json(
-                    await body(tx, workout: existing, library: library, timeZone: day.timeZone))
+                    await body(tx, workout: existing, library: library))
             }
 
             guard let location = try await Mapping.readPlannedDay(tx, id: plannedDayID) else {
@@ -155,8 +155,42 @@ extension WorkoutRoutes {
                 throw APIError(.internal)
             }
             return try WeekPlanRoutes.json(
-                await body(tx, workout: stored, library: library, timeZone: day.timeZone),
+                await body(tx, workout: stored, library: library),
                 status: .created)
+        }
+    }
+
+    // MARK: - GET /v1/workouts/{id}
+
+    /// Тренировка целиком (§20.3): состав, подходы и дерево каждого упражнения.
+    ///
+    /// Путь читающий и ничего не пишет — ни строк, ни снимка плана. Тело то же,
+    /// что у старта, и собирается тем же `body`: два источника одного
+    /// `WorkoutDTO` разъехались бы не падением, а полем.
+    ///
+    /// **`date` и `tz` он не принимает, и это не пропуск.** §20.3 не даёт их
+    /// этому пути по тому же доводу, по которому их нет у `PATCH /v1/profile`:
+    /// день здесь не участвует ни в одной величине. Настоящие моменты
+    /// (`started_at`, `completed_at`) едут в UTC и от зоны не зависят, а дерево
+    /// §20.9 выводится из журнала по индексам подходов, а не по датам.
+    ///
+    /// **Дерево у начатого упражнения непустое**, и это ровно то, что §20.9
+    /// называет вторым потребителем вывода корня из журнала: «То же самое верно
+    /// для `GET /v1/workouts/{id}`, если упражнение начато». Считается он здесь
+    /// тем же `Mapping.treeRoot`, что и в `POST …/sets`, — одной реализацией на
+    /// два пути, иначе один экран показывал бы одно, а другой другое.
+    static func show(_ request: Request, database: Database,
+                     library: ContentLibrary) async throws -> Response {
+        let input = RawInput(request)
+        let rawID = request.parameters.get("id")
+        return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            let id = try WeekPlanRoutes.uuid(rawID, "id")
+            // RLS §3.2 отдаёт только свои строки, поэтому чужая тренировка здесь
+            // не «запрещена», а не существует — 404, а не 403.
+            guard let workout = try await Mapping.readWorkout(tx, id: id) else {
+                throw APIError(.notFound, details: ["id": .string(id.uuidString)])
+            }
+            return try WeekPlanRoutes.json(await body(tx, workout: workout, library: library))
         }
     }
 }

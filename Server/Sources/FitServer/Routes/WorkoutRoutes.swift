@@ -38,16 +38,19 @@ enum WorkoutRoutes {
         workouts.post { request async throws -> Response in
             try await start(request, database: database, library: library)
         }
+        workouts.get(":id") { request async throws -> Response in
+            try await show(request, database: database, library: library)
+        }
     }
 
     // MARK: - Тело ответа
 
     /// `WorkoutDTO` по строке тренировки: состав, подходы и деревья.
     static func body(_ tx: UserTransaction, workout: Mapping.WorkoutRow,
-                     library: ContentLibrary, timeZone: TimeZone) async throws -> WorkoutDTO {
+                     library: ContentLibrary) async throws -> WorkoutDTO {
         guard let workoutID = UUID(uuidString: workout.id) else { throw APIError(.internal) }
         let rows = try await Mapping.readWorkoutExercises(tx, workoutID: workoutID)
-        let sets = try await Mapping.readWorkoutSets(tx, workoutID: workoutID, timeZone: timeZone)
+        let sets = try await Mapping.readWorkoutSets(tx, workoutID: workoutID)
         // Инвентарь ТРЕНИРОВКИ, а не умолчание аккаунта: `equipment_profile_id`
         // принадлежит моменту (§20.3), и лестница дерева обязана быть его.
         let equipment = try await Mapping.readEquipment(

@@ -160,23 +160,35 @@ extension Mapping {
     /// согласованного среза. Одна выборка, два правила разбора: тот же приём,
     /// которым `readSets` кормит четверых потребителей сразу (§20.6).
     ///
-    /// `performedOn` в журнальной проекции считается от `workouts.started_at` в
-    /// зоне запроса (§20.7). `treeRoot` его не читает, и подставлять вместо него
-    /// заглушку всё равно нельзя: поле поедет в следующего потребителя, который
-    /// читает, и ошибка будет не здесь.
+    /// **`performedOn` здесь считается в UTC, и зона не принимается нарочно.**
+    /// Единственный потребитель журнальной проекции — `Mapping.treeRoot`
+    /// (§20.9), и он читает шесть полей: `set_index`, фидбэк, повторы,
+    /// фактический вес, пропуск и флаг боли. Даты среди них нет — порядок он
+    /// берёт по индексу подхода, а не по дню.
+    ///
+    /// Параметр зоны тут был и снят: `GET /v1/workouts/{id}` его взять негде —
+    /// §20.3 намеренно не даёт этому пути `date`/`tz`, по тому же доводу, по
+    /// которому их нет у `PATCH /v1/profile` («требовать пару там, где день не
+    /// участвует, значило бы завести поле, ошибку в котором ничем не
+    /// обнаружить»). Оставленный параметр заставлял бы один путь передавать
+    /// зону запроса, а другой — UTC, то есть делал бы поле верным на одном
+    /// пути и неверным на другом. Единообразный UTC честнее.
+    ///
+    /// Если дата этой проекции однажды понадобится — её нельзя доставать
+    /// отсюда: зону обязан дать запрос, а функция, которая это уже делает, есть
+    /// и называется `readSets` (§20.6).
     public static func readWorkoutSets(
-        _ tx: UserTransaction, workoutID: UUID, timeZone: TimeZone
+        _ tx: UserTransaction, workoutID: UUID
     ) async throws -> (body: [String: [SetDTO]], journal: [String: [SetRow]]) {
         var body: [String: [SetDTO]] = [:]
         var journal: [String: [SetRow]] = [:]
-        let zone = timeZone.identifier
         let rows = try await tx.query("""
             select s.workout_exercise_id::text, s.id::text, s.set_index,
                    s.prescribed_kg::float8, s.prescribed_reps, s.actual_kg::float8,
                    s.actual_reps, s.feedback, s.pain_flag, s.pain_joints, s.rest_seconds,
                    to_char(s.completed_at at time zone 'UTC', \(instantFormat)), s.skipped,
                    we.exercise_slug, we.is_calibration, we.weight_readiness::float8,
-                   to_char((w.started_at at time zone \(zone))::date, 'YYYY-MM-DD')
+                   to_char((w.started_at at time zone 'UTC')::date, 'YYYY-MM-DD')
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
               join workouts w on w.id = we.workout_id
