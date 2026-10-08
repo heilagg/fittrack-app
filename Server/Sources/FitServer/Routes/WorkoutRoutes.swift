@@ -41,6 +41,9 @@ enum WorkoutRoutes {
         workouts.get(":id") { request async throws -> Response in
             try await show(request, database: database, library: library)
         }
+        workouts.get(":id", "exercises", ":we_id", "alternatives") { request async throws -> Response in
+            try await alternatives(request, database: database, library: library)
+        }
         workouts.post(":id", "exercises", ":we_id", "sets") { request async throws -> Response in
             try await logSet(request, database: database, library: library)
         }
