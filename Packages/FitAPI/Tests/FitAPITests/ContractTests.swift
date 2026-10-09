@@ -369,6 +369,22 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(Set(json?.keys ?? [:].keys), ["decision_tree"])
     }
 
+    /// §20.3: `/finish` отдаёт `{workout, week}`; без недели ключа `week` нет —
+    /// общее правило FitAPI опускать отсутствующее, а не слать `null`.
+    func test_finishResponseCarriesWorkoutAndOptionalWeek() throws {
+        let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: [])))
+        let full = try JSONSerialization.jsonObject(with: try encoder.encode(
+            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: week))) as? [String: Any]
+        XCTAssertEqual(Set(full?.keys ?? [:].keys), ["workout", "week"])
+
+        let bare = try JSONSerialization.jsonObject(with: try encoder.encode(
+            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: nil))) as? [String: Any]
+        XCTAssertEqual(Set(bare?.keys ?? [:].keys), ["workout"])
+
+        let dto = FinishWorkoutResponseDTO(workout: workout(tree: tree), week: week)
+        XCTAssertEqual(try decoder.decode(FinishWorkoutResponseDTO.self, from: try encoder.encode(dto)), dto)
+    }
+
     /// Один тип на четыре недельных пути, `notice` необязателен.
     func test_weekPlanResponseCarriesOptionalNotice() throws {
         let plan = WeekPlanDTO(WeekPlan(days: [:], statusLines: []))

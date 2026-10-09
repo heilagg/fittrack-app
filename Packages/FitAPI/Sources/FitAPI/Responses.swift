@@ -424,6 +424,22 @@ public struct WorkoutDTO: Sendable, Equatable, Codable {
 /// вторым источником того же числа: разойдясь с показанным, он менял бы цифру
 /// после того, как пользовательница её увидела и приняла. Досрочное завершение
 /// упражнения (§9.3) клиент читает оттуда же — из узла с `terminates`.
+/// Тело `POST /v1/workouts/{id}/finish` (§20.3): итог тренировки и неделя с
+/// строкой «План обновлён» (§7.1).
+///
+/// `week` отсутствует, когда недели нет (`week_plans` не сгенерирована):
+/// `/finish` недель не генерирует. Ключ опускается, а не едет как `null`, —
+/// общее правило кодирования `FitAPI`.
+public struct FinishWorkoutResponseDTO: Sendable, Equatable, Codable {
+    public var workout: WorkoutDTO
+    public var week: WeekPlanResponseDTO?
+
+    public init(workout: WorkoutDTO, week: WeekPlanResponseDTO?) {
+        self.workout = workout
+        self.week = week
+    }
+}
+
 public struct LogSetResponseDTO: Sendable, Equatable, Codable {
     public var decisionTree: DecisionTreeDTO
 

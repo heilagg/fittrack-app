@@ -32,6 +32,7 @@ extension PatchProfileRequest: @retroactive Content {}
 
 // Ответы (§20.3).
 extension WeekPlanResponseDTO: @retroactive Content {}
+extension FinishWorkoutResponseDTO: @retroactive Content {}
 extension ProfileDTO: @retroactive Content {}
 extension TodayCardDTO: @retroactive Content {}
 extension WorkoutDTO: @retroactive Content {}
