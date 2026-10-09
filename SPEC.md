@@ -4703,7 +4703,7 @@ week_start)`, клиентского идентификатора не нужн�
 | `POST /v1/week-plans/{week_start}/rebuild` | `WeekPlanResponse` |
 | `POST /v1/workouts` | `Workout` |
 | `POST /v1/workouts/{id}/exercises/{we_id}/sets` | `{decision_tree}` |
-| `POST /v1/workouts/{id}/finish` | `{workout, week}`; `week` может быть `null` (см. выше) |
+| `POST /v1/workouts/{id}/finish` | `{workout, week?}`; без недели ключа `week` нет (см. выше) |
 | `POST /v1/workouts/{id}/exercises/{we_id}/substitute` | `WorkoutExercise` |
 
 Поля тел, которых раньше не было:
@@ -4883,7 +4883,7 @@ CycleProfile      {typical_cycle_length_days?, typical_period_length_days?,
 запроса: тренировку, начатую в воскресенье и закрытую после полуночи, итог
 обязан показать вместе с той неделей, где она стояла. Без `planned_day_id` —
 неделя по `date`. Если такой недели нет (`week_plans` не сгенерирована),
-`week` равен `null`: `/finish` недели не генерирует — генерация есть отдельное
+`week` отсутствует — ключ опускается, а не едет как `null`, по общему правилу кодирования `FitAPI`: `/finish` недели не генерирует — генерация есть отдельное
 действие (`POST /v1/week-plans`) со своим снимком и своей идемпотентностью, и
 завершение тренировки молча порождать её не вправе.
 
