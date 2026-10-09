@@ -170,7 +170,11 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
     public var restSeconds: Int?
     /// Момент завершения подхода, ISO 8601 с зоной. Настоящий момент, не
     /// значение шкалы FitCore (§20.7).
-    public var completedAt: String?
+    ///
+    /// Обязателен, как в таблице §20.3: подход приезжает уже завершённым
+    /// (§20.15, 20g), и без момента его нечем применить к утомлению §8.1 на
+    /// `/finish`. Пропущенный подход несёт его тоже — это момент отметки.
+    public var completedAt: String
     public var skipped: Bool
     public var date: String
     public var tz: String
@@ -185,7 +189,7 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
 
     public init(id: String, setIndex: Int, prescribedKg: Double? = nil,
                 actualKg: Double? = nil, actualReps: Int? = nil, feedback: Feedback? = nil,
-                painFlag: Bool = false, restSeconds: Int? = nil, completedAt: String? = nil,
+                painFlag: Bool = false, restSeconds: Int? = nil, completedAt: String,
                 skipped: Bool = false, day: DayContext) {
         self.id = id
         self.setIndex = setIndex
@@ -211,7 +215,7 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
         feedback = try c.decodeRawIfPresent(Feedback.self, forKey: .feedback)
         painFlag = try c.decodeIfPresent(Bool.self, forKey: .painFlag) ?? false
         restSeconds = try c.decodeIfPresent(Int.self, forKey: .restSeconds)
-        completedAt = try c.decodeIfPresent(String.self, forKey: .completedAt)
+        completedAt = try c.decode(String.self, forKey: .completedAt)
         skipped = try c.decodeIfPresent(Bool.self, forKey: .skipped) ?? false
         date = try c.decode(String.self, forKey: .date)
         tz = try c.decode(String.self, forKey: .tz)
@@ -227,7 +231,7 @@ public struct LogSetRequest: Sendable, Equatable, Codable {
         try c.encodeRawIfPresent(feedback, forKey: .feedback)
         try c.encode(painFlag, forKey: .painFlag)
         try c.encodeIfPresent(restSeconds, forKey: .restSeconds)
-        try c.encodeIfPresent(completedAt, forKey: .completedAt)
+        try c.encode(completedAt, forKey: .completedAt)
         try c.encode(skipped, forKey: .skipped)
         try c.encode(date, forKey: .date)
         try c.encode(tz, forKey: .tz)

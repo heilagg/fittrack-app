@@ -54,15 +54,26 @@ final class RequestContractTests: XCTestCase {
     }
 
     func test_logSetOmitsAbsentOptionalsRatherThanSendingNull() throws {
-        let body = try json(LogSetRequest(id: "s1", setIndex: 1, day: day))
-        for key in ["prescribed_kg", "actual_kg", "actual_reps", "feedback", "rest_seconds",
-                    "completed_at"] {
+        let body = try json(LogSetRequest(id: "s1", setIndex: 1,
+                                          completedAt: "2026-09-29T19:04:00+03:00", day: day))
+        for key in ["prescribed_kg", "actual_kg", "actual_reps", "feedback", "rest_seconds"] {
             XCTAssertNil(body[key], "\(key): отсутствующее поле не едет как null")
         }
         // Непустые по умолчанию — едут всегда: у клиента нет способа «не знать»,
         // пропущен подход или нет.
         XCTAssertEqual(body["pain_flag"] as? Bool, false)
         XCTAssertEqual(body["skipped"] as? Bool, false)
+    }
+
+    /// §20.3 даёт `completed_at` без `?`: тело без него — не подход, а ошибка
+    /// схемы. Раньше поле было необязательным, и сервер писал подход без
+    /// момента, который `/finish` не смог бы применить к утомлению §8.1.
+    func test_logSetWithoutCompletedAtDoesNotDecode() throws {
+        for raw in [#"{"id":"s1","set_index":1,"date":"2026-09-29","tz":"Europe/Moscow"}"#,
+                    #"{"id":"s1","set_index":1,"completed_at":null,"date":"2026-09-29","tz":"Europe/Moscow"}"#] {
+            XCTAssertThrowsError(try JSONDecoder().decode(LogSetRequest.self, from: Data(raw.utf8)),
+                                 "без completed_at тело разобралось: \(raw)")
+        }
     }
 
     func test_logSetSurvivesRoundTrip() throws {

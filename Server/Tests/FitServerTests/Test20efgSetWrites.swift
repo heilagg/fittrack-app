@@ -164,6 +164,32 @@ struct Test20efgSetWrites {
         }
     }
 
+    @Test("тело без completed_at отклоняется с validation_failed, строки нет (§20.3)")
+    func missingCompletedAtIsRefused() async throws {
+        let user = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("test.sets.nocompleted")
+
+        try await Live.withServer("test.sets.nocompleted") { app, database in
+            let workout = try await Live.startedWorkout(app, user, logger: logger)
+            let exercise = try #require(workout.exercises.first)
+
+            for completed in ["", #","completed_at":null"#] {
+                let json = """
+                    {"id":"\(UUID().uuidString)","set_index":1,"actual_kg":10,"actual_reps":10,
+                     "feedback":"ok","pain_flag":false,"skipped":false\(completed),
+                     "date":"\(Live.today.date)","tz":"\(Live.today.tz)"}
+                    """
+                let (status, raw) = try await self.postRaw(app, user, workout: workout.id,
+                                                           exercise: exercise.id, json: json)
+                #expect(status == 422, Comment(rawValue: String(decoding: raw, as: UTF8.self)))
+                let envelope = try JSONDecoder().decode(APIErrorEnvelope.self, from: raw)
+                #expect(envelope.error.code == .validationFailed)
+                #expect(envelope.error.details?["field"] == .string("completed_at"))
+            }
+            #expect(try await self.setCount(database, user) == 0, "строка не появилась")
+        }
+    }
+
     // MARK: - 20f. Иммутабельность завершённого подхода (§4.3)
 
     @Test("20f: изменение подхода с непустым completed_at отклоняется")
@@ -244,22 +270,18 @@ struct Test20efgSetWrites {
                     `old.* is distinct from new.*` не работает
                     """)
 
-            // Настоящее изменение — двигает. Берём НЕзавершённый подход, потому
-            // что завершённый менять запрещает 20f.
-            let open = LogSetRequest(id: UUID().uuidString, setIndex: 2, prescribedKg: 10,
-                                     actualKg: 10, actualReps: 10, feedback: .ok,
-                                     completedAt: nil, day: Live.today)
-            let (third, _) = try await self.post(app, user, workout: workout.id,
-                                                 exercise: exercise.id, open)
-            #expect(third == 200)
-            let afterOpen = try await self.syncSeq(database, user, workout: workout.id)
-
-            var changed = open
-            changed.actualReps = 11
-            let (fourth, raw) = try await self.post(app, user, workout: workout.id,
-                                                   exercise: exercise.id, changed)
-            #expect(fourth == 200, Comment(rawValue: String(decoding: raw, as: UTF8.self)))
-            #expect(try await self.syncSeq(database, user, workout: workout.id) > afterOpen,
+            // Настоящее изменение — двигает. По HTTP его нет: подход приезжает
+            // завершённым (`completed_at` обязателен, §20.3), а 20f запрещает
+            // менять завершённый — путь «изменение» есть только у FitData
+            // (§20.15). Поэтому вторая половина условия триггера проверяется
+            // прямой записью транзакцией той же пользовательницы, а не путём.
+            let setID = try #require(UUID(uuidString: id))
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                try await tx.query("""
+                    update sets set actual_reps = actual_reps + 1 where id = \(setID)
+                    """)
+            }
+            #expect(try await self.syncSeq(database, user, workout: workout.id) > afterInsert,
                     "настоящее изменение строки курсор не сдвинуло")
         }
     }
