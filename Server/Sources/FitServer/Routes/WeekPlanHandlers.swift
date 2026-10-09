@@ -272,6 +272,11 @@ extension WeekPlanRoutes {
             if body.sessionKind == .rest {
                 throw APIError(.validationFailed, details: ["field": .string("session_kind")])
             }
+            // §20.3: `done` ставит только `/finish`, вместе с закрытием
+            // тренировки; `replaced` не производит ни один путь.
+            if let status = body.status, status != .planned, status != .skipped {
+                throw APIError(.validationFailed, details: ["field": .string("status")])
+            }
 
             guard let week = try await loadWeek(tx, weekStart: weekStart),
                   week.days.contains(where: { $0.id == dayID.uuidString.lowercased() })
