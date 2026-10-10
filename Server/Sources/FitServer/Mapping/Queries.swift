@@ -139,7 +139,9 @@ extension Mapping {
         var painRows: [PainRow] = []
         let pain = try await tx.query("""
             select s.exercise_slug, s.pain_joints,
-                   to_char((s.completed_at at time zone \(timeZone.identifier))::date, 'YYYY-MM-DD')
+                   -- День СЕССИИ события, зафиксированный при записи (§20.7), а
+                   -- не `completed_at` в зоне читающего запроса.
+                   to_char(s.performed_on, 'YYYY-MM-DD')
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
              where s.pain_flag and s.completed_at is not null
@@ -147,7 +149,7 @@ extension Mapping {
         for try await row in pain {
             let (slug, joints, date) = try row.decode((String, [String], String).self)
             painRows.append(PainRow(exerciseSlug: slug, joints: joints,
-                                    occurredOn: try day(date, column: "sets.completed_at")))
+                                    occurredOn: try day(date, column: "sets.performed_on")))
         }
 
         var hasRedFlag = false
@@ -342,11 +344,11 @@ extension Mapping {
             select s.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
                    s.actual_reps, s.feedback, s.skipped, s.pain_flag, s.is_calibration,
                    s.weight_readiness::float8,
-                   to_char((w.started_at at time zone \(zone))::date, 'YYYY-MM-DD')
+                   to_char(s.performed_on, 'YYYY-MM-DD')
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
               join workouts w on w.id = we.workout_id
-             where (w.started_at at time zone \(zone))::date >= \(from)::date
+             where s.performed_on >= \(from)::date
                and w.deleted_at is null
              order by w.started_at, we.order_index, s.set_index
             """)
@@ -360,7 +362,7 @@ extension Mapping {
                                  actualKg: actual, actualReps: reps, feedback: feedback,
                                  skipped: skipped, painFlag: pain, isCalibration: calibration,
                                  weightReadiness: readiness,
-                                 performedOn: try day(date, column: "workouts.started_at")))
+                                 performedOn: try day(date, column: "sets.performed_on")))
         }
         return result
     }
@@ -377,13 +379,21 @@ extension Mapping {
         let from = since.map(LocalTime.iso) ?? "0001-01-01"
 
         var workouts: [CompletedWorkoutRow] = []
+        // День тренировки — самый ранний `performed_on` её подходов (§20.7): он
+        // зафиксирован при записи. У тренировки без подходов дня на подходе
+        // нет, и берётся `started_at` в зоне запроса — объёма она не несёт.
         let workoutRows = try await tx.query("""
-            select w.id::text, w.planned_day_id::text,
-                   to_char((w.started_at at time zone \(zone))::date, 'YYYY-MM-DD'),
+            select w.id::text, w.planned_day_id::text, to_char(d.day, 'YYYY-MM-DD'),
                    extract(epoch from w.finished_at)::float8 / 3600
               from workouts w
+              cross join lateral (
+                select coalesce(
+                         (select min(s.performed_on) from sets s
+                            join workout_exercises we on we.id = s.workout_exercise_id
+                           where we.workout_id = w.id),
+                         (w.started_at at time zone \(zone))::date) as day) d
              where w.finished_at is not null and w.deleted_at is null
-               and (w.started_at at time zone \(zone))::date >= \(from)::date
+               and d.day >= \(from)::date
              order by w.finished_at
             """)
         for try await row in workoutRows {
@@ -391,7 +401,7 @@ extension Mapping {
                 try row.decode((String, String?, String, Double).self)
             workouts.append(CompletedWorkoutRow(
                 id: id, plannedDayID: plannedDay,
-                date: try day(date, column: "workouts.started_at"),
+                date: try day(date, column: "sets.performed_on"),
                 // §20.6, обязанность 12: из `finished_at`, и без зоны —
                 // значение служит только порядку.
                 performedAt: Timestamp(hoursSinceEpoch: hours)))
@@ -405,7 +415,10 @@ extension Mapping {
               join workout_exercises we on we.id = s.workout_exercise_id
               join workouts w on w.id = we.workout_id
              where w.finished_at is not null and w.deleted_at is null
-               and (w.started_at at time zone \(zone))::date >= \(from)::date
+               and coalesce((select min(s2.performed_on) from sets s2
+                               join workout_exercises we2 on we2.id = s2.workout_exercise_id
+                              where we2.workout_id = w.id),
+                            (w.started_at at time zone \(zone))::date) >= \(from)::date
             """)
         for try await row in setRows {
             let (workoutID, slug, index, reps, feedback, skipped, pain, calibration) =

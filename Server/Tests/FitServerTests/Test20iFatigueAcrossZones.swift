@@ -11,8 +11,13 @@
 //      `Recovery.applying` с метками «Токио для А» и «Нью-Йорк для Б».
 //
 //  Метка, переведённая при чтении в зону запроса, или записанная в UTC, даёт
-//  другую разность и другое значение. Половина 20i про
-//  `exercise_states.last_performed_at` (§9.7) здесь не проверяется.
+//  другую разность и другое значение.
+//
+//  Вторая половина — день журнала (`sets.performed_on`, миграция 0013): из
+//  него свёртка берёт `lastPerformedAt` и ступень детренированности §9.7, из
+//  него же — окна флагов боли §8.4 и `неделя[m]`. Подходы пишутся в зоне
+//  Москвы в 01:00, когда в Нью-Йорке ещё вчера, и все три читателя, вызванные с
+//  зоной Нью-Йорка, обязаны дать тот же день, что с зоной Москвы.
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -116,6 +121,73 @@ struct Test20iFatigueAcrossZones {
                         "\(muscle.rawValue): \(row.value) против \(state.value)")
                 #expect(abs(row.updatedAt.hoursSinceEpoch - state.updatedAt.hoursSinceEpoch) < 1e-6,
                         "\(muscle.rawValue): метка уехала со шкалы зоны записи")
+            }
+        }
+    }
+    @Test("20i: день журнала не зависит от зоны читающего запроса (§9.7, §8.4, неделя[m])")
+    func test20i_journalDaySurvivesZoneChange() async throws {
+        let user = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("test.20i.day")
+        let library = try FitContent.Content.loadBundled()
+        let moscow = TimeZone(identifier: "Europe/Moscow")!
+
+        try await Live.withServer("test.20i.day") { app, database in
+            let workout = try await Live.startedWorkout(app, user, logger: logger)
+            let first = try #require(workout.exercises.first)
+            let second = try #require(workout.exercises.dropFirst().first)
+            // Сессия начата в 01:00 по Москве десять дней назад: в Нью-Йорке в
+            // этот момент ещё предыдущий день.
+            let today = Mapping.LocalTime.day(of: Date(), in: moscow)
+            let sessionDay = CalendarDay(dayNumber: today.dayNumber - 10)
+            let startedAt = "\(Mapping.LocalTime.iso(sessionDay))T01:00:00+03:00"
+            let id = try #require(UUID(uuidString: workout.id))
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                try await tx.query("update workouts set started_at = \(startedAt)::timestamptz where id = \(id)")
+            }
+            let moscowDay = self.context(moscow)
+            let sets = [
+                LogSetRequest(id: UUID().uuidString, setIndex: 1, prescribedKg: 10, actualKg: 10,
+                              actualReps: 10, feedback: .ok, completedAt: startedAt, day: moscowDay),
+                LogSetRequest(id: UUID().uuidString, setIndex: 1, painFlag: true,
+                              completedAt: startedAt, day: moscowDay),
+            ]
+            for (body, exercise) in zip(sets, [first, second]) {
+                try await app.testing().test(
+                    .POST, "/v1/workouts/\(workout.id)/exercises/\(exercise.id)/sets",
+                    headers: user.headers, beforeRequest: { try $0.content.encode(body) }
+                ) { #expect($0.status == .ok, Comment(rawValue: String(buffer: $0.body))) }
+            }
+            try await app.testing().test(
+                .POST, "/v1/workouts/\(workout.id)/finish", headers: user.headers,
+                beforeRequest: { try $0.content.encode(FinishWorkoutRequest(day: moscowDay)) }
+            ) { #expect($0.status == .ok) }
+
+            // Контроль: в Нью-Йорке момент старта действительно приходится на
+            // предыдущий день, иначе равенство ниже ничего не доказывает.
+            let startedInNewYork = Mapping.LocalTime.day(
+                of: try #require(ISO8601DateFormatter().date(from: startedAt)), in: self.newYork)
+            #expect(startedInNewYork.dayNumber == sessionDay.dayNumber - 1)
+
+            for zone in [moscow, self.newYork] {
+                let (journal, safety, completed) = try await database.withUserTransaction(
+                    authorization: "Bearer \(user.token)") { tx in
+                    (try await Mapping.readSets(tx, since: nil, timeZone: zone),
+                     try await Mapping.readSafety(tx, level: .intermediate, timeZone: zone),
+                     try await Mapping.readCompleted(tx, since: nil, timeZone: zone))
+                }
+                let name = zone.identifier
+                #expect(!journal.isEmpty && journal.allSatisfy { $0.performedOn == sessionDay },
+                        "\(name): день журнала уехал — \(journal.map(\.performedOn.dayNumber))")
+                let pain = try #require(safety.painEvents.first, "\(name): событие боли пропало")
+                #expect(pain.occurredOn == sessionDay, "\(name): окно флага боли сдвинуто")
+                #expect(completed.rows.map(\.date) == [sessionDay], "\(name): неделя[m] сдвинута")
+                let states = Planner.exerciseStates(
+                    history: Mapping.exerciseHistory(from: journal), library: library.candidates,
+                    goal: .hypertrophy, equipment: try await database.withUserTransaction(
+                        authorization: "Bearer \(user.token)") { tx in
+                        try await Mapping.readEquipment(tx, id: nil).profile })
+                #expect(states[first.slug]?.lastPerformedAt == sessionDay,
+                        "\(name): lastPerformedAt, а с ним ступень §9.7, сдвинут")
             }
         }
     }

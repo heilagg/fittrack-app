@@ -160,23 +160,10 @@ extension Mapping {
     /// согласованного среза. Одна выборка, два правила разбора: тот же приём,
     /// которым `readSets` кормит четверых потребителей сразу (§20.6).
     ///
-    /// **`performedOn` здесь считается в UTC, и зона не принимается нарочно.**
-    /// Единственный потребитель журнальной проекции — `Mapping.treeRoot`
-    /// (§20.9), и он читает шесть полей: `set_index`, фидбэк, повторы,
-    /// фактический вес, пропуск и флаг боли. Даты среди них нет — порядок он
-    /// берёт по индексу подхода, а не по дню.
-    ///
-    /// Параметр зоны тут был и снят: `GET /v1/workouts/{id}` его взять негде —
-    /// §20.3 намеренно не даёт этому пути `date`/`tz`, по тому же доводу, по
-    /// которому их нет у `PATCH /v1/profile` («требовать пару там, где день не
-    /// участвует, значило бы завести поле, ошибку в котором ничем не
-    /// обнаружить»). Оставленный параметр заставлял бы один путь передавать
-    /// зону запроса, а другой — UTC, то есть делал бы поле верным на одном
-    /// пути и неверным на другом. Единообразный UTC честнее.
-    ///
-    /// Если дата этой проекции однажды понадобится — её нельзя доставать
-    /// отсюда: зону обязан дать запрос, а функция, которая это уже делает, есть
-    /// и называется `readSets` (§20.6).
+    /// **`performedOn` — день сессии из `sets.performed_on`**, зафиксированный
+    /// при записи подхода (§20.7), поэтому зона здесь не нужна вовсе: путь
+    /// `GET /v1/workouts/{id}` её и не получает (§20.3). Раньше день считался
+    /// из `started_at` в UTC, то есть на одном пути верно, на другом нет.
     public static func readWorkoutSets(
         _ tx: UserTransaction, workoutID: UUID
     ) async throws -> (body: [String: [SetDTO]], journal: [String: [SetRow]]) {
@@ -188,7 +175,7 @@ extension Mapping {
                    s.actual_reps, s.feedback, s.pain_flag, s.pain_joints, s.rest_seconds,
                    to_char(s.completed_at at time zone 'UTC', \(instantFormat)), s.skipped,
                    s.exercise_slug, s.is_calibration, s.weight_readiness::float8,
-                   to_char((w.started_at at time zone 'UTC')::date, 'YYYY-MM-DD')
+                   to_char(s.performed_on, 'YYYY-MM-DD')
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
               join workouts w on w.id = we.workout_id
@@ -210,7 +197,7 @@ extension Mapping {
                 exerciseSlug: slug, setIndex: index, prescribedKg: prescribedKg,
                 actualKg: actualKg, actualReps: actualReps, feedback: feedback, skipped: skipped,
                 painFlag: painFlag, isCalibration: calibration, weightReadiness: readiness,
-                performedOn: try self.day(day, column: "workouts.started_at")))
+                performedOn: try self.day(day, column: "sets.performed_on")))
         }
         return (body, journal)
     }

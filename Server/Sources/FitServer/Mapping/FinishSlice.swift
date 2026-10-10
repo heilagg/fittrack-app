@@ -68,7 +68,7 @@ extension Mapping {
             select s.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
                    s.actual_reps, s.feedback, s.skipped, s.pain_flag, s.is_calibration,
                    s.weight_readiness::float8,
-                   to_char((w.started_at at time zone \(zone))::date, 'YYYY-MM-DD'),
+                   to_char(s.performed_on, 'YYYY-MM-DD'),
                    extract(epoch from (s.completed_at at time zone \(zone)))::float8 / 3600
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
@@ -87,7 +87,7 @@ extension Mapping {
                             actualKg: actual, actualReps: reps, feedback: feedback,
                             skipped: skipped, painFlag: pain, isCalibration: calibration,
                             weightReadiness: readiness,
-                            performedOn: try day(date, column: "workouts.started_at")),
+                            performedOn: try day(date, column: "sets.performed_on")),
                 completedAt: Timestamp(hoursSinceEpoch: hours)))
         }
         return result
