@@ -177,6 +177,83 @@ export const weekPlanResponseSchema = z.object({
 })
 export type WeekPlanResponse = z.infer<typeof weekPlanResponseSchema>
 
+// MARK: - Тренировка (§20.3, §20.9)
+
+export const setSchema = z.object({
+  id: z.string(),
+  exercise_slug: z.string(),
+  set_index: z.number().int(),
+  prescribed_kg: z.number().optional(),
+  prescribed_reps: z.number().int(),
+  actual_kg: z.number().optional(),
+  actual_reps: z.number().int().optional(),
+  feedback: z.enum(['easy', 'ok', 'hard', 'failed']).optional(),
+  pain_flag: z.boolean(),
+  pain_joints: z.array(z.string()),
+  rest_seconds: z.number().int().optional(),
+  completed_at: z.string().optional(),
+  skipped: z.boolean(),
+})
+export type SetRow = z.infer<typeof setSchema>
+
+/**
+ * Карта состояний дерева §20.9: переход ведёт к идентификатору узла, а не к
+ * вложенному потомку. Применяется она в срезе 3; здесь только разбор.
+ */
+export const decisionNodeSchema = z.object({
+  weight_kg: z.number().optional(),
+  truncated: z.boolean(),
+  terminates: z.boolean(),
+  transitions: z.record(z.string(), z.string()),
+})
+export const decisionTreeSchema = z.object({
+  start: z.string(),
+  nodes: z.record(z.string(), decisionNodeSchema),
+})
+export type DecisionTree = z.infer<typeof decisionTreeSchema>
+
+export const workoutExerciseSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  order_index: z.number().int(),
+  target_sets: z.number().int(),
+  target_rep_min: z.number().int(),
+  target_rep_max: z.number().int(),
+  target_rir: z.number().int(),
+  prescribed_kg: z.number().optional(),
+  weight_readiness: z.number(),
+  is_calibration: z.boolean(),
+  substituted_from: z.string().optional(),
+  substitution_reason: z.string().optional(),
+  // Пусто ровно тогда, когда подходов не осталось (§20.3).
+  decision_tree: decisionTreeSchema.optional(),
+  sets: z.array(setSchema),
+})
+export type WorkoutExercise = z.infer<typeof workoutExerciseSchema>
+
+export const workoutSchema = z.object({
+  id: z.string(),
+  planned_day_id: z.string().optional(),
+  session_kind: z.enum(['full_body', 'upper', 'lower', 'push', 'pull', 'rest', 'stretch']),
+  accent_muscle: z.string().optional(),
+  started_at: z.string(),
+  finished_at: z.string().optional(),
+  readiness: z.number(),
+  cycle_phase: z.string().optional(),
+  cycle_confidence: z.number().optional(),
+  is_calibration: z.boolean(),
+  exercises: z.array(workoutExerciseSchema),
+})
+export type Workout = z.infer<typeof workoutSchema>
+
+export const startWorkoutRequestSchema = z.object({
+  planned_day_id: z.string(),
+  equipment_profile_id: z.string().optional(),
+  date: z.string(),
+  tz: z.string(),
+})
+export type StartWorkoutRequest = z.infer<typeof startWorkoutRequestSchema>
+
 // MARK: - Профиль (§20.3)
 
 export const cycleProfileSchema = z.object({

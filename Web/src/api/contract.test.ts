@@ -14,8 +14,10 @@ import {
   generateWeekPlanRequestSchema,
   patchProfileRequestSchema,
   profileSchema,
+  startWorkoutRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
+  workoutSchema,
 } from './schemas'
 import { ApiClient } from './client'
 
@@ -31,6 +33,11 @@ const schemaFor: Record<string, ZodType> = {
   'profile_complete.json': profileSchema,
   'week_plan_response.json': weekPlanResponseSchema,
   'content_exercises.json': exerciseContentListSchema,
+  'workout_started.json': workoutSchema,
+  'workout_in_progress.json': workoutSchema,
+  'error_unlinked_account.json': errorEnvelopeSchema,
+  'error_day_not_planned.json': errorEnvelopeSchema,
+  'request_start_workout.json': startWorkoutRequestSchema,
   'error_profile_incomplete.json': errorEnvelopeSchema,
   'error_unauthorized.json': errorEnvelopeSchema,
   'error_date_skew.json': errorEnvelopeSchema,
@@ -87,7 +94,63 @@ describe('эталонные JSON границы /v1', () => {
   })
 })
 
+describe('тренировка (срез 2)', () => {
+  it('карта дерева: упражнение без веса — без weight_kg, с завершающим узлом', () => {
+    const workout = workoutSchema.parse(load('workout_started.json'))
+    const [weighted, bodyweight] = workout.exercises
+    expect(weighted!.decision_tree!.nodes.n0!.weight_kg).toBe(40)
+    expect(weighted!.decision_tree!.nodes.n2!.truncated).toBe(true)
+    const tree = bodyweight!.decision_tree!
+    expect(Object.values(tree.nodes).every((n) => n.weight_kg === undefined)).toBe(true)
+    expect(Object.values(tree.nodes).some((n) => n.terminates)).toBe(true)
+  })
+
+  it('подход несёт слаг упражнения и все обязательные ключи', () => {
+    const workout = workoutSchema.parse(load('workout_in_progress.json'))
+    const set = workout.exercises[0]!.sets[0]!
+    expect(set.exercise_slug).toBe('pushup_bw')
+    expect(set.pain_flag).toBe(false)
+    expect(set.pain_joints).toEqual([])
+    expect(set.skipped).toBe(false)
+    expect(set.feedback).toBe('ok')
+  })
+
+  it('идущая тренировка не завершена, у начатой нет подходов', () => {
+    const started = workoutSchema.parse(load('workout_started.json'))
+    expect(started.finished_at).toBeUndefined()
+    expect(started.exercises.every((e) => e.sets.length === 0)).toBe(true)
+  })
+
+  it('day_not_planned несёт id идущей тренировки в details', () => {
+    const envelope = errorEnvelopeSchema.parse(load('error_day_not_planned.json'))
+    expect(envelope.error.code).toBe('day_not_planned')
+    expect(typeof envelope.error.details?.workout_id).toBe('string')
+  })
+
+  it('unlinked_account — код из словаря без details', () => {
+    const envelope = errorEnvelopeSchema.parse(load('error_unlinked_account.json'))
+    expect(envelope.error.code).toBe('unlinked_account')
+    expect(envelope.error.details).toBeUndefined()
+  })
+})
+
 describe('тела запросов клиента совпадают с эталонами', () => {
+  it('startWorkout шлёт planned_day_id, date и tz — те же ключи, что эталон', async () => {
+    const sent: unknown[] = []
+    const api = new ApiClient({
+      getToken: async () => 't',
+      fetch: async (_url, init) => {
+        sent.push(JSON.parse(String(init?.body)))
+        return new Response(JSON.stringify(load('workout_started.json')), { status: 201 })
+      },
+    })
+    const fixture = load('request_start_workout.json') as Record<string, string>
+    await api.startWorkout(fixture.planned_day_id!)
+    const body = sent[0] as Record<string, string>
+    expect(Object.keys(body).sort()).toEqual(Object.keys(fixture).sort())
+    expect(body.planned_day_id).toBe(fixture.planned_day_id)
+  })
+
   it('generateWeek шлёт week_start, date и tz — как эталон', async () => {
     const sent: unknown[] = []
     const api = new ApiClient({

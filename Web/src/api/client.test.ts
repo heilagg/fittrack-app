@@ -86,4 +86,44 @@ describe('ApiClient', () => {
     expect(error).toBeInstanceOf(NetworkError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it('POST /v1/workouts: planned_day_id, date, tz и токен; без инвентаря ключа нет', async () => {
+    const workout = {
+      id: 'w1',
+      session_kind: 'lower',
+      started_at: '2026-10-12T09:30:00Z',
+      readiness: 1,
+      is_calibration: false,
+      exercises: [],
+    }
+    const fetchMock = vi.fn(async () => json(workout, 201))
+    await client(fetchMock as unknown as typeof fetch).startWorkout('day-1')
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/v1/workouts')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body)) as Record<string, string>
+    expect(body.planned_day_id).toBe('day-1')
+    expect(body.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(body.tz).toBeTruthy()
+    expect('equipment_profile_id' in body).toBe(false)
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jwt')
+  })
+
+  it('unlinked_account приезжает как ApiError с кодом и статусом 403', async () => {
+    const fetchMock = vi.fn(async () =>
+      json({ error: { code: 'unlinked_account', message: 'Привяжите аккаунт' } }, 403),
+    )
+    const error = await client(fetchMock as unknown as typeof fetch).startWorkout('d').catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).code).toBe('unlinked_account')
+    expect((error as ApiError).status).toBe(403)
+  })
+
+  it('GET /v1/workouts/{id}: идентификатор экранируется в пути', async () => {
+    const fetchMock = vi.fn(async () =>
+      json({ id: 'a b', session_kind: 'upper', started_at: 'x', readiness: 1, is_calibration: false, exercises: [] }),
+    )
+    await client(fetchMock as unknown as typeof fetch).getWorkout('a b')
+    expect((fetchMock.mock.calls[0] as unknown as [string])[0]).toBe('/v1/workouts/a%20b')
+  })
 })
