@@ -314,7 +314,8 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
 ```
 
 Сервер: `FITTRACK_ISSUER=http://127.0.0.1:54321/auth/v1`,
-`FITTRACK_DB_PASSWORD=fitserver`, `FITTRACK_DB_TLS=disable`, затем
+`FITTRACK_DB_PASSWORD=fitserver`, `FITTRACK_DB_PORT=54322` (умолчание сервера —
+5432, а локальный Supabase слушает 54322), `FITTRACK_DB_TLS=disable`, затем
 `swift run fitserver` из `Server/` (слушает `127.0.0.1:8080`). Ключ для supabase-js — из
 `supabase status`.
 
