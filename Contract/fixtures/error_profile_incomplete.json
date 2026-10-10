@@ -1,0 +1,9 @@
+{
+  "error" : {
+    "code" : "profile_incomplete",
+    "details" : {
+      "missing" : "experience_level,equipment_profile"
+    },
+    "message" : "Закончите настройку, чтобы составить план"
+  }
+}

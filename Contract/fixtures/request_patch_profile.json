@@ -1,0 +1,14 @@
+{
+  "birth_year" : 1994,
+  "cycle_tracking" : "off",
+  "experience_level" : "intermediate",
+  "goal" : "hypertrophy",
+  "height_cm" : 168,
+  "session_minutes" : 60,
+  "sex_at_birth" : "female",
+  "training_weekdays" : [
+    1,
+    3,
+    5
+  ]
+}

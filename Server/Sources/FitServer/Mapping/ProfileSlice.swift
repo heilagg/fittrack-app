@@ -106,6 +106,16 @@ extension Mapping {
                   let level, let goal, let trainingWeekdays, !trainingWeekdays.isEmpty else { return nil }
             return CompleteProfile(level: level, goal: goal, trainingWeekdays: trainingWeekdays)
         }
+
+        /// Пользовательница без строки `profiles` вовсе (§20.3: «первая
+        /// пользовательница на первом экране»). Не значение схемы, а то, как
+        /// `/today` читает отсутствие строки: онбординг не начинали, четыре
+        /// поля пусты, инвентаря быть не может — `equipment_profiles`
+        /// ссылается на `profiles`. Остальное — умолчания колонок
+        /// (`session_minutes = 45`, `cycle_tracking = 'off'`).
+        public static let notStarted = ProfileSlice(
+            level: nil, goal: nil, trainingWeekdays: nil, sessionMinutes: 45,
+            cycleTracking: .off, sexAtBirth: nil, hasDefaultEquipment: false)
     }
 
     /// Строка `profiles` в том виде, в каком её отдаёт `select` (§3.1).

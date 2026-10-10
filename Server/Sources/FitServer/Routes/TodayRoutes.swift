@@ -65,7 +65,15 @@ enum TodayRoutes {
         return try await database.withUserTransaction(authorization: input.authorization) { tx in
             // Всё, что ниже, — уже после проверки токена (§20.5).
             let day = try input.day()
-            let profile = try await Mapping.readProfile(tx)
+            // Строки `profiles` у первой пользовательницы на первом экране ещё
+            // нет, и карточка обязана отвечать на ней, а не `not_found` (§20.3):
+            // готовность, фаза и уверенность считаются и без профиля.
+            let profile: Mapping.ProfileSlice
+            do {
+                profile = try await Mapping.readProfile(tx)
+            } catch Mapping.ReadFailure.missingRow("profiles") {
+                profile = .notStarted
+            }
             // Путь не пишет ничего, включая счётчик цикла (§20.6): профиль
             // применяется в памяти.
             let cycleRead = try await Mapping.readCycle(

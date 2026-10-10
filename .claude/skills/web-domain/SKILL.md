@@ -314,7 +314,8 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
 ```
 
 Сервер: `FITTRACK_ISSUER=http://127.0.0.1:54321/auth/v1`,
-`FITTRACK_DB_PASSWORD=fitserver`, `FITTRACK_DB_TLS=disable`, затем
+`FITTRACK_DB_PASSWORD=fitserver`, `FITTRACK_DB_PORT=54322` (умолчание сервера —
+5432, а локальный Supabase слушает 54322), `FITTRACK_DB_TLS=disable`, затем
 `swift run fitserver` из `Server/` (слушает `127.0.0.1:8080`). Ключ для supabase-js — из
 `supabase status`.
 
@@ -324,9 +325,10 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
 - Локальный Postgres упирается в 100 соединений, если контейнер аналитики
   застрял; симптом — `signup 500: Database error creating anonymous user`.
   Лечится `supabase stop` / `supabase start`.
-- `site_url` в `Supabase/config.toml` указывает на `127.0.0.1:3000`; адрес
-  дев-сервера Vite и redirect magic link должны с ним согласовываться. Менять
-  `config.toml` — решение среза 2, а не мелочь.
+- Vite слушает `127.0.0.1:5173` (`WEB_PORT` переопределяет). `site_url` и
+  `additional_redirect_urls` в `Supabase/config.toml` пока указывают на
+  `127.0.0.1:3000`; их приведение к 5173 — первый коммит среза 2, и redirect
+  magic link должен с ними согласовываться.
 - Письма magic link локально видны в Mailpit (`http://127.0.0.1:54324`).
 
 ## 8. Что решается отдельно с пользователем

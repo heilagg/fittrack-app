@@ -1,0 +1,26 @@
+[
+  {
+    "common_errors" : [
+      "Колени заваливаются внутрь"
+    ],
+    "cues" : [
+      "Колени по линии носков"
+    ],
+    "default_rest_seconds" : 120,
+    "illustration" : "placeholder/lower/squat_barbell",
+    "name" : "Приседания со штангой",
+    "slug" : "squat_barbell"
+  },
+  {
+    "common_errors" : [
+
+    ],
+    "cues" : [
+
+    ],
+    "default_rest_seconds" : 90,
+    "illustration" : "placeholder/upper/pushup_bw",
+    "name" : "Отжимания",
+    "slug" : "pushup_bw"
+  }
+]
