@@ -61,3 +61,9 @@ Secrets.xcconfig
 # Прочее
 *.log
 *.swp
+
+# Web/
+Web/node_modules/
+Web/dist/
+Web/test-results/
+Web/playwright-report/
