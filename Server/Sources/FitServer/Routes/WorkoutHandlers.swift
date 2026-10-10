@@ -321,7 +321,9 @@ extension WorkoutRoutes {
 
             let after = try await Mapping.readWorkoutSets(tx, workoutID: workoutID)
             let root = Mapping.treeRoot(
-                sets: after.journal[exercise.id] ?? [], startWeightKg: exercise.prescribedKg,
+                // Подходы прежнего упражнения (до замены, §20.3) корень не строят.
+                sets: (after.journal[exercise.id] ?? []).filter { $0.exerciseSlug == exercise.slug },
+                startWeightKg: exercise.prescribedKg,
                 range: exercise.range, isCalibration: exercise.isCalibration, ladder: ladder)
             let remaining = max(0, exercise.targetSets - (after.body[exercise.id]?.count ?? 0))
             let tree = root.terminated

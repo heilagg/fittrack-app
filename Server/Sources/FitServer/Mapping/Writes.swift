@@ -517,4 +517,27 @@ extension Mapping {
              where id = \(dayID)
             """)
     }
+
+    // MARK: - Замена упражнения (`POST …/substitute`, §13.4, §20.3)
+
+    /// Переписывает строку упражнения на новое: слаг, диапазон, RIR, вес,
+    /// готовность, калибровка, откуда и почему замена. `target_sets` не
+    /// трогается — число подходов принадлежит месту в сессии (§20.3).
+    public static func substituteExercise(_ tx: UserTransaction, id: UUID,
+                                          to exercise: PrescribedExercise, isCalibration: Bool,
+                                          from slug: String, reason: String) async throws {
+        _ = try await tx.query("""
+            update workout_exercises
+               set exercise_slug       = \(exercise.slug),
+                   target_rep_min      = \(exercise.targetRepMin),
+                   target_rep_max      = \(exercise.targetRepMax),
+                   target_rir          = \(exercise.targetRIR),
+                   prescribed_kg       = \(exercise.prescribedKg),
+                   weight_readiness    = \(exercise.weightReadiness),
+                   is_calibration      = \(isCalibration),
+                   substituted_from    = \(slug),
+                   substitution_reason = \(reason)
+             where id = \(id)
+            """)
+    }
 }

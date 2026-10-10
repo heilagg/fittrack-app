@@ -47,6 +47,9 @@ enum WorkoutRoutes {
         workouts.post(":id", "finish") { request async throws -> Response in
             try await finish(request, database: database, library: library)
         }
+        workouts.post(":id", "exercises", ":we_id", "substitute") { request async throws -> Response in
+            try await substitute(request, database: database, library: library)
+        }
         workouts.post(":id", "exercises", ":we_id", "sets") { request async throws -> Response in
             try await logSet(request, database: database, library: library)
         }
@@ -69,7 +72,10 @@ enum WorkoutRoutes {
 
         let exercises = rows.map { row -> WorkoutExerciseDTO in
             let body = sets.body[row.id] ?? []
-            let journal = sets.journal[row.id] ?? []
+            // Корень дерева — по подходам ЭТОГО упражнения: после замены (§20.3)
+            // в строке лежат и подходы прежнего, и они остаются его фактом.
+            // Остаток подходов, наоборот, по всем: `target_sets` — место в сессии.
+            let journal = (sets.journal[row.id] ?? []).filter { $0.exerciseSlug == row.slug }
             // Лестница неизвестного слага — `.none`: разметка могла уехать, и
             // выдумывать квантование под упражнение, которого в срезе нет,
             // значило бы показать веса, которых инвентарь не даёт.
