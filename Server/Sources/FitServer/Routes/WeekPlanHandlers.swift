@@ -130,11 +130,17 @@ extension WeekPlanRoutes {
             guard let userID = UUID(uuidString: tx.token.subject) else {
                 throw APIError(.internal)
             }
+            // Признак считается один раз, здесь, и пишется в строку (§11.5):
+            // пересборка читает записанное, а не считает заново.
+            let history = try await Mapping.readDeloadHistory(tx)
+            let isDeload = Cycle.isDeloadWeek(
+                weekStart: weekStart, today: day.date, phaseMode: inputs.cycle.profile.phaseMode,
+                workoutDays: history.workoutDays, deloadWeekStarts: history.deloadWeekStarts)
             let digestContext = self.context(inputs, weekStart: weekStart, today: day.date,
-                                             days: [], isDeload: false,
+                                             days: [], isDeload: isDeload,
                                              library: library, userSeed: userSeed)
             let weekPlanID = try await Mapping.insertWeekPlan(
-                tx, userID: userID, weekStart: weekStart,
+                tx, userID: userID, weekStart: weekStart, isDeload: isDeload,
                 digest: Mapping.InputDigest(context: digestContext, profile: inputs.complete))
             let inserted = try await Mapping.insertPlannedDays(tx, weekPlanID: weekPlanID, slots: slots)
             let rows = inserted.map {
@@ -142,7 +148,7 @@ extension WeekPlanRoutes {
                                       sessionKind: $0.slot.kind.rawValue, status: "planned")
             }
             let context = self.context(inputs, weekStart: weekStart, today: day.date,
-                                       days: rows, isDeload: false,
+                                       days: rows, isDeload: isDeload,
                                        library: library, userSeed: userSeed)
             let plan = Planner.planRemainingDays(context)
             // Первая генерация: сравнивать не с чем, строка не печатается

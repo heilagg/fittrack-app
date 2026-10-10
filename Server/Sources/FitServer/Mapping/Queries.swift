@@ -263,6 +263,39 @@ extension Mapping {
         return nil
     }
 
+    // MARK: - Журнал для правила разгрузочной недели (§11.5)
+
+    /// Дни завершённых тренировок и недели, записанные разгрузочными.
+    ///
+    /// День тренировки — самая ранняя `sets.performed_on` её подходов (§20.7,
+    /// день зафиксирован при записи и от зоны читающего запроса не зависит);
+    /// тренировка без подходов не датируется и в результат не попадает.
+    /// Растяжка (`stretch_sessions`) сюда не входит: она не `workouts`.
+    public static func readDeloadHistory(_ tx: UserTransaction) async throws
+        -> (workoutDays: [CalendarDay], deloadWeekStarts: Set<CalendarDay>) {
+        var days: [CalendarDay] = []
+        let finished = try await tx.query("""
+            select to_char(min(s.performed_on), 'YYYY-MM-DD')
+              from workouts w
+              join workout_exercises we on we.workout_id = w.id
+              join sets s on s.workout_exercise_id = we.id
+             where w.finished_at is not null
+             group by w.id
+            """)
+        for try await row in finished {
+            days.append(try day(try row.decode(String.self), column: "sets.performed_on"))
+        }
+
+        var deloads: Set<CalendarDay> = []
+        let weeks = try await tx.query("""
+            select to_char(week_start, 'YYYY-MM-DD') from week_plans where is_deload
+            """)
+        for try await row in weeks {
+            deloads.insert(try day(try row.decode(String.self), column: "week_plans.week_start"))
+        }
+        return (days, deloads)
+    }
+
     // MARK: - Чек-ин
 
     public static func readCheckin(_ tx: UserTransaction,

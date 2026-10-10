@@ -86,6 +86,13 @@ public struct CalendarDay: Sendable, Equatable, Hashable, Comparable {
     public func adding(days: Int) -> CalendarDay {
         CalendarDay(dayNumber: dayNumber + days)
     }
+
+    /// Понедельник ISO-недели, в которой лежит день (SPEC §7.2, §11.5).
+    /// Эпоха — четверг, отсюда `+ 3`. Единственная реализация: сервер и
+    /// правило разгрузочной недели читают одну.
+    public var mondayOfWeek: CalendarDay {
+        adding(days: -((dayNumber + 3) % 7))
+    }
 }
 
 /// Момент времени в часах от эпохи — независим от Foundation.Date/TimeZone,

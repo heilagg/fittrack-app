@@ -125,14 +125,15 @@ extension Mapping {
 
     /// Вставляет `week_plans` и возвращает `id`.
     ///
-    /// `is_deload` всегда `false`: правило счёта §11.5 открыто (§19.2 п.4), и
-    /// признак фиксируется на неделю, а не пересчитывается пересборкой.
+    /// `isDeload` считает вызывающая сторона (`Cycle.isDeloadWeek`, §11.5,
+    /// §19.2 п.4); признак фиксируется на неделю, а не пересчитывается
+    /// пересборкой.
     public static func insertWeekPlan(_ tx: UserTransaction, userID: UUID, weekStart: CalendarDay,
-                                      digest: InputDigest) async throws -> UUID {
+                                      isDeload: Bool, digest: InputDigest) async throws -> UUID {
         let id = UUID()
         _ = try await tx.query("""
             insert into week_plans (id, user_id, week_start, generated_at, is_deload, input_digest)
-            values (\(id), \(userID), \(LocalTime.iso(weekStart))::date, now(), false,
+            values (\(id), \(userID), \(LocalTime.iso(weekStart))::date, now(), \(isDeload),
                     \(try json(digest))::jsonb)
             """)
         return id
