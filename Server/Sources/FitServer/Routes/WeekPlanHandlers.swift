@@ -279,8 +279,15 @@ extension WeekPlanRoutes {
             }
 
             guard let week = try await loadWeek(tx, weekStart: weekStart),
-                  week.days.contains(where: { $0.id == dayID.uuidString.lowercased() })
+                  let target = week.days.first(where: { $0.id == dayID.uuidString.lowercased() })
             else { throw APIError(.notFound, details: ["day_id": .string(dayID.uuidString)]) }
+            // §20.3: `done` — факт исполнения от `/finish`, и править такой день
+            // нельзя ничем: возврат в `planned` отдал бы его `classify` заново.
+            if target.status == PlannedDayStatus.done.rawValue {
+                throw APIError(.dayNotPlanned, details: [
+                    "day_id": .string(dayID.uuidString), "status": .string(target.status)
+                ])
+            }
 
             try await Mapping.updatePlannedDay(tx, dayID: dayID, accent: body.accentMuscle,
                                                kind: body.sessionKind, status: body.status)

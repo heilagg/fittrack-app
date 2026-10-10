@@ -96,4 +96,48 @@ struct LiveDayStatusTests {
             #expect(try await self.storedStatus(database, user, dayID: dayID) == "planned")
         }
     }
+
+    @Test("день done (после /finish) не правится ничем — 409 day_not_planned, строка цела")
+    func doneDayIsClosedToPatch() async throws {
+        let user = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("day.status.done")
+        try await Live.withServer("day.status.done") { app, database in
+            let workout = try await Live.startedWorkout(app, user, logger: logger)
+            let dayID = try #require(workout.plannedDayID)
+            let exercise = try #require(workout.exercises.first)
+            let set = LogSetRequest(id: UUID().uuidString, setIndex: 1,
+                                    prescribedKg: exercise.prescribedKg,
+                                    actualKg: exercise.prescribedKg,
+                                    actualReps: exercise.targetRepMin, feedback: .ok,
+                                    completedAt: "2026-10-08T10:00:00Z", day: Live.today)
+            try await app.testing().test(
+                .POST, "/v1/workouts/\(workout.id)/exercises/\(exercise.id)/sets",
+                headers: user.headers, beforeRequest: { try $0.content.encode(set) }
+            ) { #expect($0.status == .ok) }
+            try await app.testing().test(
+                .POST, "/v1/workouts/\(workout.id)/finish", headers: user.headers,
+                beforeRequest: { try $0.content.encode(FinishWorkoutRequest(day: Live.today)) }
+            ) { #expect($0.status == .ok) }
+            // Контроль: день действительно закрыт, иначе отказ ниже ничего не значит.
+            #expect(try await self.storedStatus(database, user, dayID: dayID) == "done")
+
+            let bodies: [PatchPlannedDayRequest] = [
+                PatchPlannedDayRequest(status: .planned, day: Live.today),
+                PatchPlannedDayRequest(status: .skipped, day: Live.today),
+                PatchPlannedDayRequest(sessionKind: .upper, day: Live.today),
+            ]
+            for body in bodies {
+                var captured: (Int, Data) = (0, Data())
+                try await app.testing().test(
+                    .PATCH, "/v1/week-plans/\(self.weekStart)/days/\(dayID)", headers: user.headers,
+                    beforeRequest: { try $0.content.encode(body) }
+                ) { captured = (Int($0.status.code), Data(buffer: $0.body)) }
+                #expect(captured.0 == 409, Comment(rawValue: String(decoding: captured.1, as: UTF8.self)))
+                let envelope = try JSONDecoder().decode(APIErrorEnvelope.self, from: captured.1)
+                #expect(envelope.error.code == .dayNotPlanned)
+                #expect(try await self.storedStatus(database, user, dayID: dayID) == "done",
+                        "отказ после записи")
+            }
+        }
+    }
 }
