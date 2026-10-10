@@ -91,11 +91,46 @@ struct MountedPathsTests {
         }.joined(separator: "/")
     }
 
-    @Test("роутер вообще что-то смонтировал")
-    func routerIsNotEmpty() async throws {
+    /// Шестнадцать путей §20.3 — строки таблицы «Тела успешных ответов», по
+    /// одной на путь. Сверяется МНОЖЕСТВО (метод + путь), а не только число:
+    /// одно `== 16` пропустило бы подмену одного пути другим, а прежнее
+    /// `>= 8` — и пропажу половины.
+    static let specPaths: Set<String> = [
+        "GET /v1/today",
+        "GET /v1/week-plans/{week_start}",
+        "GET /v1/week-plans/{week_start}/preview",
+        "GET /v1/workouts/{id}",
+        "GET /v1/workouts/{id}/exercises/{we_id}/alternatives",
+        "GET /v1/content/exercises",
+        "GET /v1/content/stretches",
+        "GET /v1/profile",
+        "PATCH /v1/profile",
+        "POST /v1/week-plans",
+        "PATCH /v1/week-plans/{week_start}/days/{day_id}",
+        "POST /v1/week-plans/{week_start}/rebuild",
+        "POST /v1/workouts",
+        "POST /v1/workouts/{id}/exercises/{we_id}/sets",
+        "POST /v1/workouts/{id}/finish",
+        "POST /v1/workouts/{id}/exercises/{we_id}/substitute",
+    ]
+
+    @Test("смонтированы ровно шестнадцать путей §20.3, и именно они")
+    func exactlyTheSixteenSpecPaths() async throws {
         try await Self.withMountedApp { app in
-            let paths = app.routes.all.map { Self.uri(for: $0) }
-            #expect(paths.count >= 8, "восемь путей §20.3 на сегодня; получено: \(paths.count)")
+            let mounted = app.routes.all.map { route -> String in
+                let path = route.path.map { component -> String in
+                    switch component {
+                    case .constant(let value): return value
+                    case .parameter(let name): return "{\(name)}"
+                    case .anything: return "*"
+                    case .catchall: return "**"
+                    }
+                }.joined(separator: "/")
+                return "\(route.method.rawValue) /\(path)"
+            }
+            #expect(mounted.count == 16, "маршрутов \(mounted.count), а не 16")
+            #expect(Set(mounted) == Self.specPaths,
+                    "лишние: \(Set(mounted).subtracting(Self.specPaths).sorted()), недостающие: \(Self.specPaths.subtracting(mounted).sorted())")
         }
     }
 
