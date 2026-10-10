@@ -75,22 +75,35 @@ extension Mapping {
         public var sessionMinutes: Int
         public var cycleTracking: CycleTracking
         public var sexAtBirth: String?
+        /// Есть строка `equipment_profiles` с `is_default = true` (§20.3, §20.6).
+        /// Не колонка `profiles`, а ответ на вопрос «есть ли чем собирать»:
+        /// сборка читает инвентарь именно по этому флагу, и строка без него
+        /// условия не выполняет.
+        public var hasDefaultEquipment: Bool
 
         public init(level: ExperienceLevel?, goal: Goal?, trainingWeekdays: [Int]?,
-                    sessionMinutes: Int, cycleTracking: CycleTracking, sexAtBirth: String?) {
+                    sessionMinutes: Int, cycleTracking: CycleTracking, sexAtBirth: String?,
+                    hasDefaultEquipment: Bool) {
             self.level = level
             self.goal = goal
             self.trainingWeekdays = trainingWeekdays
             self.sessionMinutes = sessionMinutes
             self.cycleTracking = cycleTracking
             self.sexAtBirth = sexAtBirth
+            self.hasDefaultEquipment = hasDefaultEquipment
         }
 
         /// `nil` — профиль неполон, и `POST /v1/week-plans` обязан ответить
         /// `profile_incomplete` (§20.6). Больше нигде эта проверка не стоит:
         /// остальные пути требуют недели, а недели без генерации нет.
+        ///
+        /// Полон профиль, когда есть четыре поля И инвентарь по умолчанию:
+        /// без второго сборка читала бы несуществующую строку и отвечала
+        /// `not_found` — кодом про «ресурса нет», а не про «онбординг не
+        /// закончен».
         public var complete: CompleteProfile? {
-            guard let level, let goal, let trainingWeekdays, !trainingWeekdays.isEmpty else { return nil }
+            guard hasDefaultEquipment,
+                  let level, let goal, let trainingWeekdays, !trainingWeekdays.isEmpty else { return nil }
             return CompleteProfile(level: level, goal: goal, trainingWeekdays: trainingWeekdays)
         }
     }
@@ -103,15 +116,21 @@ extension Mapping {
         public var sessionMinutes: Int
         public var cycleTracking: String
         public var sexAtBirth: String?
+        /// Результат `exists (… equipment_profiles where is_default)`, а не
+        /// колонка `profiles`: лежит в строке, потому что вторая половина
+        /// слоя принимает одно значение, а не два.
+        public var hasDefaultEquipment: Bool
 
         public init(experienceLevel: String?, goal: String?, trainingWeekdays: [Int]?,
-                    sessionMinutes: Int, cycleTracking: String, sexAtBirth: String?) {
+                    sessionMinutes: Int, cycleTracking: String, sexAtBirth: String?,
+                    hasDefaultEquipment: Bool) {
             self.experienceLevel = experienceLevel
             self.goal = goal
             self.trainingWeekdays = trainingWeekdays
             self.sessionMinutes = sessionMinutes
             self.cycleTracking = cycleTracking
             self.sexAtBirth = sexAtBirth
+            self.hasDefaultEquipment = hasDefaultEquipment
         }
     }
 
@@ -132,11 +151,12 @@ extension Mapping {
             // значение схлопывается в `off`: источник данных, которого мы не
             // понимаем, — это отсутствие источника.
             cycleTracking: CycleTracking(rawValue: row.cycleTracking) ?? .off,
-            sexAtBirth: row.sexAtBirth
+            sexAtBirth: row.sexAtBirth,
+            hasDefaultEquipment: row.hasDefaultEquipment
         )
     }
 
-    /// Незаполненные из четырёх обязательных — в `details` конверта §20.3.
+    /// Недостающее для полного профиля — в `details` конверта §20.3.
     ///
     /// `details` машинный и клиенту нужен для одного: понять, на какой экран
     /// онбординга возвращать. Пользовательнице он не показывается никогда,
@@ -146,6 +166,7 @@ extension Mapping {
         if slice.level == nil { missing.append("experience_level") }
         if slice.goal == nil { missing.append("goal") }
         if slice.trainingWeekdays?.isEmpty ?? true { missing.append("training_weekdays") }
+        if !slice.hasDefaultEquipment { missing.append("equipment_profile") }
         return missing
     }
 

@@ -71,21 +71,29 @@ extension Mapping {
 
     // MARK: - profiles
 
+    /// Шестое значение — условие полноты, которое не лежит в `profiles`
+    /// (§20.3, §20.6): есть строка инвентаря с `is_default`. То же выражение
+    /// стоит в `readProfileBody`, и менять их надо вместе: разойдясь, они дают
+    /// `is_complete = true` на теле и 409 на генерации. Фрагментом SQL это не
+    /// сводится в одно место — интерполяция в `tx.query` биндит параметр.
     public static func readProfile(_ tx: UserTransaction) async throws -> ProfileSlice {
         let rows = try await tx.query("""
             select experience_level, goal, training_weekdays, session_minutes,
-                   cycle_tracking, sex_at_birth
+                   cycle_tracking, sex_at_birth,
+                   exists (select 1 from equipment_profiles where is_default)
               from profiles
             """)
         for try await row in rows {
-            let (level, goal, weekdays, minutes, tracking, sex) =
-                try row.decode((String?, String?, [Int16]?, Int, String, String?).self)
+            let (level, goal, weekdays, minutes, tracking, sex, equipment) =
+                try row.decode((String?, String?, [Int16]?, Int, String, String?, Bool).self)
             return profile(from: ProfileRow(
                 experienceLevel: level, goal: goal, trainingWeekdays: weekdays?.map(Int.init),
-                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex))
+                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex,
+                hasDefaultEquipment: equipment))
         }
         throw ReadFailure.missingRow("profiles")
     }
+
 
     // MARK: - equipment_profiles
 
