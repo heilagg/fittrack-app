@@ -4687,7 +4687,7 @@ week_start)`, клиентского идентификатора не нужн�
 | `set_immutable` | 409 | Изменение подхода с непустым `completed_at` (§4.3, тест 20f) |
 | `workout_not_started` | 409 | Запись в тренировку, которой нет |
 | `workout_finished` | 409 | Запись в закрытую тренировку. Исключение — повторный `POST /v1/workouts/{id}/finish`: он отвечает 200 и тем же телом (§20.3) |
-| `day_not_planned` | 409 | Действие по дню, по которому его делать нельзя: старт при статусе `done`/`skipped`/`replaced` либо при уже идущей тренировке с другим инвентарём; любая правка `PATCH …/days` дня со статусом `done` (§20.3). `details` несёт `workout_id`, когда тренировка есть |
+| `day_not_planned` | 409 | Действие по дню, по которому его делать нельзя: старт при статусе `done`/`skipped`/`replaced` либо при уже идущей тренировке с другим инвентарём; любая правка `PATCH …/days` дня со статусом `done`; замена упражнения в тренировке, чей день плана удалён (§20.3). `details` несёт `workout_id`, когда тренировка есть |
 | `profile_incomplete` | 409 | Профиль не дозаполнен, а путь этого требует (§5, §20.6) |
 | `generator_disabled` | 409 | §14.3, беременность |
 | `internal` | 500 | |
@@ -4740,7 +4740,7 @@ WorkoutExercise   {id, slug, order_index, target_sets, target_rep_min,
                    target_rep_max, target_rir, prescribed_kg?,
                    weight_readiness, is_calibration, substituted_from?,
                    substitution_reason?, decision_tree?, sets: [Set]}
-Set               {id, set_index, prescribed_kg?, prescribed_reps, actual_kg?,
+Set               {id, exercise_slug, set_index, prescribed_kg?, prescribed_reps, actual_kg?,
                    actual_reps?, feedback?, pain_flag, pain_joints,
                    rest_seconds?, completed_at?, skipped}
 Profile           {sex_at_birth?, birth_year?, height_cm?, experience_level?,
@@ -4884,6 +4884,18 @@ CycleProfile      {typical_cycle_length_days?, typical_period_length_days?,
 Подставленное состояние с перенесённой базовой линией получает
 `last_performed_at` заменённого упражнения: детренированность §9.7 действует на
 перенос так же, как действовала бы на него самого.
+
+**Тренировка без дня плана не заменяет упражнений — `day_not_planned`.** День
+мог быть удалён (`planned_day_id … on delete set null`), а `Planner.prescribe`
+сверяет предписание с днём, на котором собрана сессия: без дня считать числа
+нового упражнения не на чем. Выдумывать день из полей тренировки значило бы
+предписать по входу, которого не было. `details` несёт `workout_id`.
+
+**Подход в ответе несёт свой слаг — `Set.exercise_slug`.** После замены в
+упражнении лежат и подходы, сделанные до неё, и без слага клиент не отличит,
+какой подход к какому упражнению относится: показал бы жим штанги подходом
+жима гантелей. Значение — снимок `sets.exercise_slug` (§3.1), тот же, по
+которому подход читает свёртка.
 
 **Известное ограничение цепочки.** Перенесённый вес в `exercise_states` не
 пишется, поэтому у промежуточного упражнения цепочки A → B → C, на котором не
