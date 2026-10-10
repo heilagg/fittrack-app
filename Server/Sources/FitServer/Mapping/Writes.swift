@@ -475,28 +475,101 @@ extension Mapping {
             """)
     }
 
+    /// Сохраняет то, что двигает `Cycle.applyingClosedCycles` (§11.5, §20.6):
+    /// режим, причину, серию и отметку учёта. Только `update` — строки не
+    /// создаёт — и БЕЗ `updated_at`: это производное от событий, а не решение
+    /// пользовательницы, и метка LWW (§4.3) не должна давать ему выиграть у
+    /// ручного переключения с устройства. `sync_seq` двигает триггер.
+    public static func persistCycleCounters(_ tx: UserTransaction, userID: UUID,
+                                            _ profile: CycleProfile) async throws {
+        let through = profile.lowConfidenceCountedThrough.map { LocalTime.iso($0) }
+        _ = try await tx.query("""
+            update cycle_profiles
+               set phase_mode = \(profile.phaseMode.rawValue),
+                   no_phase_reason = \(profile.noPhaseReason?.rawValue),
+                   low_confidence_streak = \(profile.lowConfidenceStreak),
+                   low_confidence_counted_through = \(through)::date
+             where user_id = \(userID)
+            """)
+    }
+
     /// Пишет `cycle_profiles`, создавая строку при первом обращении.
     ///
     /// Удаления не бывает (§20.3): «не отслеживаю» — это `phase_mode` с
     /// причиной, а не отсутствие записи. Поэтому объект либо есть в теле и
     /// перезаписывает поля, либо его нет и строка не трогается.
+    ///
+    /// Режим переключается через `Cycle.switchingTo…`, а не записывается как
+    /// есть (§11.5, §20.6): серия и отметка учёта идут вместе с ним. `next` —
+    /// результат `cycleSettingsApplied`, то есть профиль целиком.
     public static func upsertCycleProfile(_ tx: UserTransaction, userID: UUID,
-                                          _ cycle: CycleProfileDTO) async throws {
+                                          _ next: CycleProfile) async throws {
+        let through = next.lowConfidenceCountedThrough.map { LocalTime.iso($0) }
         _ = try await tx.query("""
             insert into cycle_profiles (user_id, typical_cycle_length_days,
                                         typical_period_length_days, declared_regularity,
-                                        phase_mode, no_phase_reason, updated_at)
-            values (\(userID), \(cycle.typicalCycleLengthDays), \(cycle.typicalPeriodLengthDays),
-                    \(cycle.declaredRegularity?.rawValue), \(cycle.phaseMode.rawValue),
-                    \(cycle.noPhaseReason?.rawValue), now())
+                                        phase_mode, no_phase_reason, low_confidence_streak,
+                                        low_confidence_counted_through, updated_at)
+            values (\(userID), \(next.typicalCycleLengthDays), \(next.typicalPeriodLengthDays),
+                    \(next.declaredRegularity?.rawValue), \(next.phaseMode.rawValue),
+                    \(next.noPhaseReason?.rawValue), \(next.lowConfidenceStreak),
+                    \(through)::date, now())
             on conflict (user_id) do update set
                 typical_cycle_length_days  = excluded.typical_cycle_length_days,
                 typical_period_length_days = excluded.typical_period_length_days,
                 declared_regularity        = excluded.declared_regularity,
                 phase_mode                 = excluded.phase_mode,
                 no_phase_reason            = excluded.no_phase_reason,
+                low_confidence_streak      = excluded.low_confidence_streak,
+                low_confidence_counted_through = excluded.low_confidence_counted_through,
                 updated_at                 = now()
             """)
+    }
+
+    /// Профиль цикла после `PATCH /v1/profile` (§11.5, §20.6).
+    ///
+    /// Строки не было — это создание, а не переключение: счётчики по умолчанию.
+    /// Строка была — смена режима или причины идёт через `Cycle.switchingTo…`
+    /// и сбрасывает серию, сдвигая отметку на `switchDay`; тот же режим и та же
+    /// причина — не переключение, профиль возвращается с новыми заявленными
+    /// полями и прежними счётчиками.
+    public static func cycleSettingsApplied(_ cycle: CycleProfileDTO, over stored: CycleProfile?,
+                                            switchDay: CalendarDay) -> CycleProfile {
+        let mode = PhaseMode(rawValue: cycle.phaseMode.rawValue) ?? .noPhases
+        let reason = cycle.noPhaseReason.flatMap { NoPhaseReason(rawValue: $0.rawValue) }
+        let regularity = cycle.declaredRegularity.flatMap { DeclaredRegularity(rawValue: $0.rawValue) }
+        guard var next = stored else {
+            return CycleProfile(typicalCycleLengthDays: cycle.typicalCycleLengthDays,
+                                typicalPeriodLengthDays: cycle.typicalPeriodLengthDays,
+                                declaredRegularity: regularity, phaseMode: mode,
+                                noPhaseReason: reason)
+        }
+        next.typicalCycleLengthDays = cycle.typicalCycleLengthDays
+        next.typicalPeriodLengthDays = cycle.typicalPeriodLengthDays
+        next.declaredRegularity = regularity
+        switch mode {
+        case .phases:
+            return Cycle.switchingToPhases(in: next, asOf: switchDay)
+        case .noPhases:
+            if let reason {
+                return Cycle.switchingToNoPhases(reason: reason, in: next, asOf: switchDay)
+            }
+            // Режим без причины FitCore строить не даёт; схема его допускает, и
+            // запись остаётся как прежде, но серия всё равно сбрасывается.
+            guard next.phaseMode != .noPhases || next.noPhaseReason != nil else { return next }
+            next.phaseMode = .noPhases
+            next.noPhaseReason = nil
+            next.lowConfidenceStreak = 0
+            next.lowConfidenceCountedThrough = switchDay
+            return next
+        }
+    }
+
+    /// День переключения режима на вебе (§20.6): наибольшая `period_start`, не
+    /// позже `cutoff`, а без событий — дата по серверным часам.
+    public static func cycleSwitchDay(latestPeriodStart: CalendarDay?,
+                                      serverToday: CalendarDay) -> CalendarDay {
+        latestPeriodStart ?? serverToday
     }
 
     // MARK: - Правка дня

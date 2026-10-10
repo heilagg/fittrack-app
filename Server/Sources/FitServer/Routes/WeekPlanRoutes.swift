@@ -46,6 +46,10 @@ struct WeekPlanInputs: Sendable {
     var equipment: Mapping.EquipmentSlice
     var safety: SafetyProfile
     var cycle: CycleInputs
+    /// Профиль цикла, каким он лежал в базе до применения закрытых циклов.
+    var storedCycle: CycleProfile
+    /// Применяются ли к нему закрытые циклы (`CycleRead.applies`).
+    var cycleApplies: Bool
     var checkin: DailyCheckin
     var override: Override?
     var fatigue: [MuscleSlug: FatigueState]
@@ -64,14 +68,19 @@ enum WeekPlanRoutes {
     /// Профиль читается первым и неполный отсекается здесь же: генерация без
     /// четырёх обязательных значений невозможна, а остальные пути требуют
     /// недели, которой без генерации нет (§20.6).
-    static func inputs(_ tx: UserTransaction, on day: RequestDay) async throws -> WeekPlanInputs {
+    ///
+    /// `persistCycle` — сохранять ли применённые закрытые циклы (§20.6): `false`
+    /// только у `/preview`, который не пишет ничего.
+    static func inputs(_ tx: UserTransaction, on day: RequestDay,
+                       persistCycle: Bool = true) async throws -> WeekPlanInputs {
         let profile = try await Mapping.readProfile(tx)
         guard let complete = profile.complete else {
             throw APIError(.profileIncomplete, details: [
                 "missing": .string(Mapping.missingProfileFields(profile).joined(separator: ","))
             ])
         }
-        let cycle = try await Mapping.readCycle(tx, tracking: profile.cycleTracking)
+        let cycle = try await Mapping.readCycle(tx, tracking: profile.cycleTracking,
+                                                asOf: day.date, persist: persistCycle)
         let (checkin, override) = try await Mapping.readCheckin(tx, on: day.date)
         return try await inputs(tx, on: day, profile: profile, complete: complete, cycle: cycle,
                                 checkin: checkin, override: override)
@@ -87,7 +96,7 @@ enum WeekPlanRoutes {
     /// до первой правки.
     static func inputs(_ tx: UserTransaction, on day: RequestDay,
                        profile: Mapping.ProfileSlice, complete: Mapping.CompleteProfile,
-                       cycle: CycleInputs, checkin: DailyCheckin,
+                       cycle: Mapping.CycleRead, checkin: DailyCheckin,
                        override: Override?) async throws -> WeekPlanInputs {
         let equipment = try await Mapping.readEquipment(tx, id: nil)
         let safety = try await Mapping.readSafety(tx, level: complete.level, timeZone: day.timeZone)
@@ -100,7 +109,7 @@ enum WeekPlanRoutes {
 
         return WeekPlanInputs(
             complete: complete, sessionMinutes: profile.sessionMinutes, equipment: equipment,
-            safety: safety, cycle: cycle, checkin: checkin, override: override, fatigue: fatigue,
+            safety: safety, cycle: cycle.inputs, storedCycle: cycle.stored, cycleApplies: cycle.applies, checkin: checkin, override: override, fatigue: fatigue,
             journal: journal, completed: completed.rows, completedSets: completed.sets,
             startedDayIDs: started)
     }

@@ -141,6 +141,41 @@ extension Mapping {
                     responseProfiles: phaseResponses(from: responses))
     }
 
+    /// Срез цикла после применения закрытых циклов и профиль, каким он лежал в базе.
+    ///
+    /// `stored` нужен одному потребителю — `/rebuild` (§20.3): состояние «до»
+    /// считается от сохранённого профиля по оставшимся событиям, а не от
+    /// профиля, в котором новое закрытие уже учтено.
+    public struct CycleRead: Sendable, Equatable {
+        public var inputs: CycleInputs
+        public var stored: CycleProfile
+        /// Настоящий ли профиль: строка есть и `cycle_tracking != off`.
+        public var applies: Bool
+
+        public init(inputs: CycleInputs, stored: CycleProfile, applies: Bool) {
+            self.inputs = inputs
+            self.stored = stored
+            self.applies = applies
+        }
+    }
+
+    /// SPEC §11.5, §20.6: применить `Cycle.applyingClosedCycles` перед расчётом
+    /// состояния цикла.
+    ///
+    /// Применяется только там, где профиль настоящий: строки нет или
+    /// `cycle_tracking == .off` — подставленный режим «без фаз» двигать нечем, и
+    /// строку ради счётчика никто не создаёт. События позже дня запроса
+    /// отбрасываются ДО вызова: функция `asOf` не принимает, а отметка учёта
+    /// сохраняется, и закрытие «завтрашним» днём увело бы её в будущее.
+    public static func applyingClosedCycles(to inputs: CycleInputs, applies: Bool,
+                                            asOf day: CalendarDay) -> CycleInputs {
+        guard applies else { return inputs }
+        var result = inputs
+        result.profile = Cycle.applyingClosedCycles(
+            events: inputs.events.filter { $0.occurredOn <= day }, profile: inputs.profile)
+        return result
+    }
+
     // MARK: - Чек-ин
 
     /// Строка `daily_checkins` (§3.1).

@@ -66,7 +66,11 @@ enum TodayRoutes {
             // Всё, что ниже, — уже после проверки токена (§20.5).
             let day = try input.day()
             let profile = try await Mapping.readProfile(tx)
-            let cycle = try await Mapping.readCycle(tx, tracking: profile.cycleTracking)
+            // Путь не пишет ничего, включая счётчик цикла (§20.6): профиль
+            // применяется в памяти.
+            let cycleRead = try await Mapping.readCycle(
+                tx, tracking: profile.cycleTracking, asOf: day.date, persist: false)
+            let cycle = cycleRead.inputs
             let (checkin, override) = try await Mapping.readCheckin(tx, on: day.date)
 
             let cycleState = Cycle.state(events: cycle.events, profile: cycle.profile,
@@ -91,7 +95,7 @@ enum TodayRoutes {
             }
 
             let inputs = try await WeekPlanRoutes.inputs(tx, on: day, profile: profile,
-                                                         complete: complete, cycle: cycle,
+                                                         complete: complete, cycle: cycleRead,
                                                          checkin: checkin, override: override)
             let context = WeekPlanRoutes.context(
                 inputs, weekStart: weekStart, today: day.date, days: week.days,

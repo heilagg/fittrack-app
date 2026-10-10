@@ -81,7 +81,15 @@ enum ProfileRoutes {
             guard let userID = UUID(uuidString: tx.token.subject) else { throw APIError(.internal) }
             try await Mapping.upsertProfile(tx, userID: userID, body)
             if let cycle = body.cycle {
-                try await Mapping.upsertCycleProfile(tx, userID: userID, cycle)
+                // День у запроса отсутствует (§20.3), поэтому день переключения
+                // берётся из событий (§20.6): наибольшая `period_start` не
+                // позже завтрашней даты по серверным часам.
+                let today = Mapping.LocalTime.day(of: Date(), in: TimeZone(identifier: "UTC")!)
+                let latest = try await Mapping.readLatestPeriodStart(tx, notAfter: today.adding(days: 1))
+                let next = Mapping.cycleSettingsApplied(
+                    cycle, over: try await Mapping.readStoredCycleProfile(tx),
+                    switchDay: Mapping.cycleSwitchDay(latestPeriodStart: latest, serverToday: today))
+                try await Mapping.upsertCycleProfile(tx, userID: userID, next)
             }
             return try json(try await Mapping.readProfileBody(tx))
         }
