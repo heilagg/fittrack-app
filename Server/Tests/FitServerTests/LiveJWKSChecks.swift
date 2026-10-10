@@ -10,6 +10,29 @@
 //    FITTRACK_LIVE_ISSUER=http://127.0.0.1:54321/auth/v1 \
 //    FITTRACK_LIVE_TOKEN=<access_token> swift test
 //    FITTRACK_EMPTY_JWKS_ISSUER=http://127.0.0.1:8099 swift test
+//
+//  Откуда взять значения (локальный Supabase, `supabase start`):
+//
+//  FITTRACK_LIVE_TOKEN — access-токен анонимного пользователя, тем же путём,
+//  что `Live.signUpAnonymous`. Ключ — publishable из `supabase status`:
+//
+//    curl -s -X POST http://127.0.0.1:54321/auth/v1/signup \
+//      -H "apikey: <publishable key>" -H "Content-Type: application/json" \
+//      -d '{}'
+//
+//  В ответе — поле `access_token`; его и кладут в переменную, не печатая.
+//  Каждый вызов заводит в локальной базе нового анонимного пользователя. Токен
+//  живёт час (`exp`), после этого тест честно упадёт на проверке срока.
+//
+//  FITTRACK_EMPTY_JWKS_ISSUER — любой локальный HTTP-сервер, который по пути
+//  `<issuer>/.well-known/jwks.json` (так `AuthConfiguration` выводит адрес)
+//  отдаёт пустой набор `{"keys":[]}`. Например:
+//
+//    mkdir -p /tmp/emptyjwks/.well-known
+//    printf '{"keys":[]}' > /tmp/emptyjwks/.well-known/jwks.json
+//    python3 -m http.server 8099 --bind 127.0.0.1 --directory /tmp/emptyjwks
+//
+//  и issuer `http://127.0.0.1:8099`. Сервер нужен только на время прогона.
 
 import Testing
 import Foundation
