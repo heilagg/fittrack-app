@@ -11,7 +11,7 @@ import { defineConfig } from '@playwright/test'
 // Браузер: если задан PLAYWRIGHT_CHROME_PATH — берётся этот Chrome/Chromium,
 // иначе системный Chrome (`channel: 'chrome'`). Скачивать браузер не нужно.
 const chromePath = process.env.PLAYWRIGHT_CHROME_PATH
-const port = Number(process.env.WEB_PORT ?? 3000)
+const port = Number(process.env.WEB_PORT ?? 5173)
 
 export default defineConfig({
   testDir: 'e2e',

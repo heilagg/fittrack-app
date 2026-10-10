@@ -34,15 +34,17 @@ cd Server
 FITTRACK_ISSUER=http://127.0.0.1:54321/auth/v1 FITTRACK_DB_PASSWORD=fitserver \
 FITTRACK_DB_PORT=54322 FITTRACK_DB_TLS=disable swift run fitserver
 
-# веб (127.0.0.1:3000, /v1 проксируется на :8080)
+# веб (127.0.0.1:5173, /v1 проксируется на :8080)
 cd Web
 npm install
 npm run dev
 ```
 
 Значения Supabase для разработки лежат в `.env.development` (локальный
-публичный ключ демо-проекта). Если порт 3000 занят другим процессом, задайте
-`WEB_PORT=3001`: порт жёсткий (`strictPort`), на соседний Vite молча не уйдёт.
+публичный ключ демо-проекта). Если порт 5173 занят другим процессом, задайте
+`WEB_PORT=5174`: порт жёсткий (`strictPort`), на соседний Vite молча не уйдёт.
+`site_url` в `Supabase/config.toml` пока указывает на 3000 — это правится
+первым коммитом среза 2 (magic link).
 
 Dev-кнопка «Подготовить тестовые данные» есть только в dev-сборке
 (`import.meta.env.DEV`): она заводит профиль, инвентарь и неделю в обход
