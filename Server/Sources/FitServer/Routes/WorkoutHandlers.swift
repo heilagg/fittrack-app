@@ -32,6 +32,7 @@ import Foundation
 import FitAPI
 import FitContent
 import FitCore
+import PostgresNIO
 import Vapor
 
 extension WorkoutRoutes {
@@ -194,6 +195,15 @@ extension WorkoutRoutes {
         }
     }
 
+    /// Отказ RLS на строке, которую политика не показывает: `42501` С признаком
+    /// политики в сообщении. Один код без сообщения не годится — тот же `42501`
+    /// значит «permission denied» у роли без прав, то есть поломку среды (20k),
+    /// и выдавать её за 404 нельзя.
+    static func isForeignRow(_ error: PSQLError) -> Bool {
+        error.serverInfo?[.sqlState] == "42501"
+            && (error.serverInfo?[.message] ?? "").contains("row-level security policy")
+    }
+
     // MARK: - POST /v1/workouts/{id}/exercises/{we_id}/sets
 
     /// Тело запроса до полного разбора — только вопрос «есть ли `id`».
@@ -296,9 +306,17 @@ extension WorkoutRoutes {
             // `prescribed_reps` — верх ДЕЙСТВУЮЩЕГО диапазона, и берётся он из
             // `workout_exercises.target_rep_max` (§20.3), а не вторым вызовом
             // `repRange`: тот дал бы диапазон на состояние ПОСЛЕ подхода.
-            try await Mapping.upsertSet(tx, id: setID, workoutExerciseID: exerciseID, body: body,
-                                        prescribedReps: exercise.targetRepMax, painJoints: joints,
-                                        timeZone: day.timeZone)
+            do {
+                try await Mapping.upsertSet(tx, id: setID, workoutExerciseID: exerciseID, body: body,
+                                            prescribedReps: exercise.targetRepMax, painJoints: joints,
+                                            timeZone: day.timeZone)
+            } catch let error as PSQLError where Self.isForeignRow(error) {
+                // `id` занят подходом другого пользователя (§20.6): RLS строку не
+                // показывает, и upsert на неё натыкается. Для запроса её нет — 404,
+                // как на любую несуществующую строку; особый код выдал бы, что
+                // чужой подход с таким `id` есть.
+                throw APIError(.notFound, details: ["field": .string("id")])
+            }
 
             guard let userID = UUID(uuidString: tx.token.subject) else { throw APIError(.internal) }
             let journal = try await Mapping.readSets(tx, since: nil, timeZone: day.timeZone)

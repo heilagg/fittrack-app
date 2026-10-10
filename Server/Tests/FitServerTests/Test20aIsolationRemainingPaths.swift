@@ -165,11 +165,12 @@ struct Test20aIsolationRemainingPaths {
             let (s2, raw2) = try await self.call(
                 app, .POST, "/v1/workouts/\(bobWorkout.id)/exercises/\(bobExercise.id)/sets", bob,
                 body: collision)
-            // Точный код здесь SPEC не задаёт: сейчас это 500 — upsert натыкается
-            // на строку, которую RLS не показывает, и Postgres отказывает. Утечки
-            // нет (строки Алисы проверены ниже), но код — открытый вопрос, и тест
-            // его не закрепляет.
-            #expect(s2 != 200, Comment(rawValue: "чужой id принят: \(String(decoding: raw2, as: UTF8.self))"))
+            // §20.6: `id`, занятый чужим подходом, — 404 `not_found` с полем `id`,
+            // как на любую строку, которой для запроса нет.
+            #expect(s2 == 404, Comment(rawValue: String(decoding: raw2, as: UTF8.self)))
+            #expect(self.code(raw2) == .notFound)
+            #expect((try? JSONDecoder().decode(APIErrorEnvelope.self, from: raw2))?.error
+                        .details?["field"] == .string("id"))
 
             // Строки Алисы: ровно одна, с её значениями.
             let rows = try await self.sql(database, alice) { tx -> [(Double?, Int?, String?)] in
