@@ -124,14 +124,15 @@ describe('«Начать» на экране «Сегодня»', () => {
     expect(startWorkout).toHaveBeenCalledWith('day-1')
   })
 
-  it('день отдыха и несгенерированная неделя — без «Продолжить»', async () => {
+  it('закрытый день (done) — не «Продолжить», хотя строка плана есть', async () => {
     mount({
       getToday: async () => ({
         ...card,
         day: {
+          day_id: 'day-1',
           kind: 'not_built' as const,
           loses_planned_volume: false,
-          cause: { code: 'not_a_training_day' as const, params: {}, message: 'Сегодня отдых' },
+          cause: { code: 'done' as const, params: {}, message: 'Тренировка выполнена' },
         },
       }),
     })
