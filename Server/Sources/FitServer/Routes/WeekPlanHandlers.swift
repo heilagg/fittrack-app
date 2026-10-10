@@ -130,11 +130,17 @@ extension WeekPlanRoutes {
             guard let userID = UUID(uuidString: tx.token.subject) else {
                 throw APIError(.internal)
             }
+            // Признак считается один раз, здесь, и пишется в строку (§11.5):
+            // пересборка читает записанное, а не считает заново.
+            let history = try await Mapping.readDeloadHistory(tx)
+            let isDeload = Cycle.isDeloadWeek(
+                weekStart: weekStart, today: day.date, phaseMode: inputs.cycle.profile.phaseMode,
+                workoutDays: history.workoutDays, deloadWeekStarts: history.deloadWeekStarts)
             let digestContext = self.context(inputs, weekStart: weekStart, today: day.date,
-                                             days: [], isDeload: false,
+                                             days: [], isDeload: isDeload,
                                              library: library, userSeed: userSeed)
             let weekPlanID = try await Mapping.insertWeekPlan(
-                tx, userID: userID, weekStart: weekStart,
+                tx, userID: userID, weekStart: weekStart, isDeload: isDeload,
                 digest: Mapping.InputDigest(context: digestContext, profile: inputs.complete))
             let inserted = try await Mapping.insertPlannedDays(tx, weekPlanID: weekPlanID, slots: slots)
             let rows = inserted.map {
@@ -142,7 +148,7 @@ extension WeekPlanRoutes {
                                       sessionKind: $0.slot.kind.rawValue, status: "planned")
             }
             let context = self.context(inputs, weekStart: weekStart, today: day.date,
-                                       days: rows, isDeload: false,
+                                       days: rows, isDeload: isDeload,
                                        library: library, userSeed: userSeed)
             let plan = Planner.planRemainingDays(context)
             // Первая генерация: сравнивать не с чем, строка не печатается
@@ -233,7 +239,8 @@ extension WeekPlanRoutes {
                 // просто ещё не генерировали, и это законное состояние.
                 return try json(response(WeekPlan(days: [:], statusLines: []), notice: nil))
             }
-            let inputs = try await self.inputs(tx, on: day)
+            // `/preview` не пишет ничего, включая счётчик цикла (§20.6).
+            let inputs = try await self.inputs(tx, on: day, persistCycle: false)
             let context = self.context(inputs, weekStart: weekStart, today: day.date,
                                        days: week.days, isDeload: week.isDeload, library: library,
                                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
@@ -325,7 +332,8 @@ extension WeekPlanRoutes {
                 ])
             }
             let inputs = try await self.inputs(tx, on: day)
-            let cause = self.cause(for: body.cause, cycle: inputs.cycle, on: day.date)
+            let cause = self.cause(for: body.cause, cycle: inputs.cycle, stored: inputs.storedCycle,
+                                   applies: inputs.cycleApplies, on: day.date)
             let context = self.context(inputs, weekStart: weekStart, today: day.date,
                                        days: week.days, isDeload: week.isDeload, library: library,
                                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
@@ -341,7 +349,13 @@ extension WeekPlanRoutes {
     /// сравнением состояний: отбрасываем последнее событие и смотрим, сменилась
     /// фаза или только уверенность. Если событий нет вовсе — сменилась
     /// уверенность: фазе меняться не с чего.
+    ///
+    /// Оба состояния проходят через `applyingClosedCycles` (§20.3, §11.5):
+    /// «после» — `cycle` уже применён по всем событиям, «до» — сохранённый
+    /// профиль `stored` применяется к оставшимся. Иначе автопереход режима,
+    /// вызванный как раз этим событием, терялся бы в причине.
     static func cause(for client: ClientRebuildCause, cycle: CycleInputs,
+                      stored: CycleProfile, applies: Bool,
                       on today: CalendarDay) -> RebuildCause {
         switch client {
         case .equipmentChanged:
@@ -352,7 +366,11 @@ extension WeekPlanRoutes {
             let latest = cycle.events.max { $0.occurredOn < $1.occurredOn }
             var remaining = cycle.events
             if let latest, let index = remaining.firstIndex(of: latest) { remaining.remove(at: index) }
-            let before = Cycle.state(events: remaining, profile: cycle.profile,
+            let beforeInputs = Mapping.applyingClosedCycles(
+                to: CycleInputs(events: remaining, profile: stored,
+                                responseProfiles: cycle.responseProfiles),
+                applies: applies, asOf: today)
+            let before = Cycle.state(events: remaining, profile: beforeInputs.profile,
                                      responseProfiles: cycle.responseProfiles, asOf: today)
             return before.phase != after.phase
                 ? .phaseChanged(phase: after.phase, cycleConfidence: after.cycleConfidence)

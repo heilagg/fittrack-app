@@ -127,7 +127,7 @@ extension Mapping {
         /// григорианским из `CalendarDay` — и первую неделю года они разошлись
         /// бы на разных локалях.
         public static func mondayOfWeek(_ day: CalendarDay) -> CalendarDay {
-            day.adding(days: -((day.dayNumber + 3) % 7))
+            day.mondayOfWeek
         }
 
         /// Обратная к `CalendarDay(year:month:day:)` — `civil_from_days`

@@ -162,8 +162,14 @@ extension Mapping {
 
     // MARK: - Цикл
 
-    public static func readCycle(_ tx: UserTransaction,
-                                 tracking: CycleTracking) async throws -> CycleInputs {
+    /// Состояние цикла после применения закрытых циклов (§11.5, §20.6).
+    ///
+    /// `persist` — пишущий ли это путь. `/today` и `/preview` по §20.6 не пишут
+    /// ничего и считают применённый профиль в памяти; остальные сохраняют
+    /// изменившиеся колонки счётчика. `updated_at` не трогается намеренно
+    /// (`persistCycleCounters`).
+    public static func readCycle(_ tx: UserTransaction, tracking: CycleTracking,
+                                 asOf today: CalendarDay, persist: Bool) async throws -> CycleRead {
         var events: [CycleEventRow] = []
         let eventRows = try await tx.query("""
             select kind, to_char(occurred_on, 'YYYY-MM-DD') from cycle_events order by occurred_on
@@ -205,8 +211,89 @@ extension Mapping {
                                               sampleSize: size, notifiedAt: notified))
         }
 
-        return cycleInputs(events: events, profile: profileRow,
-                           responses: responses, tracking: tracking)
+        let raw = cycleInputs(events: events, profile: profileRow,
+                              responses: responses, tracking: tracking)
+        let applies = profileRow != nil && tracking != .off
+        let applied = applyingClosedCycles(to: raw, applies: applies, asOf: today)
+        if persist, applied.profile != raw.profile {
+            guard let userID = UUID(uuidString: tx.token.subject) else {
+                throw ReadFailure.missingRow("cycle_profiles")
+            }
+            try await persistCycleCounters(tx, userID: userID, applied.profile)
+        }
+        return CycleRead(inputs: applied, stored: raw.profile, applies: applies)
+    }
+
+    /// Сохранённый профиль цикла как есть, без подстановки режима по
+    /// `cycle_tracking` (§20.6): нужен переключению режима в `PATCH`, которому
+    /// важно, что лежит в строке, а не что увидит планировщик.
+    public static func readStoredCycleProfile(_ tx: UserTransaction) async throws -> CycleProfile? {
+        let rows = try await tx.query("""
+            select typical_cycle_length_days, typical_period_length_days, declared_regularity,
+                   phase_mode, no_phase_reason, low_confidence_streak,
+                   to_char(low_confidence_counted_through, 'YYYY-MM-DD')
+              from cycle_profiles
+            """)
+        for try await row in rows {
+            let (length, period, regularity, mode, reason, streak, through) =
+                try row.decode((Int?, Int?, String?, String, String?, Int, String?).self)
+            return cycleProfile(from: CycleProfileRow(
+                typicalCycleLengthDays: length, typicalPeriodLengthDays: period,
+                declaredRegularity: regularity, phaseMode: mode, noPhaseReason: reason,
+                lowConfidenceStreak: streak,
+                lowConfidenceCountedThrough: try through.map {
+                    try day($0, column: "cycle_profiles.low_confidence_counted_through")
+                }), tracking: .manual)
+        }
+        return nil
+    }
+
+    /// Наибольшая `period_start`, не позже `cutoff`.
+    public static func readLatestPeriodStart(_ tx: UserTransaction,
+                                             notAfter cutoff: CalendarDay) async throws -> CalendarDay? {
+        let rows = try await tx.query("""
+            select to_char(max(occurred_on), 'YYYY-MM-DD') from cycle_events
+             where kind = 'period_start' and occurred_on <= \(LocalTime.iso(cutoff))::date
+            """)
+        for try await row in rows {
+            if let value = try row.decode(String?.self) {
+                return try day(value, column: "cycle_events.occurred_on")
+            }
+        }
+        return nil
+    }
+
+    // MARK: - Журнал для правила разгрузочной недели (§11.5)
+
+    /// Дни завершённых тренировок и недели, записанные разгрузочными.
+    ///
+    /// День тренировки — самая ранняя `sets.performed_on` её подходов (§20.7,
+    /// день зафиксирован при записи и от зоны читающего запроса не зависит);
+    /// тренировка без подходов не датируется и в результат не попадает.
+    /// Растяжка (`stretch_sessions`) сюда не входит: она не `workouts`.
+    public static func readDeloadHistory(_ tx: UserTransaction) async throws
+        -> (workoutDays: [CalendarDay], deloadWeekStarts: Set<CalendarDay>) {
+        var days: [CalendarDay] = []
+        let finished = try await tx.query("""
+            select to_char(min(s.performed_on), 'YYYY-MM-DD')
+              from workouts w
+              join workout_exercises we on we.workout_id = w.id
+              join sets s on s.workout_exercise_id = we.id
+             where w.finished_at is not null
+             group by w.id
+            """)
+        for try await row in finished {
+            days.append(try day(try row.decode(String.self), column: "sets.performed_on"))
+        }
+
+        var deloads: Set<CalendarDay> = []
+        let weeks = try await tx.query("""
+            select to_char(week_start, 'YYYY-MM-DD') from week_plans where is_deload
+            """)
+        for try await row in weeks {
+            deloads.insert(try day(try row.decode(String.self), column: "week_plans.week_start"))
+        }
+        return (days, deloads)
     }
 
     // MARK: - Чек-ин

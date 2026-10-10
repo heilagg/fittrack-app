@@ -181,3 +181,12 @@ struct WeekPlanRoutesTests {
         #expect(try position("training_weekdays") < (try position("v")))
     }
 }
+
+/// Прежняя форма вызова: состояние «до» берётся от того же профиля, закрытые
+/// циклы не применяются. Проверки применения — `Test17ClosedCyclesApplied`.
+extension WeekPlanRoutes {
+    static func cause(for client: ClientRebuildCause, cycle: CycleInputs,
+                      on today: CalendarDay) -> RebuildCause {
+        cause(for: client, cycle: cycle, stored: cycle.profile, applies: false, on: today)
+    }
+}
