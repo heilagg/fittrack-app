@@ -33,6 +33,11 @@
 
 import Testing
 import Foundation
+// Под Linux `URLSession` живёт в FoundationNetworking: без него тест не
+// собирается там вовсе.
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import PostgresNIO
 import Logging
 @testable import FitServer

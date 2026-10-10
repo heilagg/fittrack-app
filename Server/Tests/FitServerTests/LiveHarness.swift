@@ -36,6 +36,13 @@ import FoundationEssentials
 #else
 import Foundation
 #endif
+// Под Linux `URLSession` живёт в FoundationNetworking, а `Foundation` выше не
+// импортируется вовсе, если есть FoundationEssentials. Обвязка ходит в
+// Supabase Auth по HTTP, и без этого импорта тесты под Linux не собираются.
+#if canImport(FoundationNetworking)
+import Foundation
+import FoundationNetworking
+#endif
 import FitAPI
 import FitContent
 import FitCore
