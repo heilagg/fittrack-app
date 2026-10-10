@@ -336,6 +336,20 @@ extension Planner {
         return base.lowerBound...(base.upperBound + (state?.repExtension ?? 0))
     }
 
+    /// Диапазон повторов на состоянии СЕССИИ: `repRange` от состояния после
+    /// `stateForSession`, то есть ровно тот, что сборка положила бы в
+    /// `targetRepMin`/`targetRepMax` упражнения на день `day` (SPEC §9.1, §9.7).
+    ///
+    /// Нужна тому, кто предписывает одно упражнение вне сборки, — замене
+    /// упражнения (SPEC §20.3, `/substitute`): `prescribe` пересчитывает три
+    /// числа и диапазон не трогает, а `stateForSession` наружу не видна. Звать
+    /// `repRange` на сыром хранимом состоянии нельзя по той же причине, что
+    /// описана у `repRange`: после перерыва сырое `repExtension` ещё не сброшено.
+    public static func sessionRepRange(goal: Goal, state: ExerciseState?,
+                                       ladder: WeightLadder, on day: CalendarDay) -> ClosedRange<Int> {
+        repRange(goal: goal, state: state.map { stateForSession($0, ladder: ladder, on: day) })
+    }
+
     // MARK: - Перестановка по seed
 
     /// SplitMix64 — детерминированный и без Foundation.

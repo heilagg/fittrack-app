@@ -969,6 +969,36 @@ final class PlannerTests: XCTestCase {
         XCTAssertEqual(long.targetRepMax, 12)
     }
 
+    /// `sessionRepRange` даёт ровно тот диапазон, что сборка кладёт в
+    /// предписание, — в том числе после перерыва, когда §9.7 сбрасывает
+    /// `repExtension` (от 22 дней) и возвращает калибровку (больше 45). Сверка
+    /// со СБОРКОЙ, а не с формулой: функция существует ради того, чтобы
+    /// `/substitute` (SPEC §20.3) не разошёлся со стартом тренировки.
+    func test_contract_sessionRepRangeMatchesTheBuild() {
+        let library = [F.gobletSquat, F.rdlBand, F.bandAbduction, F.legCurlBand]
+        let week = F.week(Array(repeating: (.lower, nil, F.lower), count: 3), offsets: [36, 38, 40])
+        var sawReset = false
+        for gap in [5, 15, 30, 60] {
+            var states = F.familiar
+            let state = ExerciseState(baselineKg: 10, repExtension: 3, extraSetsAdded: 2,
+                                      lastPerformedAt: F.day(40 - gap), isInCalibration: false)
+            states["goblet_squat"] = state
+            let input = F.input(week: week, dayIndex: 2, library: library, minutes: 30, states: states)
+            guard let built = build(input).exercises.first(where: { $0.slug == "goblet_squat" }) else {
+                return XCTFail("фикстура: goblet_squat в сборке")
+            }
+            let range = Planner.sessionRepRange(
+                goal: input.goal, state: state,
+                ladder: WeightLadder.build(loadType: F.gobletSquat.loadType, profile: input.equipment),
+                on: week[2].date)
+            XCTAssertEqual(range, built.targetRepMin...built.targetRepMax, "перерыв \(gap) дней")
+            if range != Planner.repRange(goal: input.goal, state: state) { sawReset = true }
+        }
+        // Без этого сверка прошла бы и на функции, не применяющей §9.7: на
+        // коротком перерыве сырое и сессионное состояния совпадают.
+        XCTAssertTrue(sawReset, "фикстура: ни на одном перерыве сброс не наблюдался")
+    }
+
     /// Состояние прогрессии планировщик сворачивает сам — `rebuildStates` с
     /// лестницей ТЕКУЩЕГО инвентаря (находка 1). Журнал записан на гантелях до
     /// 12 кг; после смены инвентаря (до 10 кг) предписание следует свёртке с
