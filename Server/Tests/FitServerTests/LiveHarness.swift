@@ -108,7 +108,7 @@ enum Live {
 
     /// Прямое соединение владельцем — только для посева и только пока нет
     /// `PATCH /v1/profile` (см. шапку файла).
-    private static func ownerClient(_ logger: Logger) -> PostgresClient {
+    static func ownerClient(_ logger: Logger) -> PostgresClient {
         var configuration = PostgresClient.Configuration(
             host: dbHost, port: dbPort, username: "postgres", password: "postgres",
             database: "postgres", tls: .disable)

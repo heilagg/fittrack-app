@@ -27,8 +27,8 @@ extension Mapping {
     ///
     /// `isDeloadWeek` приходит из `week_plans.is_deload`, а не выводится:
     /// признак зафиксирован в момент генерации и пересборкой не пересчитывается
-    /// (§11.5), а правило счёта открыто (§19.2 п.4) — до его закрытия там всегда
-    /// `false`.
+    /// (§11.5); считает его `Cycle.isDeloadWeek` при генерации недели
+    /// (§19.2 п.4).
     public static func weekContext(
         weekStart: CalendarDay,
         today: CalendarDay,
