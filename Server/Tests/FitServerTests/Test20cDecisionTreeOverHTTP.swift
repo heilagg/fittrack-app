@@ -250,4 +250,144 @@ struct Test20cDecisionTreeOverHTTP {
                     "«легко» на rep_max вес обязано поднять")
         }
     }
+    // MARK: - Перерыв (§9.7): сброс rep_extension внутри сборки
+
+    /// §20.15: «Случай с перерывом (§9.7, сброс `rep_extension` внутри сборки)
+    /// входит в тест отдельной веткой». Свёртка журнала даёт расширенный
+    /// диапазон, но сборка на день после перерыва в 22–45 дней сбрасывает
+    /// расширение; все три места — предписание, `exercise_states` и дерево —
+    /// обязаны получить СБРОШЕННЫЙ диапазон. Сырой дал бы правдоподобные числа,
+    /// которых пользовательница не видела.
+    @Test("перерыв 34 дня: дерево, workout_exercises и exercise_states — сброшенный диапазон")
+    func rangeAfterABreakIsTheResetOne() async throws {
+        let user = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("test.20c.break")
+        let library = try FitContent.Content.loadBundled()
+        let base = Planner.baseRepRange(goal: .hypertrophy) // цель посева (LiveHarness)
+        let zone = TimeZone(identifier: "Europe/Moscow")!
+        let today = Mapping.LocalTime.day(of: Date(), in: zone)
+        let day = DayContext(date: Mapping.LocalTime.iso(today), tz: zone.identifier)
+
+        try await Live.withServer("test.20c.break") { app, database in
+            try await Live.seed(app, user, logger: logger, weekdays: [(today.dayNumber + 3) % 7 + 1])
+            // История всех гантельных упражнений (40, 37, 34 дня назад): состав сессии не выбрать
+            // заранее, а история должна быть у того, что войдёт.
+            let dumbbell = library.candidates.filter { $0.loadType == .dumbbell }.map(\.slug)
+            let owner = try #require(UUID(uuidString: user.id.uuidString))
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                // Первая сессия — два `ok` в диапазоне: выход из калибровки
+                // (§9.8) с базовой линией 4 кг. Две следующие — «легко» на верхе:
+                // ступень 4 → 6 кг больше 10%, и §9.5 расширяет повторы.
+                for (daysAgo, feedback) in [(40, "ok"), (37, "easy"), (34, "easy")] {
+                    let workout = UUID()
+                    try await tx.query("""
+                        insert into workouts (id, user_id, started_at, finished_at, session_kind, readiness)
+                        values (\(workout), \(owner), now() - make_interval(days => \(daysAgo)::int),
+                                now() - make_interval(days => \(daysAgo)::int), 'full_body', 1.0)
+                        """)
+                    for (index, slug) in dumbbell.enumerated() {
+                        let we = UUID()
+                        try await tx.query("""
+                            insert into workout_exercises (id, workout_id, exercise_slug, order_index,
+                                target_sets, target_rep_min, target_rep_max, target_rir, weight_readiness)
+                            values (\(we), \(workout), \(slug), \(index), 2, \(base.lowerBound),
+                                    \(base.upperBound), 2, 1.0)
+                            """)
+                        for setIndex in 1...2 {
+                            try await tx.query("""
+                                insert into sets (id, workout_exercise_id, set_index, prescribed_kg,
+                                    prescribed_reps, actual_kg, actual_reps, feedback, pain_flag,
+                                    skipped, completed_at, exercise_slug, is_calibration,
+                                    weight_readiness)
+                                values (\(UUID()), \(we), \(setIndex), 4, \(base.upperBound), 4,
+                                        \(base.upperBound), \(feedback), false, false,
+                                        now() - make_interval(days => \(daysAgo)::int), \(slug), false, 1.0)
+                                """)
+                        }
+                    }
+                }
+                // Строки состояния — как их оставила бы запись подходов: вне
+                // калибровки и с СЫРЫМ расширенным диапазоном. Старт обязан их
+                // перезаписать сброшенным.
+                for slug in dumbbell {
+                    try await tx.query("""
+                        insert into exercise_states (user_id, exercise_slug, baseline_kg,
+                            current_rep_min, current_rep_max, in_calibration)
+                        values (\(owner), \(slug), 4, \(base.lowerBound), \(base.upperBound + 2), false)
+                        """)
+                }
+            }
+
+            let generate = GenerateWeekPlanRequest(
+                weekStart: Mapping.LocalTime.iso(Mapping.LocalTime.mondayOfWeek(today)), day: day)
+            var dayID: String?
+            try await app.testing().test(.POST, "/v1/week-plans", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(generate) }) {
+                #expect($0.status == .created, Comment(rawValue: String(buffer: $0.body)))
+                dayID = try JSONDecoder().decode(WeekPlanResponseDTO.self, from: Data(buffer: $0.body))
+                    .plan.days.first?.dayID
+            }
+            var workout: WorkoutDTO?
+            let start = StartWorkoutRequest(plannedDayID: try #require(dayID), day: day)
+            try await app.testing().test(.POST, "/v1/workouts", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(start) }) {
+                #expect($0.status == .created, Comment(rawValue: String(buffer: $0.body)))
+                workout = try JSONDecoder().decode(WorkoutDTO.self, from: Data(buffer: $0.body))
+            }
+            let started = try #require(workout)
+
+            // Контроль: свёртка журнала действительно даёт расширение, а
+            // перерыв попадает в окно сброса без калибровки (22–45 дней).
+            let journal = try await database.withUserTransaction(
+                authorization: "Bearer \(user.token)") { tx in
+                try await Mapping.readSets(tx, since: nil, timeZone: zone) }
+            let equipment = try await database.withUserTransaction(
+                authorization: "Bearer \(user.token)") { tx in try await Mapping.readEquipment(tx, id: nil) }
+            let raw = Planner.exerciseStates(history: Mapping.exerciseHistory(from: journal),
+                                             library: library.candidates, goal: .hypertrophy,
+                                             equipment: equipment.profile)
+            let exercise = try #require(started.exercises.first { (raw[$0.slug]?.repExtension ?? 0) > 0 },
+                                        "ни у одного упражнения сессии свёртка не дала расширения: \(started.exercises.map { "\($0.slug)=\(String(describing: raw[$0.slug]))" })")
+            let rawState = try #require(raw[exercise.slug])
+            #expect((rawState.lastPerformedAt.map { $0.days(until: today) } ?? 0) >= 22)
+            #expect(exercise.isCalibration == false, "фикстура: дерево вне калибровки")
+
+            let range = exercise.targetRepMin...exercise.targetRepMax
+            #expect(range == base, "сборка не сбросила rep_extension после перерыва")
+            #expect(range != Planner.repRange(goal: .hypertrophy, state: rawState),
+                    "контроль: сырой диапазон обязан отличаться")
+
+            let stored = try await database.withUserTransaction(
+                authorization: "Bearer \(user.token)") { tx -> ClosedRange<Int>? in
+                for try await row in try await tx.query("""
+                    select current_rep_min, current_rep_max from exercise_states
+                     where exercise_slug = \(exercise.slug)
+                    """) {
+                    let (lo, hi) = try row.decode((Int, Int).self)
+                    return lo...hi
+                }
+                return nil
+            }
+            #expect(stored == range, "exercise_states остались с сырым диапазоном")
+
+            // Корень дерева выведен из журнала на сброшенном диапазоне: «легко»
+            // на его верхе вес поднимает, а на сыром (верх выше на 2) это был
+            // бы не верх. Диапазон внутри `DecisionTree.build` в ответе не
+            // наблюдаем: ветки символьные (`easy_at_or_above_max`), и какой
+            // ветке соответствуют повторы, клиент решает по `target_rep_*`.
+            let ladder = WeightLadder.build(
+                loadType: try #require(library.candidates.first { $0.slug == exercise.slug }).loadType,
+                profile: equipment.profile)
+            let startKg = try #require(exercise.prescribedKg)
+            let tree = try await self.log(app, user, workout: started.id, exercise: exercise.id,
+                                          index: 1, kg: startKg, reps: range.upperBound,
+                                          feedback: .easy)
+            let next = try #require(try self.root(tree).weightKg)
+            #expect(Progression.nextSet(priorFeedback: nil, current: startKg, feedback: .easy,
+                                        actualReps: range.upperBound, range: range,
+                                        isCalibration: false, calibrationIncreasesUsed: 0,
+                                        ladder: ladder) == .nextWeight(next))
+            #expect(next > startKg, "«легко» на верхе сброшенного диапазона вес не подняло")
+        }
+    }
 }
