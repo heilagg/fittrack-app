@@ -15,7 +15,9 @@
 //
 //  `muscle_fatigue` в 20e не проверяется и проверяться здесь не может: §20.6
 //  считает её один раз, на `/finish`, и до него она законно отстаёт от журнала.
-//  Эта половина 20e переезжает в тест завершения.
+//  Поэтому эта половина 20e проверяется через `/finish`: ретрай подхода, затем
+//  завершение — и утомление равно тому, что дала бы одиночная отправка
+//  (`test20e_retryThenFinishGivesSingleSendFatigue`).
 //
 //  Граница 20e и 20f — ровно в том, что ретрай с ТЕМИ ЖЕ значениями отказом не
 //  является, хотя подход и завершён. Иначе клиент, потерявший ответ, не доедет
@@ -29,6 +31,7 @@ import Foundation
 #endif
 import Testing
 import FitAPI
+import FitContent
 import FitCore
 import Vapor
 import VaporTesting
@@ -187,6 +190,60 @@ struct Test20efgSetWrites {
                 #expect(envelope.error.details?["field"] == .string("completed_at"))
             }
             #expect(try await self.setCount(database, user) == 0, "строка не появилась")
+        }
+    }
+
+    @Test("20e: ретрай подхода и /finish дают то же утомление, что одиночная отправка")
+    func test20e_retryThenFinishGivesSingleSendFatigue() async throws {
+        let user = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("test.20e.fatigue")
+        let library = try FitContent.Content.loadBundled()
+
+        try await Live.withServer("test.20e.fatigue") { app, database in
+            let workout = try await Live.startedWorkout(app, user, logger: logger)
+            let exercise = try #require(workout.exercises.first)
+            // Калибровочные подходы в утомление не идут (§9.8): без этого
+            // утомления не было бы вовсе, и равенство было бы пустым.
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                try await tx.query("""
+                    update workout_exercises set is_calibration = false
+                     where id = \(UUID(uuidString: exercise.id)!)
+                    """)
+            }
+            let moment = Date(timeIntervalSince1970: (Date().timeIntervalSince1970 - 3600).rounded(.down))
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime]
+            let body = LogSetRequest(id: UUID().uuidString, setIndex: 1, prescribedKg: 10, actualKg: 10,
+                                     actualReps: 10, feedback: .ok, completedAt: f.string(from: moment),
+                                     day: Live.today)
+            for _ in 1...2 { // первая отправка и ретрай после «таймаута»
+                let (status, raw) = try await self.post(app, user, workout: workout.id,
+                                                        exercise: exercise.id, body)
+                #expect(status == 200, Comment(rawValue: String(decoding: raw, as: UTF8.self)))
+            }
+            try await app.testing().test(
+                .POST, "/v1/workouts/\(workout.id)/finish", headers: user.headers,
+                beforeRequest: { try $0.content.encode(FinishWorkoutRequest(day: Live.today)) }
+            ) { #expect($0.status == .ok) }
+
+            // Одиночная отправка: один подход на своём моменте (§8.1, §20.7).
+            let candidate = try #require(library.candidates.first { $0.slug == exercise.slug })
+            let single = Recovery.applying(
+                [FatigueSet(muscleLoad: candidate.muscleContributions.mapValues { $0 * candidate.fatigueCost },
+                            feedback: .ok)],
+                at: Mapping.LocalTime.timestamp(of: moment, in: TimeZone(identifier: "Europe/Moscow")!),
+                to: [:])
+            let stored = try await database.withUserTransaction(
+                authorization: "Bearer \(user.token)") { tx in try await Mapping.readFatigue(tx) }
+            let touched = single.filter { $0.value.value > 0 }
+            #expect(!touched.isEmpty, "фикстура: упражнение не грузит ни одной мышцы")
+            #expect(Set(stored.keys) == Set(touched.keys), "ретрай задел лишние мышцы")
+            for (muscle, state) in touched {
+                let row = try #require(stored[muscle])
+                #expect(abs(row.value - state.value) < 0.001,
+                        "\(muscle.rawValue): \(row.value) против одиночной \(state.value)")
+                #expect(abs(row.updatedAt.hoursSinceEpoch - state.updatedAt.hoursSinceEpoch) < 1e-6)
+            }
         }
     }
 
