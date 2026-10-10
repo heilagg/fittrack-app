@@ -167,6 +167,28 @@ struct LiveTodayTests {
         }
     }
 
+    @Test("строки profiles нет вовсе — первый экран: not_built без причины, а не 404 (§20.3)")
+    func noProfileRowAtAll() async throws {
+        let user = try await Live.signUpAnonymous()
+
+        try await Live.withServer("today.noprofile") { app in
+            // Ни одного PATCH: онбординг не начинали, строки `profiles` нет.
+            let card = try await self.card(app, as: user)
+            #expect(card.day.kind == "not_built")
+            #expect(card.day.cause == nil, "недели нет — не «сегодня отдых»")
+            #expect(card.day.session == nil)
+            #expect(card.readiness > 0, "готовность считается и без профиля")
+
+            let raw = try await self.rawDay(app, as: user)
+            #expect(raw["day_id"] == nil)
+
+            // И строку путь не создал: читающий путь ничего не пишет (§20.6).
+            try await app.testing().test(.GET, "/v1/profile", headers: user.headers) { response in
+                #expect(response.status == .notFound)
+            }
+        }
+    }
+
     // MARK: - Путь ничего не пишет
 
     @Test("/today не трогает last_shown_plan — следующий GET недели печатает plan_changed")
