@@ -1,0 +1,43 @@
+{
+  "plan" : {
+    "days" : [
+      {
+        "day_id" : "11111111-1111-4111-8111-111111111111",
+        "kind" : "session",
+        "loses_planned_volume" : false,
+        "session" : {
+          "day_id" : "11111111-1111-4111-8111-111111111111",
+          "estimated_seconds" : 2400,
+          "exercises" : [
+            {
+              "order_index" : 0,
+              "prescribed_kg" : 40,
+              "slug" : "squat_barbell",
+              "target_rep_max" : 10,
+              "target_rep_min" : 6,
+              "target_rir" : 2,
+              "target_sets" : 3,
+              "weight_readiness" : 1
+            },
+            {
+              "order_index" : 1,
+              "slug" : "pushup_bw",
+              "target_rep_max" : 15,
+              "target_rep_min" : 8,
+              "target_rir" : 2,
+              "target_sets" : 3,
+              "weight_readiness" : 1
+            }
+          ],
+          "leading_muscle" : "quads",
+          "reasons" : [
+
+          ]
+        }
+      }
+    ],
+    "status_lines" : [
+
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "cycle" : {
+    "has_anchor" : false,
+    "no_phase_reason" : "user_choice",
+    "phase_mode" : "no_phases"
+  },
+  "date" : "2026-10-12",
+  "day" : {
+    "kind" : "not_built",
+    "loses_planned_volume" : false
+  },
+  "readiness" : 1,
+  "reasons" : [
+
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "cycle" : {
+    "has_anchor" : false,
+    "no_phase_reason" : "user_choice",
+    "phase_mode" : "no_phases"
+  },
+  "date" : "2026-10-13",
+  "day" : {
+    "cause" : {
+      "code" : "not_a_training_day",
+      "message" : "В этот день тренировка не запланирована",
+      "params" : {
+
+      }
+    },
+    "kind" : "not_built",
+    "loses_planned_volume" : false
+  },
+  "readiness" : 1,
+  "reasons" : [
+
+  ]
+}
