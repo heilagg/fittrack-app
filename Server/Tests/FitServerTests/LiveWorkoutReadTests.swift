@@ -102,7 +102,7 @@ struct LiveWorkoutReadTests {
 
     @Test("начатая тренировка читается и равна той, что отдал старт")
     func readsTheStartedWorkout() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.read")
 
         try await Live.withServer("workout.read") { app in
@@ -120,8 +120,8 @@ struct LiveWorkoutReadTests {
 
     @Test("чужая тренировка — 404, а не 403 и не чужое тело")
     func anotherUsersWorkoutIsNotFound() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.read.isolation")
 
         try await Live.withServer("workout.read.isolation") { app in
@@ -136,7 +136,7 @@ struct LiveWorkoutReadTests {
 
     @Test("после подхода с failed корень несёт признак, и ветка failed завершает")
     func treeOfAStartedExerciseCarriesTheRoot() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.read.tree")
 
         try await Live.withServer("workout.read.tree") { app, database in
@@ -173,7 +173,7 @@ struct LiveWorkoutReadTests {
 
     @Test("подходов не осталось — дерева нет, и условие это остаток, а не finished_at")
     func noTreeWhenNoSetsRemain() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.read.exhausted")
 
         try await Live.withServer("workout.read.exhausted") { app, database in

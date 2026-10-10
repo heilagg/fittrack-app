@@ -112,7 +112,7 @@ struct LiveFinishTests {
 
     @Test("выполненный подход — день done; ответ несёт закрытую тренировку и неделю")
     func finishMarksTheDayDone() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.done")
         try await Live.withServer("finish.done") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -138,7 +138,7 @@ struct LiveFinishTests {
 
     @Test("ни одного выполненного подхода — день skipped (§7.1)")
     func finishWithoutPerformedSetsSkipsTheDay() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.skipped")
         try await Live.withServer("finish.skipped") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -159,7 +159,7 @@ struct LiveFinishTests {
 
     @Test("утомление — на момент подхода в зоне запроса, значение как у Recovery.applying")
     func fatigueLandsOnEachSetsMoment() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.fatigue")
         let library = try Content.loadBundled()
         try await Live.withServer("finish.fatigue") { app, database in
@@ -199,7 +199,7 @@ struct LiveFinishTests {
 
     @Test("повтор — 200 тем же телом, notice null, утомление не удвоено, день done")
     func repeatedFinishAppliesNothing() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.repeat")
         try await Live.withServer("finish.repeat") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -233,8 +233,8 @@ struct LiveFinishTests {
 
     @Test("нет тренировки (или она чужая) — 409 workout_not_started")
     func missingWorkoutIsNotStarted() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.missing")
         try await Live.withServer("finish.missing") { app, database in
             let workout = try await Live.startedWorkout(app, alice, logger: logger)
@@ -258,7 +258,7 @@ struct LiveFinishTests {
 
     @Test("без дня и без сгенерированной недели — ключа week нет, тренировка есть")
     func noWeekGivesExplicitNull() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.noweek")
         try await Live.withServer("finish.noweek") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -277,7 +277,7 @@ struct LiveFinishTests {
 
     @Test("20g: закрытие двигает sync_seq тренировки")
     func test20g_finishMovesSyncSeq() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("finish.20g")
         try await Live.withServer("finish.20g") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)

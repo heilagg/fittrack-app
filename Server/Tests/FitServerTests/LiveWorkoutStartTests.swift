@@ -70,7 +70,7 @@ struct LiveWorkoutStartTests {
 
     @Test("старт отдаёт 201, состав из плана и дерево на каждое упражнение")
     func startsTheDay() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.start")
 
         try await Live.withServer("workout.start") { app, database in
@@ -119,7 +119,7 @@ struct LiveWorkoutStartTests {
 
     @Test("повтор отдаёт 200 и ТУ ЖЕ тренировку, второй строки не появляется")
     func repeatIsIdempotent() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.repeat")
 
         try await Live.withServer("workout.repeat") { app, database in
@@ -148,7 +148,7 @@ struct LiveWorkoutStartTests {
 
     @Test("повтор с другим инвентарём — 409 day_not_planned с workout_id")
     func repeatWithOtherEquipmentIsRefused() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.equipment")
 
         try await Live.withServer("workout.equipment") { app, database in
@@ -182,7 +182,7 @@ struct LiveWorkoutStartTests {
 
     @Test("день со статусом skipped не начинается — 409 day_not_planned")
     func skippedDayIsRefused() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.skipped")
 
         try await Live.withServer("workout.skipped") { app in
@@ -205,8 +205,8 @@ struct LiveWorkoutStartTests {
 
     @Test("чужой день начать нельзя — 404, а не чужая тренировка")
     func anotherUsersDayIsNotFound() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("workout.isolation")
 
         try await Live.withServer("workout.isolation") { app in

@@ -12,7 +12,13 @@
 //    FITTRACK_LIVE_ISSUER=http://127.0.0.1:54321/auth/v1 \
 //    FITTRACK_ANON_KEY=<publishable key из `supabase status`> \
 //    FITTRACK_DB_PASSWORD=fitserver \
+//    FITTRACK_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY из `supabase status -o env`> \
 //    swift test
+//
+//  `FITTRACK_SERVICE_ROLE_KEY` нужен только тестам, которые стартуют
+//  тренировку: привязанных пользователей (`signUpLinked`) заводит Auth Admin
+//  API. Без него такие тесты ПАДАЮТ, а не пропускаются: тихо зелёный набор без
+//  гейта хуже красного. Ключ меняется при каждом `supabase start`.
 //
 //  Без переменных набор пропускается: `swift test` обязан оставаться зелёным
 //  без Docker (§20.4, server-domain §4). Пароль роли — конфигурация среды, а не
@@ -57,6 +63,10 @@ enum Live {
     static let issuer = ProcessInfo.processInfo.environment["FITTRACK_LIVE_ISSUER"]
     static let anonKey = ProcessInfo.processInfo.environment["FITTRACK_ANON_KEY"]
     static let dbPassword = ProcessInfo.processInfo.environment["FITTRACK_DB_PASSWORD"]
+    /// Ключ `service_role` ЛОКАЛЬНОГО Supabase (`supabase status -o env`,
+    /// `SERVICE_ROLE_KEY`). Нужен одному: создавать привязанных пользователей
+    /// через Auth Admin API (`signUpLinked`). Сервер им не пользуется (§20.4).
+    static let serviceKey = ProcessInfo.processInfo.environment["FITTRACK_SERVICE_ROLE_KEY"]
     static let dbHost = ProcessInfo.processInfo.environment["FITTRACK_DB_HOST"] ?? "127.0.0.1"
     static let dbPort = Int(ProcessInfo.processInfo.environment["FITTRACK_DB_PORT"] ?? "54322") ?? 54322
 
@@ -101,6 +111,48 @@ enum Live {
             let user: User
         }
         let body = try JSONDecoder().decode(Body.self, from: data)
+        return User(id: body.user.id, token: body.access_token)
+    }
+
+    /// Настоящий ПРИВЯЗАННЫЙ пользователь: подтверждённый email, пароль,
+    /// `is_anonymous = false` в токене. Заводится Auth Admin API, а не письмом:
+    /// путь через Mailpit проверяет e2e веба, а здесь нужен сам токен для
+    /// гейта §20.5 (`POST /v1/workouts`), и ждать письма в каждом тесте
+    /// значило бы замедлить набор на порядок.
+    static func signUpLinked() async throws -> User {
+        guard let serviceKey else {
+            throw Failure.seed("не задан FITTRACK_SERVICE_ROLE_KEY: привязанных пользователей не завести")
+        }
+        let email = "linked-\(UUID().uuidString.lowercased())@example.com"
+        let password = UUID().uuidString
+
+        func post(_ path: String, key: String, bearer: String? = nil,
+                  body: [String: Any]) async throws -> Data {
+            var request = URLRequest(url: URL(string: issuer! + path)!)
+            request.httpMethod = "POST"
+            request.setValue(key, forHTTPHeaderField: "apikey")
+            if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            guard (200..<300).contains(status) else {
+                throw Failure.signUp(status, String(decoding: data, as: UTF8.self))
+            }
+            return data
+        }
+
+        _ = try await post("/admin/users", key: serviceKey, bearer: serviceKey,
+                           body: ["email": email, "password": password, "email_confirm": true])
+        let data = try await post("/token?grant_type=password", key: anonKey!,
+                                  body: ["email": email, "password": password])
+        struct Body: Decodable {
+            struct User: Decodable { let id: UUID; let is_anonymous: Bool? }
+            let access_token: String
+            let user: User
+        }
+        let body = try JSONDecoder().decode(Body.self, from: data)
+        guard body.user.is_anonymous != true else { throw Failure.seed("пользователь анонимен") }
         return User(id: body.user.id, token: body.access_token)
     }
 

@@ -98,7 +98,7 @@ struct Test20cDecisionTreeOverHTTP {
 
     @Test("после failed корень несёт признак: второй failed завершает упражнение")
     func rootCarriesPreviousFailed() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20c.failed")
 
         try await Live.withServer("test.20c.failed") { app in
@@ -119,7 +119,7 @@ struct Test20cDecisionTreeOverHTTP {
 
     @Test("четвёртое «легко» в калибровке вес не поднимает, хотя дерево построено заново")
     func calibrationLimitHoldsAcrossRebuilds() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20c.calibration")
 
         try await Live.withServer("test.20c.calibration") { app, database in
@@ -164,7 +164,7 @@ struct Test20cDecisionTreeOverHTTP {
 
     @Test("пропуск и флаг боли корень не двигают")
     func offTreeSetsLeaveTheRootAlone() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20c.offtree")
 
         try await Live.withServer("test.20c.offtree") { app in
@@ -204,7 +204,7 @@ struct Test20cDecisionTreeOverHTTP {
 
     @Test("границы дерева, workout_exercises и exercise_states — один диапазон")
     func rangeIsOneSourceForAllThree() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20c.range")
 
         try await Live.withServer("test.20c.range") { app, database in
@@ -260,7 +260,7 @@ struct Test20cDecisionTreeOverHTTP {
     /// которых пользовательница не видела.
     @Test("перерыв 34 дня: дерево, workout_exercises и exercise_states — сброшенный диапазон")
     func rangeAfterABreakIsTheResetOne() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20c.break")
         let library = try FitContent.Content.loadBundled()
         let base = Planner.baseRepRange(goal: .hypertrophy) // цель посева (LiveHarness)

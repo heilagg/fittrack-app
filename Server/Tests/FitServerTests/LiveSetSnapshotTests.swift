@@ -26,7 +26,7 @@ struct LiveSetSnapshotTests {
 
     @Test("после смены строки упражнения журнал видит подход прежним, ретрай снимок не трогает")
     func snapshotSurvivesRowChange() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("set.snapshot")
         try await Live.withServer("set.snapshot") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)

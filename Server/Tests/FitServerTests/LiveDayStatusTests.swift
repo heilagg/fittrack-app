@@ -66,7 +66,7 @@ struct LiveDayStatusTests {
 
     @Test("done и replaced отклоняются с validation_failed, строка не меняется")
     func doneAndReplacedAreRefused() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("day.status.refused")
         try await Live.withServer("day.status.refused") { app, database in
             let dayID = try await self.generatedDay(app, user, logger: logger)
@@ -84,7 +84,7 @@ struct LiveDayStatusTests {
 
     @Test("skipped и обратно planned принимаются и пишутся")
     func skippedAndPlannedAreAccepted() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("day.status.accepted")
         try await Live.withServer("day.status.accepted") { app, database in
             let dayID = try await self.generatedDay(app, user, logger: logger)
@@ -99,7 +99,7 @@ struct LiveDayStatusTests {
 
     @Test("день done (после /finish) не правится ничем — 409 day_not_planned, строка цела")
     func doneDayIsClosedToPatch() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("day.status.done")
         try await Live.withServer("day.status.done") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
