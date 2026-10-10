@@ -30,6 +30,25 @@
 9. `0009_equipment_platforms.sql` — `equipment_profiles.step_platform` и
    `plyo_box` (§6.6): значения словаря инвентаря приходят вместе со своими
    колонками. Написана до разметки библиотеки (content-domain §2 п.6)
+10. `0010_profile_stepwise.sql` — четыре колонки `profiles` становятся nullable
+    (§3.1, §5, §20.6): онбординг на вебе пишется на сервер пошагово, и строка
+    существует НЕПОЛНОЙ. Снимает инвариант «строка `profiles` есть →
+    планировщику есть с чем работать», взамен заводит парный constraint на
+    `days_per_week`/`training_weekdays` и правило полноты в §20.6
+11. `0011_one_workout_per_planned_day.sql` — частичный unique-индекс
+    `workouts (planned_day_id) where planned_day_id is not null and deleted_at
+    is null` (§20.3): ключ идемпотентности повторного `POST /v1/workouts`.
+    В схеме, а не в приложении, потому что `repeatable read` §20.4 фантомную
+    вставку не запрещает и два параллельных старта проходят проверку чтением оба
+12. `0012_set_exercise_snapshot.sql` — `sets.exercise_slug`, `is_calibration`
+    и `weight_readiness`, снимок упражнения на момент подхода (§3.1, §13.4,
+    §20.6): после замены упражнения строка `workout_exercises` описывает
+    новое, а подходы до замены остаются фактом о прежнем. Заполняется из
+    `workout_exercises`, без значений по умолчанию
+13. `0013_set_performed_on.sql` — `sets.performed_on`, местный день сессии,
+    фиксируемый при записи подхода (§3.1, §20.7): журнал больше не переводит
+    `started_at` в зону читающего запроса. Существующие строки заполнены днём
+    `started_at` в UTC — зона их записи нигде не сохранилась
 
 Конвенции для каждой таблицы: клиентский UUID в `id`, денормализованный
 `user_id`, `updated_at`, `deleted_at`, индекс `(user_id, updated_at)`.

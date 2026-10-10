@@ -286,10 +286,25 @@ extension Planner {
     /// показе и остались в этом, изменился состав или объём. Пересборка, которая
     /// ничего не изменила, строки не печатает.
     public static func rebuildNotice(previous: WeekPlan, current: WeekPlan, cause: RebuildCause) -> ReasonCode? {
-        let changed = Set(previous.days.keys).union(current.days.keys).contains { id in
+        planChanged(previous: previous, current: current) ? .planRebuilt(cause: cause) : nil
+    }
+
+    /// Изменился ли план — без причины.
+    ///
+    /// Существует ради `GET` недели (§20.3): он сравнивает текущий план со
+    /// снимком последнего показанного и видит расхождение, НЕ зная, чем оно
+    /// вызвано — `equipment_profiles` и `cycle_events` пишутся мимо сервера
+    /// (§20.6). Причина у него `ReasonCode.planChanged`, у которой
+    /// `RebuildCause` нет вовсе, так что `rebuildNotice` ему не подходит:
+    /// пришлось бы передать выдуманный случай ради булева ответа.
+    ///
+    /// Правило то же самое — `isPlanChange` по каждому дню, — и живёт оно в
+    /// одном месте: `rebuildNotice` теперь зовёт эту функцию, а не повторяет
+    /// её. Иначе «план изменился» значило бы разное на двух путях.
+    public static func planChanged(previous: WeekPlan, current: WeekPlan) -> Bool {
+        Set(previous.days.keys).union(current.days.keys).contains { id in
             guard let before = previous.days[id], let now = current.days[id] else { return true }
             return isPlanChange(before: before, after: now)
         }
-        return changed ? .planRebuilt(cause: cause) : nil
     }
 }

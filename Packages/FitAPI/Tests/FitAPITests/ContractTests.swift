@@ -28,6 +28,11 @@ final class ContractTests: XCTestCase {
             .weekShortfallByTime(muscle: .lats, sets: 3),
             .workoutGenerationDisabled,
             .noFeasibleExercises,
+            // §20.3: причина без причины — `GET` недели увидел расхождение со
+            // снимком и не знает, чем оно вызвано. Список ведётся руками, и
+            // случай, забытый в нём, остаётся без формулировки и без сверки
+            // round-trip'а — то есть ровно без того, ради чего файл и есть.
+            .planChanged,
             .dayVectorMissing(kind: .lower, accent: .gluteMax),
             .dayVectorMissing(kind: .fullBody, accent: nil),
             .substitutionKeepsLeadingMuscle(muscle: .gluteMax),
@@ -184,6 +189,71 @@ final class ContractTests: XCTestCase {
                         "grid_stretch", "markup_missing", "pregnancy"])
     }
 
+    /// §20.3: проводной словарь причин дня на одно значение ШИРЕ ядерного.
+    /// Десятое значение в `Planner.DayOutcome.Cause` отсутствует намеренно —
+    /// `classify` принимает `PlannedDay`, а у дня отдыха его нет.
+    func test_wireDayCauseDictionaryIsTheTenOfTheSpec() {
+        XCTAssertEqual(Set(DayCause.allCases.map(\.rawValue)),
+                       ["rest_override", "skipped", "replaced", "started", "done", "past",
+                        "grid_stretch", "markup_missing", "pregnancy", "not_a_training_day"])
+    }
+
+    /// Девять проводных значений обязаны сводиться к ядерным, десятое — нет.
+    /// Без этого утверждения снимок §20.6, который читается ОБРАТНО в значения
+    /// FitCore, однажды получил бы причину, которой в ядре нет.
+    func test_nineWireCausesMapBackToCoreAndTheTenthDoesNot() {
+        for cause in DayCause.allCases where cause != .notATrainingDay {
+            XCTAssertNotNil(cause.core, "\(cause.rawValue) обязан сводиться к ядерному")
+        }
+        XCTAssertNil(DayCause.notATrainingDay.core)
+        for cause in allDayCauses {
+            XCTAssertEqual(DayCause(cause).core, cause, "перевод туда-обратно не теряет случай")
+        }
+    }
+
+    /// Формулировку отдаёт сервер для ВСЕХ причин (§20.3), включая десятую,
+    /// у которой ядерного источника строки нет.
+    func test_everyWireDayCauseCarriesAFormulation() {
+        for cause in DayCause.allCases {
+            XCTAssertFalse(ReasonStrings.message(for: cause).isEmpty, cause.rawValue)
+        }
+    }
+
+    /// День без строки `planned_days` (§20.3): `day_id` не едет вовсе — ни
+    /// значением, ни `null`. Синтетический идентификатор был бы ключом, по
+    /// которому клиент однажды сходит в `PATCH .../days/{day_id}`.
+    func test_dayWithoutARowCarriesNoIdentifier() throws {
+        for cause in [DayCause?.none, .some(.notATrainingDay)] {
+            let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+                with: try encoder.encode(DayOutcomeDTO.notBuilt(cause: cause))) as? [String: Any])
+            XCTAssertNil(json["day_id"], "ключа нет")
+            XCTAssertEqual(json["kind"] as? String, "not_built")
+            XCTAssertEqual(json["loses_planned_volume"] as? Bool, false)
+            XCTAssertNil(json["session"])
+        }
+    }
+
+    /// Два пустых дня §20.3 различаются ровно причиной, и это то, по чему
+    /// клиент выбирает между «сегодня отдых» и «неделя не сгенерирована».
+    func test_theTwoEmptyDaysDifferOnlyByCause() throws {
+        let noWeek = DayOutcomeDTO.notBuilt(cause: nil)
+        let restDay = DayOutcomeDTO.notBuilt(cause: .notATrainingDay)
+        XCTAssertNil(noWeek.cause)
+        XCTAssertEqual(restDay.cause?.cause, .notATrainingDay)
+        XCTAssertEqual(noWeek.kind, restDay.kind)
+        XCTAssertEqual(noWeek.dayID, restDay.dayID)
+
+        let json = try XCTUnwrap(try JSONSerialization.jsonObject(
+            with: try encoder.encode(restDay)) as? [String: Any])
+        let cause = try XCTUnwrap(json["cause"] as? [String: Any])
+        XCTAssertEqual(cause["code"] as? String, "not_a_training_day")
+        XCTAssertFalse((cause["message"] as? String ?? "").isEmpty)
+
+        for day in [noWeek, restDay] {
+            XCTAssertEqual(try decoder.decode(DayOutcomeDTO.self, from: try encoder.encode(day)), day)
+        }
+    }
+
     /// §20.3: словарь веток показа закрыт и состоит из пяти значений.
     func test_dayKindDictionaryIsTheFiveOfTheSpec() {
         let kinds: [DayOutcome.Kind] = [.session, .stretching, .notBuilt, .vectorMissing, .generatorDisabled]
@@ -249,7 +319,8 @@ final class ContractTests: XCTestCase {
             cycleConfidence: 0.62, isCalibration: false,
             exercises: [WorkoutExerciseDTO(id: "we1", prescribed: prescribed, isCalibration: false,
                                            decisionTree: tree,
-                                           sets: [SetDTO(id: "s1", setIndex: 1, prescribedKg: 40,
+                                           sets: [SetDTO(id: "s1", exerciseSlug: "hip_thrust_barbell",
+                                                         setIndex: 1, prescribedKg: 40,
                                                          prescribedReps: 12, actualKg: 40, actualReps: 11,
                                                          feedback: .ok, painJoints: [.hip, .lowerBack],
                                                          completedAt: "2026-09-24T19:04:00+03:00")])])
@@ -257,6 +328,7 @@ final class ContractTests: XCTestCase {
 
     private var tree: DecisionTreeDTO {
         DecisionTree.build(weightKg: 40, remainingSets: 2, range: 8...12, isCalibration: false,
+                           previousWasFailed: false, calibrationIncreasesUsed: 0,
                            ladder: .arithmetic(step: 2.5))
     }
 
@@ -282,6 +354,19 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(set?["prescribed_reps"] as? Int, 12)
     }
 
+    /// §20.3: подход несёт свой слаг — после замены упражнения в строке лежат и
+    /// подходы прежнего, и клиент обязан их различать. Слаг обязателен: тело
+    /// без него не разбирается, а не получает слаг упражнения-владельца.
+    func test_setCarriesItsExerciseSlug() throws {
+        let json = try JSONSerialization.jsonObject(with: try encoder.encode(workout(tree: nil))) as? [String: Any]
+        let set = ((json?["exercises"] as? [[String: Any]])?.first?["sets"] as? [[String: Any]])?.first
+        XCTAssertEqual(set?["exercise_slug"] as? String, "hip_thrust_barbell")
+
+        let bare = #"{"id":"s1","set_index":1,"prescribed_reps":12,"pain_flag":false,"pain_joints":[],"skipped":false}"#
+        XCTAssertThrowsError(try decoder.decode(SetDTO.self, from: Data(bare.utf8)),
+                             "подход без exercise_slug разобрался")
+    }
+
     /// §20.3: у не начатого дня дерева не существует, и поле отсутствует.
     func test_decisionTreeIsAbsentWhenWorkoutHasNotStarted() throws {
         let json = try JSONSerialization.jsonObject(
@@ -296,6 +381,22 @@ final class ContractTests: XCTestCase {
         let json = try JSONSerialization.jsonObject(
             with: try encoder.encode(LogSetResponseDTO(decisionTree: tree))) as? [String: Any]
         XCTAssertEqual(Set(json?.keys ?? [:].keys), ["decision_tree"])
+    }
+
+    /// §20.3: `/finish` отдаёт `{workout, week}`; без недели ключа `week` нет —
+    /// общее правило FitAPI опускать отсутствующее, а не слать `null`.
+    func test_finishResponseCarriesWorkoutAndOptionalWeek() throws {
+        let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: [])))
+        let full = try JSONSerialization.jsonObject(with: try encoder.encode(
+            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: week))) as? [String: Any]
+        XCTAssertEqual(Set(full?.keys ?? [:].keys), ["workout", "week"])
+
+        let bare = try JSONSerialization.jsonObject(with: try encoder.encode(
+            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: nil))) as? [String: Any]
+        XCTAssertEqual(Set(bare?.keys ?? [:].keys), ["workout"])
+
+        let dto = FinishWorkoutResponseDTO(workout: workout(tree: tree), week: week)
+        XCTAssertEqual(try decoder.decode(FinishWorkoutResponseDTO.self, from: try encoder.encode(dto)), dto)
     }
 
     /// Один тип на четыре недельных пути, `notice` необязателен.
@@ -355,7 +456,7 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(APIErrorCode.dateSkew.httpStatus, 422)
         XCTAssertEqual(APIErrorCode.setImmutable.httpStatus, 409)
         XCTAssertEqual(APIErrorCode.unlinkedAccount.httpStatus, 403)
-        XCTAssertEqual(APIErrorCode.allCases.count, 15, "словарь §20.3 закрыт")
+        XCTAssertEqual(APIErrorCode.allCases.count, 16, "словарь §20.3 закрыт")
     }
 
     func test_errorEnvelopeShape() throws {

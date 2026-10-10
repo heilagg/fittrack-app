@@ -172,6 +172,23 @@ public final class Database: Sendable {
             if let message = Self.authenticationFailure(error) {
                 throw DatabaseFailure.authenticationFailed(message)
             }
+            // Ошибку, брошенную ТЕЛОМ, отдаём как есть.
+            //
+            // `withTransaction` заворачивает её в `PostgresTransactionError`, и
+            // снаружи это выглядит как сбой транзакции, хотя транзакция
+            // отработала ровно так, как её попросили. Цена обёртки не
+            // теоретическая: доменный отказ роута — `not_found`,
+            // `profile_incomplete`, `week_exists` — переставал быть собой и
+            // приезжал клиенту как `internal`/500. Поймано первым же живым
+            // прогоном 20a: изоляция работала, RLS не отдавала чужую неделю,
+            // путь бросал `not_found`, а клиент видел 500.
+            //
+            // Разворачивается только `closureError`: `beginError` и
+            // `commitError` — настоящие сбои транзакции, и подменять их телом
+            // нечем.
+            if let transaction = error as? PostgresTransactionError, let closure = transaction.closureError {
+                throw closure
+            }
             throw error
         }
     }

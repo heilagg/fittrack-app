@@ -17,6 +17,10 @@ public enum APIErrorCode: String, Sendable, Equatable, Hashable, CaseIterable, C
     case workoutNotStarted = "workout_not_started"
     case workoutFinished = "workout_finished"
     case dayNotPlanned = "day_not_planned"
+    /// Профиль не дозаполнен, а путь этого требует (§5, §20.6). Отдельный код,
+    /// а не `validationFailed`: тело запроса верное, и поведение клиента своё —
+    /// вернуть пользовательницу в онбординг, а не показать ошибку поля.
+    case profileIncomplete = "profile_incomplete"
     case generatorDisabled = "generator_disabled"
     case `internal`
 
@@ -30,8 +34,8 @@ public enum APIErrorCode: String, Sendable, Equatable, Hashable, CaseIterable, C
         case .forbidden, .unlinkedAccount: return 403
         case .notFound: return 404
         case .dateSkew, .validationFailed, .setIDRequired: return 422
-        case .weekExists, .setImmutable, .workoutNotStarted,
-             .workoutFinished, .dayNotPlanned, .generatorDisabled: return 409
+        case .weekExists, .setImmutable, .workoutNotStarted, .workoutFinished,
+             .dayNotPlanned, .profileIncomplete, .generatorDisabled: return 409
         case .internal: return 500
         }
     }

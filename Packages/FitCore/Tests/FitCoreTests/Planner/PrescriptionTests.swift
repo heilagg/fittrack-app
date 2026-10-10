@@ -20,6 +20,15 @@ final class PrescriptionTests: XCTestCase {
         PlannerFixtures.input(week: week, fatigue: fatigue, readiness: readiness)
     }
 
+    /// Он же, переведённый в узкий вход предписания (§20.3). Перевод идёт через
+    /// тот самый `init(_:day:)`, которым пользуется сборка: будь их два, тест
+    /// «одна реализация, а не две» проверял бы совпадение двух копий перевода,
+    /// а не совпадение чисел.
+    private func prescriptionInput(fatigue: [MuscleSlug: Double], readiness: Double = 1.1) -> PrescriptionInput {
+        let session = input(fatigue: fatigue, readiness: readiness)
+        return PrescriptionInput(session, day: session.week[session.dayIndex])
+    }
+
     // MARK: - Одна реализация, а не две
 
     /// На том же утомлении пересчёт обязан вернуть ровно то, что вернула
@@ -28,7 +37,7 @@ final class PrescriptionTests: XCTestCase {
     func test_sameFatigueReturnsExactlyWhatBuildProduced() throws {
         let inputAtNoon = input(fatigue: atNoon)
         let built = try XCTUnwrap(Planner.buildSession(inputAtNoon))
-        let prescribed = try XCTUnwrap(Planner.prescribe(built, input: inputAtNoon))
+        let prescribed = try XCTUnwrap(Planner.prescribe(built, on: prescriptionInput(fatigue: atNoon)))
         XCTAssertEqual(prescribed, built)
     }
 
@@ -38,7 +47,7 @@ final class PrescriptionTests: XCTestCase {
     /// весу и целевой RIR — на момент старта.
     func test_startMomentChangesNumbersButNotComposition() throws {
         let built = try XCTUnwrap(Planner.buildSession(input(fatigue: atNoon)))
-        let prescribed = try XCTUnwrap(Planner.prescribe(built, input: input(fatigue: atStart)))
+        let prescribed = try XCTUnwrap(Planner.prescribe(built, on: prescriptionInput(fatigue: atStart)))
 
         XCTAssertEqual(prescribed.exercises.map(\.slug), built.exercises.map(\.slug), "состав по 12:00")
         XCTAssertEqual(prescribed.exercises.map(\.orderIndex), built.exercises.map(\.orderIndex), "порядок по 12:00")
@@ -62,7 +71,7 @@ final class PrescriptionTests: XCTestCase {
     /// ниже, чем в 12:00. Упражнения без веса остаются без веса.
     func test_weightsDoNotFallWhenFatigueDecayed() throws {
         let built = try XCTUnwrap(Planner.buildSession(input(fatigue: atNoon)))
-        let prescribed = try XCTUnwrap(Planner.prescribe(built, input: input(fatigue: atStart)))
+        let prescribed = try XCTUnwrap(Planner.prescribe(built, on: prescriptionInput(fatigue: atStart)))
 
         for (after, before) in zip(prescribed.exercises, built.exercises) {
             switch (before.prescribedKg, after.prescribedKg) {
@@ -83,7 +92,7 @@ final class PrescriptionTests: XCTestCase {
     func test_prescribeIsNotASecondBuild() throws {
         let built = try XCTUnwrap(Planner.buildSession(input(fatigue: atNoon)))
         let rebuilt = try XCTUnwrap(Planner.buildSession(input(fatigue: atStart)))
-        let prescribed = try XCTUnwrap(Planner.prescribe(built, input: input(fatigue: atStart)))
+        let prescribed = try XCTUnwrap(Planner.prescribe(built, on: prescriptionInput(fatigue: atStart)))
 
         XCTAssertEqual(prescribed.exercises.map(\.slug), built.exercises.map(\.slug),
                        "пересчёт держится состава 12:00, а не того, что дала бы пересборка")
@@ -99,12 +108,12 @@ final class PrescriptionTests: XCTestCase {
 
         var alien = built
         alien.dayID = "день-которого-нет"
-        XCTAssertNil(Planner.prescribe(alien, input: input(fatigue: atStart)),
+        XCTAssertNil(Planner.prescribe(alien, on: prescriptionInput(fatigue: atStart)),
                      "дня сессии нет в неделе — молча отдать веса 12:00 нельзя")
 
         var unknownSlug = built
         unknownSlug.exercises[0].slug = "упражнение-которого-нет"
-        XCTAssertNil(Planner.prescribe(unknownSlug, input: input(fatigue: atStart)),
+        XCTAssertNil(Planner.prescribe(unknownSlug, on: prescriptionInput(fatigue: atStart)),
                      "упражнения нет в срезе библиотеки")
     }
 }

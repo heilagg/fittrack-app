@@ -61,7 +61,13 @@ public struct BuiltSessionDTO: Sendable, Equatable, Codable {
 
 /// Итог дня недели (§7.1).
 public struct DayOutcomeDTO: Sendable, Equatable, Codable {
-    public var dayID: String
+    /// `null` — строки `planned_days` под этот день нет: либо неделя ещё не
+    /// сгенерирована, либо дата не тренировочная (§20.3). Синтетического
+    /// идентификатора здесь не выдаётся: по нему клиент однажды сходил бы в
+    /// `PATCH .../days/{day_id}`. Ключ при этом ОПУСКАЕТСЯ, а не едет как
+    /// `null`, — общее правило кодирования `FitAPI`, то же, что у всех
+    /// необязательных полей `Profile` (§5).
+    public var dayID: String?
     /// Ветка показа, закрытый словарь §20.3: `session`, `stretching`,
     /// `not_built`, `vector_missing`, `generator_disabled`. Строкой, а не
     /// конвертом причины: это не причина, а то, что рисовать, и формулировки у
@@ -84,6 +90,34 @@ public struct DayOutcomeDTO: Sendable, Equatable, Codable {
         cause = o.cause.map { DayCauseDTO($0) }
         losesPlannedVolume = o.losesPlannedVolume
         session = o.session.map(BuiltSessionDTO.init)
+    }
+
+    /// День, которому не соответствует ни одна строка `planned_days` (§20.3).
+    ///
+    /// Значения ядра здесь нет и быть не может: `DayOutcome` описывает, что
+    /// планировщик сделал с КОНКРЕТНЫМ `PlannedDay`, а его нет. Поэтому день
+    /// собирается прямо в проводном типе, и собирается ровно один раз — обоими
+    /// случаями §20.3, которые отличаются только причиной:
+    ///
+    ///   `cause == nil`                  неделя ещё не сгенерирована
+    ///   `cause == .notATrainingDay`     неделя есть, дата не тренировочная
+    ///
+    /// `loses_planned_volume` — `false`: планового объёма на этот день не было,
+    /// значит и терять нечего (§7.1 считает потерей только пропуск, оверрайд и
+    /// замену).
+    public static func notBuilt(cause: DayCause?) -> DayOutcomeDTO {
+        DayOutcomeDTO(dayID: nil, kind: ReasonDTO.code(for: DayOutcome.Kind.notBuilt),
+                      cause: cause.map { DayCauseDTO($0) },
+                      losesPlannedVolume: false, session: nil)
+    }
+
+    init(dayID: String?, kind: String, cause: DayCauseDTO?,
+         losesPlannedVolume: Bool, session: BuiltSessionDTO?) {
+        self.dayID = dayID
+        self.kind = kind
+        self.cause = cause
+        self.losesPlannedVolume = losesPlannedVolume
+        self.session = session
     }
 }
 
@@ -185,6 +219,10 @@ public struct WeekPlanResponseDTO: Sendable, Equatable, Codable {
 /// Строка `sets` (§3.1) наружу.
 public struct SetDTO: Sendable, Equatable, Codable {
     public var id: String
+    /// Упражнение, на котором подход сделан, — снимок `sets.exercise_slug`
+    /// (§3.1). После замены (§20.3) в упражнении лежат и подходы прежнего, и без
+    /// слага клиент не отличит, какой к какому относится.
+    public var exerciseSlug: String
     public var setIndex: Int
     public var prescribedKg: Double?
     public var prescribedReps: Int
@@ -200,18 +238,21 @@ public struct SetDTO: Sendable, Equatable, Codable {
     public var skipped: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, setIndex = "set_index", prescribedKg = "prescribed_kg",
+        case id, exerciseSlug = "exercise_slug", setIndex = "set_index",
+             prescribedKg = "prescribed_kg",
              prescribedReps = "prescribed_reps", actualKg = "actual_kg",
              actualReps = "actual_reps", feedback, painFlag = "pain_flag",
              painJoints = "pain_joints", restSeconds = "rest_seconds",
              completedAt = "completed_at", skipped
     }
 
-    public init(id: String, setIndex: Int, prescribedKg: Double? = nil, prescribedReps: Int,
+    public init(id: String, exerciseSlug: String, setIndex: Int, prescribedKg: Double? = nil,
+                prescribedReps: Int,
                 actualKg: Double? = nil, actualReps: Int? = nil, feedback: Feedback? = nil,
                 painFlag: Bool = false, painJoints: [Joint] = [], restSeconds: Int? = nil,
                 completedAt: String? = nil, skipped: Bool = false) {
         self.id = id
+        self.exerciseSlug = exerciseSlug
         self.setIndex = setIndex
         self.prescribedKg = prescribedKg
         self.prescribedReps = prescribedReps
@@ -228,6 +269,7 @@ public struct SetDTO: Sendable, Equatable, Codable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
+        exerciseSlug = try c.decode(String.self, forKey: .exerciseSlug)
         setIndex = try c.decode(Int.self, forKey: .setIndex)
         prescribedKg = try c.decodeIfPresent(Double.self, forKey: .prescribedKg)
         prescribedReps = try c.decode(Int.self, forKey: .prescribedReps)
@@ -244,6 +286,7 @@ public struct SetDTO: Sendable, Equatable, Codable {
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
+        try c.encode(exerciseSlug, forKey: .exerciseSlug)
         try c.encode(setIndex, forKey: .setIndex)
         try c.encodeIfPresent(prescribedKg, forKey: .prescribedKg)
         try c.encode(prescribedReps, forKey: .prescribedReps)
@@ -390,6 +433,22 @@ public struct WorkoutDTO: Sendable, Equatable, Codable {
 /// вторым источником того же числа: разойдясь с показанным, он менял бы цифру
 /// после того, как пользовательница её увидела и приняла. Досрочное завершение
 /// упражнения (§9.3) клиент читает оттуда же — из узла с `terminates`.
+/// Тело `POST /v1/workouts/{id}/finish` (§20.3): итог тренировки и неделя с
+/// строкой «План обновлён» (§7.1).
+///
+/// `week` отсутствует, когда недели нет (`week_plans` не сгенерирована):
+/// `/finish` недель не генерирует. Ключ опускается, а не едет как `null`, —
+/// общее правило кодирования `FitAPI`.
+public struct FinishWorkoutResponseDTO: Sendable, Equatable, Codable {
+    public var workout: WorkoutDTO
+    public var week: WeekPlanResponseDTO?
+
+    public init(workout: WorkoutDTO, week: WeekPlanResponseDTO?) {
+        self.workout = workout
+        self.week = week
+    }
+}
+
 public struct LogSetResponseDTO: Sendable, Equatable, Codable {
     public var decisionTree: DecisionTreeDTO
 
