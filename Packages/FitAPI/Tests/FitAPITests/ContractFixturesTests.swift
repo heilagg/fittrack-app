@@ -156,6 +156,71 @@ final class ContractFixturesTests: XCTestCase {
         ])
     }
 
+    // MARK: - Тренировка (срез 2)
+
+    /// Только что начатая тренировка: подходов нет, дерево есть у обоих
+    /// упражнений (§20.9), у упражнения без веса — только ветка завершения.
+    func test_workoutStarted() throws {
+        let weighted = DecisionTreeDTO(start: "n0", nodes: [
+            "n0": DecisionNode(weightKg: 40, truncated: false, terminates: false, transitions: [
+                "failed": "n1", "ok": "n0", "easy_at_or_above_max": "n2",
+            ]),
+            "n1": DecisionNode(weightKg: 36, truncated: false, terminates: false, transitions: [:]),
+            "n2": DecisionNode(weightKg: 42.5, truncated: true, terminates: false, transitions: [:]),
+        ])
+        let bodyweight = DecisionTreeDTO(start: "n0", nodes: [
+            "n0": DecisionNode(weightKg: nil, truncated: false, terminates: false, transitions: [
+                "failed": "n1",
+            ]),
+            "n1": DecisionNode(weightKg: nil, truncated: false, terminates: false, transitions: [
+                "failed": "n2",
+            ]),
+            "n2": DecisionNode(weightKg: nil, truncated: false, terminates: true, transitions: [:]),
+        ])
+        try check("workout_started.json", WorkoutDTO(
+            id: "22222222-2222-4222-8222-222222222222",
+            plannedDayID: "11111111-1111-4111-8111-111111111111",
+            sessionKind: .lower, accentMuscle: .gluteMax,
+            startedAt: "2026-10-12T09:30:00Z", readiness: 1.0, isCalibration: true,
+            exercises: [
+                WorkoutExerciseDTO(
+                    id: "33333333-3333-4333-8333-333333333333",
+                    prescribed: PrescribedExercise(
+                        slug: "squat_barbell", orderIndex: 0, targetSets: 3, targetRepMin: 6,
+                        targetRepMax: 10, targetRIR: 2, prescribedKg: 40, weightReadiness: 1.0),
+                    isCalibration: true, decisionTree: weighted),
+                WorkoutExerciseDTO(
+                    id: "44444444-4444-4444-8444-444444444444",
+                    prescribed: PrescribedExercise(
+                        slug: "pushup_bw", orderIndex: 1, targetSets: 3, targetRepMin: 8,
+                        targetRepMax: 15, targetRIR: 2, prescribedKg: nil, weightReadiness: 1.0),
+                    isCalibration: false, decisionTree: bodyweight),
+            ]))
+    }
+
+    /// Идущая тренировка с выполненным подходом: форма `SetDTO` (§3.1) на
+    /// проводе — все ключи, включая `pain_joints` и `skipped`.
+    func test_workoutInProgress() throws {
+        try check("workout_in_progress.json", WorkoutDTO(
+            id: "22222222-2222-4222-8222-222222222222",
+            plannedDayID: "11111111-1111-4111-8111-111111111111",
+            sessionKind: .upper, startedAt: "2026-10-12T09:30:00Z", readiness: 0.95,
+            exercises: [
+                WorkoutExerciseDTO(
+                    id: "33333333-3333-4333-8333-333333333333",
+                    prescribed: PrescribedExercise(
+                        slug: "pushup_bw", orderIndex: 0, targetSets: 3, targetRepMin: 8,
+                        targetRepMax: 15, targetRIR: 2, prescribedKg: nil, weightReadiness: 0.95),
+                    isCalibration: false,
+                    sets: [
+                        SetDTO(id: "55555555-5555-4555-8555-555555555555",
+                               exerciseSlug: "pushup_bw", setIndex: 0, prescribedReps: 15,
+                               actualReps: 12, feedback: .ok, restSeconds: 90,
+                               completedAt: "2026-10-12T09:36:00Z"),
+                    ]),
+            ]))
+    }
+
     // MARK: - Ошибки
 
     func test_errorProfileIncomplete() throws {
@@ -174,6 +239,16 @@ final class ContractFixturesTests: XCTestCase {
             details: ["sent": .string("2026-10-12"), "server": .string("2026-10-15")]))
     }
 
+    func test_errorUnlinkedAccount() throws {
+        try check("error_unlinked_account.json", APIErrorEnvelope(code: .unlinkedAccount))
+    }
+
+    func test_errorDayNotPlanned() throws {
+        try check("error_day_not_planned.json", APIErrorEnvelope(
+            code: .dayNotPlanned,
+            details: ["workout_id": .string("22222222-2222-4222-8222-222222222222")]))
+    }
+
     // MARK: - Тела запросов
 
     func test_requestPatchProfile() throws {
@@ -181,6 +256,12 @@ final class ContractFixturesTests: XCTestCase {
             sexAtBirth: .some("female"), birthYear: .some(1994), heightCm: .some(168),
             experienceLevel: .some(.intermediate), goal: .some(.hypertrophy),
             trainingWeekdays: .some([1, 3, 5]), sessionMinutes: 60, cycleTracking: .off))
+    }
+
+    func test_requestStartWorkout() throws {
+        try check("request_start_workout.json", StartWorkoutRequest(
+            plannedDayID: "11111111-1111-4111-8111-111111111111",
+            day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
     }
 
     func test_requestGenerateWeekPlan() throws {

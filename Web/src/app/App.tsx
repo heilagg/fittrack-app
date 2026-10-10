@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { ApiClient } from '../api/client'
 import { accessToken, ensureSession } from '../auth/supabase'
+import { LinkScreen } from '../features/link/LinkScreen'
 import { TodayScreen, ErrorBlock } from '../features/today/TodayScreen'
+import { WorkoutScreen } from '../features/workout/WorkoutScreen'
 
 // Dev-кнопка загружается только в dev-сборке: под `import.meta.env.DEV` ветка
 // статически вырезается, и модуль в продакшен-бандл не попадает.
@@ -42,6 +44,8 @@ export function App() {
               </>
             }
           />
+          <Route path="/link" element={<LinkScreen />} />
+          <Route path="/workout/:id" element={<WorkoutScreen api={api} />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

@@ -91,7 +91,7 @@ struct LiveSubstituteTests {
 
     @Test("перенос: вес от baseline заменённого через family_load_ratio, калибровки нет")
     func transferCarriesTheBaseline() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.transfer")
         try await Live.withServer("substitute.transfer") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -132,7 +132,7 @@ struct LiveSubstituteTests {
 
     @Test("своя история нового упражнения важнее переноса")
     func ownHistoryBeatsTransfer() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.own")
         try await Live.withServer("substitute.own") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -192,7 +192,7 @@ struct LiveSubstituteTests {
 
     @Test("подходы до замены остаются прежнему упражнению: корень дерева нового их не видит")
     func earlierSetsStayWithTheOldExercise() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.history")
         try await Live.withServer("substitute.history") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -224,7 +224,7 @@ struct LiveSubstituteTests {
 
     @Test("to_slug вне пула или незнакомый — 422 validation_failed с полем to_slug")
     func outsideThePoolIsRefused() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.pool")
         try await Live.withServer("substitute.pool") { app in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -245,7 +245,7 @@ struct LiveSubstituteTests {
 
     @Test("reason = pain: слаг пула без разгрузки суставов — 422, тот же по user_choice — 200")
     func painRequiresRelief() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.pain")
         try await Live.withServer("substitute.pain") { app in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -277,7 +277,7 @@ struct LiveSubstituteTests {
 
     @Test("повтор с тем же to_slug — 200 и то же тело; substituted_from не съезжает")
     func repeatAnswersTheSame() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.repeat")
         try await Live.withServer("substitute.repeat") { app in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -297,7 +297,7 @@ struct LiveSubstituteTests {
 
     @Test("нет тренировки — 409 workout_not_started, закрыта — 409 workout_finished, чужой we_id — 404")
     func addressing() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.addressing")
         try await Live.withServer("substitute.addressing") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -325,7 +325,7 @@ struct LiveSubstituteTests {
 
     @Test("20g: замена двигает sync_seq тренировки")
     func test20g_substitutionMovesSyncSeq() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("substitute.20g")
         try await Live.withServer("substitute.20g") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)

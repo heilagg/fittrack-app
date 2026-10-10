@@ -1,0 +1,97 @@
+{
+  "accent_muscle" : "glute_max",
+  "exercises" : [
+    {
+      "decision_tree" : {
+        "nodes" : {
+          "n0" : {
+            "terminates" : false,
+            "transitions" : {
+              "easy_at_or_above_max" : "n2",
+              "failed" : "n1",
+              "ok" : "n0"
+            },
+            "truncated" : false,
+            "weight_kg" : 40
+          },
+          "n1" : {
+            "terminates" : false,
+            "transitions" : {
+
+            },
+            "truncated" : false,
+            "weight_kg" : 36
+          },
+          "n2" : {
+            "terminates" : false,
+            "transitions" : {
+
+            },
+            "truncated" : true,
+            "weight_kg" : 42.5
+          }
+        },
+        "start" : "n0"
+      },
+      "id" : "33333333-3333-4333-8333-333333333333",
+      "is_calibration" : true,
+      "order_index" : 0,
+      "prescribed_kg" : 40,
+      "sets" : [
+
+      ],
+      "slug" : "squat_barbell",
+      "target_rep_max" : 10,
+      "target_rep_min" : 6,
+      "target_rir" : 2,
+      "target_sets" : 3,
+      "weight_readiness" : 1
+    },
+    {
+      "decision_tree" : {
+        "nodes" : {
+          "n0" : {
+            "terminates" : false,
+            "transitions" : {
+              "failed" : "n1"
+            },
+            "truncated" : false
+          },
+          "n1" : {
+            "terminates" : false,
+            "transitions" : {
+              "failed" : "n2"
+            },
+            "truncated" : false
+          },
+          "n2" : {
+            "terminates" : true,
+            "transitions" : {
+
+            },
+            "truncated" : false
+          }
+        },
+        "start" : "n0"
+      },
+      "id" : "44444444-4444-4444-8444-444444444444",
+      "is_calibration" : false,
+      "order_index" : 1,
+      "sets" : [
+
+      ],
+      "slug" : "pushup_bw",
+      "target_rep_max" : 15,
+      "target_rep_min" : 8,
+      "target_rir" : 2,
+      "target_sets" : 3,
+      "weight_readiness" : 1
+    }
+  ],
+  "id" : "22222222-2222-4222-8222-222222222222",
+  "is_calibration" : true,
+  "planned_day_id" : "11111111-1111-4111-8111-111111111111",
+  "readiness" : 1,
+  "session_kind" : "lower",
+  "started_at" : "2026-10-12T09:30:00Z"
+}

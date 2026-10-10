@@ -41,6 +41,13 @@ extension WorkoutRoutes {
                       library: ContentLibrary) async throws -> Response {
         let input = RawInput(request)
         return try await database.withUserTransaction(authorization: input.authorization) { tx in
+            // Гейт линковки (§20.5): «Начать» защищает историю тренировок, и
+            // правило живёт здесь, а не в кнопке — запросом мимо интерфейса
+            // создалась бы ровно та история, ради которой гейт введён. Стоит
+            // первым, до разбора тела: анонимному аккаунту отвечать про
+            // ошибки запроса незачем. Профиль, инвентарь и генерация недели
+            // ему доступны (§20.5): защищается история, а не план.
+            try tx.token.requireLinkedAccount()
             // Всё, что ниже, — уже после проверки токена (§20.5).
             let request = try input.decode(StartWorkoutRequest.self)
             let day = try RequestDay.validated(date: request.date, tz: request.tz)

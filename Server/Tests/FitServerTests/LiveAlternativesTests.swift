@@ -73,7 +73,7 @@ struct LiveAlternativesTests {
 
     @Test("pain сужает список по суставам флага и строго разгружает их; без purpose — user_choice")
     func painNarrowsAndDefaultsToUserChoice() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.purpose")
         let library = try Content.loadBundled()
         let bySlug = Dictionary(library.candidates.map { ($0.slug, $0) },
@@ -120,7 +120,7 @@ struct LiveAlternativesTests {
 
     @Test("purpose вне словаря — 422 validation_failed с полем")
     func unknownPurposeIsRejected() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.badpurpose")
         try await Live.withServer("alternatives.badpurpose") { app in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -139,7 +139,7 @@ struct LiveAlternativesTests {
 
     @Test("без date или tz — 422, перекос часов — date_skew")
     func dayIsRequiredAndSkewChecked() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.day")
         try await Live.withServer("alternatives.day") { app in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -164,8 +164,8 @@ struct LiveAlternativesTests {
 
     @Test("чужая тренировка, чужой и несуществующий we_id — 404")
     func foreignAndMissingIdsAreNotFound() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.notfound")
         try await Live.withServer("alternatives.notfound") { app in
             let workout = try await Live.startedWorkout(app, alice, logger: logger)
@@ -185,7 +185,7 @@ struct LiveAlternativesTests {
 
     @Test("we_id другой тренировки той же пользовательницы — 404: RLS этого не ловит")
     func exerciseOfAnotherOwnWorkoutIsNotFound() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.ownother")
         try await Live.withServer("alternatives.ownother") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -215,7 +215,7 @@ struct LiveAlternativesTests {
 
     @Test("завершённая тренировка отвечает 200: список ничего не меняет")
     func finishedWorkoutStillAnswers() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.finished")
         try await Live.withServer("alternatives.finished") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)
@@ -235,7 +235,7 @@ struct LiveAlternativesTests {
 
     @Test("инвентарь — профиль самой тренировки, а не умолчание аккаунта")
     func usesTheWorkoutsEquipmentProfile() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("alternatives.equipment")
         try await Live.withServer("alternatives.equipment") { app, database in
             let workout = try await Live.startedWorkout(app, user, logger: logger)

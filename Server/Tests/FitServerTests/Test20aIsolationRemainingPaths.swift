@@ -66,8 +66,8 @@ struct Test20aIsolationRemainingPaths {
 
     @Test("20a: /today и /preview Боба не несут дней Алисы")
     func test20a_todayAndPreview() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20a.today")
         try await Live.withServer("test.20a.today") { app in
             let workout = try await Live.startedWorkout(app, alice, logger: logger)
@@ -101,8 +101,8 @@ struct Test20aIsolationRemainingPaths {
 
     @Test("20a: GET /profile Боба — не профиль Алисы; PATCH Боба не трогает её профиль")
     func test20a_profile() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         try await Live.withServer("test.20a.profile") { app in
             let (a, _) = try await self.call(app, .PATCH, "/v1/profile", alice,
                                               body: PatchProfileRequest(birthYear: .some(1981),
@@ -132,8 +132,8 @@ struct Test20aIsolationRemainingPaths {
 
     @Test("20a: подход в тренировку Алисы и подход с id подхода Алисы — её строки целы")
     func test20a_sets() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20a.sets")
         try await Live.withServer("test.20a.sets") { app, database in
             let aliceWorkout = try await Live.startedWorkout(app, alice, logger: logger)
@@ -191,8 +191,8 @@ struct Test20aIsolationRemainingPaths {
 
     @Test("20a: замена в тренировке Алисы — 409 workout_not_started, её строка цела")
     func test20a_substitute() async throws {
-        let alice = try await Live.signUpAnonymous()
-        let bob = try await Live.signUpAnonymous()
+        let alice = try await Live.signUpLinked()
+        let bob = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20a.substitute")
         try await Live.withServer("test.20a.substitute") { app, database in
             let workout = try await Live.startedWorkout(app, alice, logger: logger)

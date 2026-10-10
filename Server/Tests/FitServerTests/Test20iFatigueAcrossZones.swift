@@ -66,7 +66,7 @@ struct Test20iFatigueAcrossZones {
 
     @Test("20i: метка записана в зоне записи и не переводится при чтении в другой зоне")
     func test20i_fatigueLabelSurvivesZoneChange() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20i")
         let library = try Content.loadBundled()
 
@@ -126,7 +126,7 @@ struct Test20iFatigueAcrossZones {
     }
     @Test("20i: день журнала не зависит от зоны читающего запроса (§9.7, §8.4, неделя[m])")
     func test20i_journalDaySurvivesZoneChange() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20i.day")
         let library = try FitContent.Content.loadBundled()
         let moscow = TimeZone(identifier: "Europe/Moscow")!

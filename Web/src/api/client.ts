@@ -11,15 +11,19 @@ import {
   generateWeekPlanRequestSchema,
   patchProfileRequestSchema,
   profileSchema,
+  startWorkoutRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
+  workoutSchema,
   type ErrorCode,
   type ExerciseContent,
   type GenerateWeekPlanRequest,
   type PatchProfileRequest,
   type Profile,
+  type StartWorkoutRequest,
   type TodayCard,
   type WeekPlanResponse,
+  type Workout,
 } from './schemas'
 import { currentDay, mondayOf, type DayContext } from './day'
 
@@ -109,6 +113,31 @@ export class ApiClient {
     return this.request('POST', '/v1/week-plans', weekPlanResponseSchema, {
       authorized: true,
       body: generateWeekPlanRequestSchema.parse(body),
+    })
+  }
+
+  /**
+   * Старт тренировки по дню плана. Идемпотентен по `planned_day_id`: первый
+   * старт — 201, повтор — 200 и та же тренировка. Требует привязанного
+   * аккаунта: иначе `unlinked_account` (403) — это экран линковки (§20.5).
+   */
+  startWorkout(plannedDayId: string, equipmentProfileId?: string): Promise<Workout> {
+    const { date, tz } = this.today()
+    const body: StartWorkoutRequest = {
+      planned_day_id: plannedDayId,
+      ...(equipmentProfileId ? { equipment_profile_id: equipmentProfileId } : {}),
+      date,
+      tz,
+    }
+    return this.request('POST', '/v1/workouts', workoutSchema, {
+      authorized: true,
+      body: startWorkoutRequestSchema.parse(body),
+    })
+  }
+
+  getWorkout(id: string): Promise<Workout> {
+    return this.request('GET', `/v1/workouts/${encodeURIComponent(id)}`, workoutSchema, {
+      authorized: true,
     })
   }
 

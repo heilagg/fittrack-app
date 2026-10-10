@@ -119,7 +119,7 @@ struct Test20efgSetWrites {
 
     @Test("20e: ретрай с тем же id не создаёт второй строки и не двигает состояния")
     func test20e_retryIsIdempotent() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20e")
 
         try await Live.withServer("test.20e") { app, database in
@@ -145,7 +145,7 @@ struct Test20efgSetWrites {
 
     @Test("20e: тело без id отклоняется с set_id_required, а не получает ключ от сервера")
     func test20e_missingIdIsRefused() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20e.noid")
 
         try await Live.withServer("test.20e.noid") { app, database in
@@ -169,7 +169,7 @@ struct Test20efgSetWrites {
 
     @Test("тело без completed_at отклоняется с validation_failed, строки нет (§20.3)")
     func missingCompletedAtIsRefused() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.sets.nocompleted")
 
         try await Live.withServer("test.sets.nocompleted") { app, database in
@@ -195,7 +195,7 @@ struct Test20efgSetWrites {
 
     @Test("20e: ретрай подхода и /finish дают то же утомление, что одиночная отправка")
     func test20e_retryThenFinishGivesSingleSendFatigue() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20e.fatigue")
         let library = try FitContent.Content.loadBundled()
 
@@ -251,7 +251,7 @@ struct Test20efgSetWrites {
 
     @Test("20f: изменение подхода с непустым completed_at отклоняется")
     func test20f_completedSetIsImmutable() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20f")
 
         try await Live.withServer("test.20f") { app, database in
@@ -300,7 +300,7 @@ struct Test20efgSetWrites {
 
     @Test("20g: подход двигает sync_seq тренировки, идемпотентный ретрай — нет")
     func test20g_syncSeqMovesOnlyOnRealChange() async throws {
-        let user = try await Live.signUpAnonymous()
+        let user = try await Live.signUpLinked()
         let logger = Live.quietLogger("test.20g")
 
         try await Live.withServer("test.20g") { app, database in
