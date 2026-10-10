@@ -381,15 +381,18 @@ extension Mapping {
         var heightCm: Double?
         let rows = try await tx.query("""
             select experience_level, goal, training_weekdays, session_minutes,
-                   cycle_tracking, sex_at_birth, birth_year, height_cm::float8
+                   cycle_tracking, sex_at_birth, birth_year, height_cm::float8,
+                   exists (select 1 from equipment_profiles where is_default)
               from profiles
             """)
         for try await row in rows {
-            let (level, goal, weekdays, minutes, tracking, sex, year, height) =
-                try row.decode((String?, String?, [Int16]?, Int, String, String?, Int?, Double?).self)
+            let (level, goal, weekdays, minutes, tracking, sex, year, height, equipment) =
+                try row.decode((String?, String?, [Int16]?, Int, String, String?, Int?, Double?,
+                                Bool).self)
             slice = profile(from: ProfileRow(
                 experienceLevel: level, goal: goal, trainingWeekdays: weekdays?.map(Int.init),
-                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex))
+                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex,
+                hasDefaultEquipment: equipment))
             birthYear = year
             heightCm = height
         }

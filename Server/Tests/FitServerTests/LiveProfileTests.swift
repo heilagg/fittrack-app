@@ -37,7 +37,7 @@ struct LiveProfileTests {
 
     // MARK: - Пошаговый онбординг
 
-    @Test("профиль заполняется по шагам, и до шага 6 он законно неполон (§5)")
+    @Test("профиль заполняется по шагам, и до шага 7 он законно неполон (§5)")
     func stepwiseOnboarding() async throws {
         let user = try await Live.signUpAnonymous()
         try await Live.withServer("live.profile.steps") { app in
@@ -64,10 +64,10 @@ struct LiveProfileTests {
             #expect(afterStep5?.goal == .strength)
             #expect(afterStep5?.isComplete == false, "дней ещё нет")
 
-            // Шаг 6 — профиль становится полным.
+            // Шаг 6 — четыре поля есть, а профиль ещё неполон: инвентаря нет.
             let (_, afterStep6) = try await self.patch(app, user, PatchProfileRequest(
                 trainingWeekdays: .some([5, 1, 3]), sessionMinutes: 60))
-            #expect(afterStep6?.isComplete == true)
+            #expect(afterStep6?.isComplete == false, "инвентаря по умолчанию ещё нет (§20.6)")
             #expect(afterStep6?.trainingWeekdays == [1, 3, 5], "набор канонизируется сервером")
             #expect(afterStep6?.daysPerWeek == 3, "число выводится из набора")
             #expect(afterStep6?.sessionMinutes == 60)
@@ -76,6 +76,12 @@ struct LiveProfileTests {
             let (status, fetched) = try await self.get(app, user)
             #expect(status == 200)
             #expect(fetched == afterStep6)
+
+            // Шаг 7 пишет фронтенд напрямую — и профиль становится полным.
+            try await Live.seedEquipment(user, isDefault: true,
+                                         logger: Live.quietLogger("live.profile.step7"))
+            let (_, afterStep7) = try await self.get(app, user)
+            #expect(afterStep7?.isComplete == true)
         }
     }
 
@@ -189,7 +195,7 @@ struct LiveProfileTests {
                                                         from: Data(buffer: response.body))
                 #expect(envelope.error.code == .profileIncomplete)
                 let missing = envelope.error.details?["missing"]
-                #expect(missing == .string("experience_level,training_weekdays"))
+                #expect(missing == .string("experience_level,training_weekdays,equipment_profile"))
             }
         }
     }

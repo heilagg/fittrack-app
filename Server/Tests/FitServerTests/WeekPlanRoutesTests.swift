@@ -112,7 +112,8 @@ struct WeekPlanRoutesTests {
     func missingFieldsAreNamed() {
         let slice = Mapping.profile(from: Mapping.ProfileRow(
             experienceLevel: nil, goal: "hypertrophy", trainingWeekdays: nil,
-            sessionMinutes: 45, cycleTracking: "off", sexAtBirth: nil))
+            sessionMinutes: 45, cycleTracking: "off", sexAtBirth: nil,
+            hasDefaultEquipment: true))
         #expect(Mapping.missingProfileFields(slice) == ["experience_level", "training_weekdays"])
         #expect(!Mapping.missingProfileFields(slice).contains("goal"))
     }

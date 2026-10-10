@@ -138,8 +138,8 @@ enum Live {
                 throw Failure.seed("PATCH /v1/profile → \(response.status.code): "
                                    + String(buffer: response.body))
             }
-            let profile = try JSONDecoder().decode(ProfileDTO.self, from: Data(buffer: response.body))
-            guard profile.isComplete else { throw Failure.seed("профиль неполон после посева") }
+            // Полноты здесь не проверяем: профиль становится полным только с
+            // инвентарём по умолчанию (§20.6), а его фронтенд пишет следом.
         }
     }
 
@@ -151,14 +151,7 @@ enum Live {
         try await withThrowingTaskGroup(of: Void.self) { group in
             group.addTask { await client.run() }
             group.addTask {
-                _ = try await client.query("""
-                    insert into equipment_profiles (id, user_id, name, is_default, dumbbells_kg,
-                                                    plates_kg, barbell_kg, bands, pullup_bar, bench)
-                    values (\(UUID()), \(user.id), 'Зал', true,
-                            '{4,6,8,10,12,14,16,18,20,24,28,32}', '{1.25,2.5,5,10,20}', 20,
-                            true, true, 'adjustable')
-                    on conflict do nothing
-                    """, logger: logger)
+                try await insertEquipment(client, user, isDefault: true, logger: logger)
                 _ = try await client.query("""
                     insert into parq_responses (user_id, answers, has_red_flag, acknowledged,
                                                 completed_at)
@@ -169,6 +162,36 @@ enum Live {
             try await group.next()
             group.cancelAll()
         }
+    }
+
+    /// Одна строка инвентаря, как её пишет шаг 7 онбординга (§5). `isDefault`
+    /// параметром: правило полноты читает именно флаг (§20.3, §20.6), и тест
+    /// обязан уметь написать строку без него.
+    static func seedEquipment(_ user: User, isDefault: Bool, logger: Logger) async throws {
+        let client = ownerClient(logger)
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { await client.run() }
+            group.addTask {
+                try await insertEquipment(client, user, isDefault: isDefault, logger: logger)
+            }
+            try await group.next()
+            group.cancelAll()
+        }
+    }
+
+    /// Сам `insert`, без своего клиента: `seedClientOwnedTables` держит одно
+    /// соединение на весь посев, и второй клиент на ту же задачу удваивал бы
+    /// число соединений у каждого теста — Supabase упирается в 100 слотов.
+    private static func insertEquipment(_ client: PostgresClient, _ user: User,
+                                        isDefault: Bool, logger: Logger) async throws {
+        _ = try await client.query("""
+            insert into equipment_profiles (id, user_id, name, is_default, dumbbells_kg,
+                                            plates_kg, barbell_kg, bands, pullup_bar, bench)
+            values (\(UUID()), \(user.id), 'Зал', \(isDefault),
+                    '{4,6,8,10,12,14,16,18,20,24,28,32}', '{1.25,2.5,5,10,20}', 20,
+                    true, true, 'adjustable')
+            on conflict do nothing
+            """, logger: logger)
     }
 
     /// Полный посев: профиль через границу, остальное — как это делает

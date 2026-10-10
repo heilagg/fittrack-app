@@ -18,9 +18,11 @@ struct MappingProfileTests {
 
     private func row(level: String? = "novice", goal: String? = "hypertrophy",
                      weekdays: [Int]? = [1, 3, 5], minutes: Int = 45,
-                     tracking: String = "off") -> Mapping.ProfileRow {
+                     tracking: String = "off",
+                     equipment: Bool = true) -> Mapping.ProfileRow {
         Mapping.ProfileRow(experienceLevel: level, goal: goal, trainingWeekdays: weekdays,
-                           sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: "female")
+                           sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: "female",
+                           hasDefaultEquipment: equipment)
     }
 
     @Test("полный профиль даёт CompleteProfile")
@@ -39,6 +41,14 @@ struct MappingProfileTests {
         #expect(Mapping.profile(from: row(goal: nil)).complete == nil)
         #expect(Mapping.profile(from: row(weekdays: nil)).complete == nil)
         #expect(Mapping.profile(from: row(weekdays: [])).complete == nil)
+    }
+
+    @Test("четыре поля без инвентаря по умолчанию — профиль неполон и называет его (§20.3, §20.6)")
+    func incompleteWithoutDefaultEquipment() {
+        let slice = Mapping.profile(from: row(equipment: false))
+        #expect(slice.complete == nil)
+        #expect(Mapping.missingProfileFields(slice) == ["equipment_profile"])
+        #expect(Mapping.profile(from: row()).complete != nil)
     }
 
     @Test("шаги 3–5 пройдены, шаг 6 нет — профиль читается, но неполон (§5)")
