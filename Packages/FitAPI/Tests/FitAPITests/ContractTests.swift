@@ -319,7 +319,8 @@ final class ContractTests: XCTestCase {
             cycleConfidence: 0.62, isCalibration: false,
             exercises: [WorkoutExerciseDTO(id: "we1", prescribed: prescribed, isCalibration: false,
                                            decisionTree: tree,
-                                           sets: [SetDTO(id: "s1", setIndex: 1, prescribedKg: 40,
+                                           sets: [SetDTO(id: "s1", exerciseSlug: "hip_thrust_barbell",
+                                                         setIndex: 1, prescribedKg: 40,
                                                          prescribedReps: 12, actualKg: 40, actualReps: 11,
                                                          feedback: .ok, painJoints: [.hip, .lowerBack],
                                                          completedAt: "2026-09-24T19:04:00+03:00")])])
@@ -351,6 +352,19 @@ final class ContractTests: XCTestCase {
         let set = (exercise?["sets"] as? [[String: Any]])?.first
         XCTAssertEqual(set?["pain_joints"] as? [String], ["hip", "lower_back"])
         XCTAssertEqual(set?["prescribed_reps"] as? Int, 12)
+    }
+
+    /// §20.3: подход несёт свой слаг — после замены упражнения в строке лежат и
+    /// подходы прежнего, и клиент обязан их различать. Слаг обязателен: тело
+    /// без него не разбирается, а не получает слаг упражнения-владельца.
+    func test_setCarriesItsExerciseSlug() throws {
+        let json = try JSONSerialization.jsonObject(with: try encoder.encode(workout(tree: nil))) as? [String: Any]
+        let set = ((json?["exercises"] as? [[String: Any]])?.first?["sets"] as? [[String: Any]])?.first
+        XCTAssertEqual(set?["exercise_slug"] as? String, "hip_thrust_barbell")
+
+        let bare = #"{"id":"s1","set_index":1,"prescribed_reps":12,"pain_flag":false,"pain_joints":[],"skipped":false}"#
+        XCTAssertThrowsError(try decoder.decode(SetDTO.self, from: Data(bare.utf8)),
+                             "подход без exercise_slug разобрался")
     }
 
     /// §20.3: у не начатого дня дерева не существует, и поле отсутствует.

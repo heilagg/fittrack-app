@@ -202,6 +202,9 @@ struct LiveSubstituteTests {
                                                          exercise: exercise.id, to: target.slug)
             try #require(status == 200, Comment(rawValue: String(decoding: raw, as: UTF8.self)))
             let dto = try JSONDecoder().decode(WorkoutExerciseDTO.self, from: raw)
+            // В ответе подход до замены несёт слаг ПРЕЖНЕГО упражнения (§20.3).
+            #expect(dto.sets.map(\.exerciseSlug) == [exercise.slug],
+                    "подход до замены показан подходом нового упражнения")
             // После одного failed СТАРОГО второй failed завершил бы упражнение
             // (§9.3). У нового подходов нет — failed ведёт в обычный узел.
             let tree = try #require(dto.decisionTree)

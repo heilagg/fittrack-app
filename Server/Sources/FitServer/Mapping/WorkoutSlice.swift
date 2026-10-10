@@ -201,7 +201,7 @@ extension Mapping {
                 try row.decode((String, String, Int, Double?, Int, Double?, Int?, String?, Bool,
                                 [String], Int?, String?, Bool, String, Bool, Double, String).self)
             body[weID, default: []].append(SetDTO(
-                id: id, setIndex: index, prescribedKg: prescribedKg, prescribedReps: prescribedReps,
+                id: id, exerciseSlug: slug, setIndex: index, prescribedKg: prescribedKg, prescribedReps: prescribedReps,
                 actualKg: actualKg, actualReps: actualReps,
                 feedback: feedback.flatMap(Feedback.init(rawValue:)),
                 painFlag: painFlag, painJoints: joints.compactMap(Joint.init(rawValue:)),

@@ -158,6 +158,7 @@ struct LiveWorkoutReadTests {
             #expect(status == 200)
             let after = try #require(read?.exercises.first { $0.id == first.id })
             #expect(after.sets.count == 1, "подход доехал в тело")
+            #expect(after.sets.first?.exerciseSlug == first.slug, "подход без своего слага (§20.3)")
 
             // Корень выведен из журнала: предыдущий был failed, и ВТОРОЙ failed
             // обязан завершить упражнение досрочно (§9.3).

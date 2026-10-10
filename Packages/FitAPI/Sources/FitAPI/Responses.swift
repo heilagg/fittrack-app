@@ -219,6 +219,10 @@ public struct WeekPlanResponseDTO: Sendable, Equatable, Codable {
 /// Строка `sets` (§3.1) наружу.
 public struct SetDTO: Sendable, Equatable, Codable {
     public var id: String
+    /// Упражнение, на котором подход сделан, — снимок `sets.exercise_slug`
+    /// (§3.1). После замены (§20.3) в упражнении лежат и подходы прежнего, и без
+    /// слага клиент не отличит, какой к какому относится.
+    public var exerciseSlug: String
     public var setIndex: Int
     public var prescribedKg: Double?
     public var prescribedReps: Int
@@ -234,18 +238,21 @@ public struct SetDTO: Sendable, Equatable, Codable {
     public var skipped: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, setIndex = "set_index", prescribedKg = "prescribed_kg",
+        case id, exerciseSlug = "exercise_slug", setIndex = "set_index",
+             prescribedKg = "prescribed_kg",
              prescribedReps = "prescribed_reps", actualKg = "actual_kg",
              actualReps = "actual_reps", feedback, painFlag = "pain_flag",
              painJoints = "pain_joints", restSeconds = "rest_seconds",
              completedAt = "completed_at", skipped
     }
 
-    public init(id: String, setIndex: Int, prescribedKg: Double? = nil, prescribedReps: Int,
+    public init(id: String, exerciseSlug: String, setIndex: Int, prescribedKg: Double? = nil,
+                prescribedReps: Int,
                 actualKg: Double? = nil, actualReps: Int? = nil, feedback: Feedback? = nil,
                 painFlag: Bool = false, painJoints: [Joint] = [], restSeconds: Int? = nil,
                 completedAt: String? = nil, skipped: Bool = false) {
         self.id = id
+        self.exerciseSlug = exerciseSlug
         self.setIndex = setIndex
         self.prescribedKg = prescribedKg
         self.prescribedReps = prescribedReps
@@ -262,6 +269,7 @@ public struct SetDTO: Sendable, Equatable, Codable {
     public init(from decoder: any Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
+        exerciseSlug = try c.decode(String.self, forKey: .exerciseSlug)
         setIndex = try c.decode(Int.self, forKey: .setIndex)
         prescribedKg = try c.decodeIfPresent(Double.self, forKey: .prescribedKg)
         prescribedReps = try c.decode(Int.self, forKey: .prescribedReps)
@@ -278,6 +286,7 @@ public struct SetDTO: Sendable, Equatable, Codable {
     public func encode(to encoder: any Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
+        try c.encode(exerciseSlug, forKey: .exerciseSlug)
         try c.encode(setIndex, forKey: .setIndex)
         try c.encodeIfPresent(prescribedKg, forKey: .prescribedKg)
         try c.encode(prescribedReps, forKey: .prescribedReps)
