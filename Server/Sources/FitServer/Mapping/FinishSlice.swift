@@ -65,9 +65,9 @@ extension Mapping {
                                      timeZone: TimeZone) async throws -> [TimedSetRow] {
         let zone = timeZone.identifier
         let rows = try await tx.query("""
-            select we.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
-                   s.actual_reps, s.feedback, s.skipped, s.pain_flag, we.is_calibration,
-                   we.weight_readiness::float8,
+            select s.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
+                   s.actual_reps, s.feedback, s.skipped, s.pain_flag, s.is_calibration,
+                   s.weight_readiness::float8,
                    to_char((w.started_at at time zone \(zone))::date, 'YYYY-MM-DD'),
                    extract(epoch from (s.completed_at at time zone \(zone)))::float8 / 3600
               from sets s

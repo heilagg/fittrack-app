@@ -87,9 +87,12 @@ struct LiveWorkoutReadTests {
             try await tx.query("""
                 insert into sets (id, workout_exercise_id, set_index, prescribed_kg,
                                   prescribed_reps, actual_kg, actual_reps, feedback,
-                                  pain_flag, skipped, completed_at)
-                values (\(UUID()), \(UUID(uuidString: exerciseID)!), \(index), \(kg),
-                        \(reps), \(kg), \(reps), \(feedback), false, false, now())
+                                  pain_flag, skipped, completed_at,
+                                  exercise_slug, is_calibration, weight_readiness)
+                select \(UUID()), we.id, \(index), \(kg),
+                       \(reps), \(kg), \(reps), \(feedback), false, false, now(),
+                       we.exercise_slug, we.is_calibration, we.weight_readiness
+                  from workout_exercises we where we.id = \(UUID(uuidString: exerciseID)!)
                 """)
         }
     }

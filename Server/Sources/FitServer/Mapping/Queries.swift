@@ -138,7 +138,7 @@ extension Mapping {
 
         var painRows: [PainRow] = []
         let pain = try await tx.query("""
-            select we.exercise_slug, s.pain_joints,
+            select s.exercise_slug, s.pain_joints,
                    to_char((s.completed_at at time zone \(timeZone.identifier))::date, 'YYYY-MM-DD')
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
@@ -339,9 +339,9 @@ extension Mapping {
         let zone = timeZone.identifier
         let from = since.map(LocalTime.iso) ?? "0001-01-01"
         let rows = try await tx.query("""
-            select we.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
-                   s.actual_reps, s.feedback, s.skipped, s.pain_flag, we.is_calibration,
-                   we.weight_readiness::float8,
+            select s.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
+                   s.actual_reps, s.feedback, s.skipped, s.pain_flag, s.is_calibration,
+                   s.weight_readiness::float8,
                    to_char((w.started_at at time zone \(zone))::date, 'YYYY-MM-DD')
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
@@ -399,8 +399,8 @@ extension Mapping {
 
         var sets: [String: [SetRow]] = [:]
         let setRows = try await tx.query("""
-            select w.id::text, we.exercise_slug, s.set_index, s.actual_reps, s.feedback,
-                   s.skipped, s.pain_flag, we.is_calibration
+            select w.id::text, s.exercise_slug, s.set_index, s.actual_reps, s.feedback,
+                   s.skipped, s.pain_flag, s.is_calibration
               from sets s
               join workout_exercises we on we.id = s.workout_exercise_id
               join workouts w on w.id = we.workout_id

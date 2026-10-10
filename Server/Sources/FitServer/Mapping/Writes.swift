@@ -279,11 +279,17 @@ extension Mapping {
         _ = try await tx.query("""
             insert into sets (id, workout_exercise_id, set_index, prescribed_kg, prescribed_reps,
                               actual_kg, actual_reps, feedback, pain_flag, pain_joints,
-                              rest_seconds, completed_at, skipped)
-            values (\(id), \(workoutExerciseID), \(body.setIndex), \(body.prescribedKg),
-                    \(prescribedReps), \(body.actualKg), \(body.actualReps),
-                    \(body.feedback?.rawValue), \(body.painFlag), \(painJoints),
-                    \(body.restSeconds), \(body.completedAt)::timestamptz, \(body.skipped))
+                              rest_seconds, completed_at, skipped,
+                              exercise_slug, is_calibration, weight_readiness)
+            select \(id), we.id, \(body.setIndex), \(body.prescribedKg),
+                   \(prescribedReps), \(body.actualKg), \(body.actualReps),
+                   \(body.feedback?.rawValue), \(body.painFlag), \(painJoints),
+                   \(body.restSeconds), \(body.completedAt)::timestamptz, \(body.skipped),
+                   we.exercise_slug, we.is_calibration, we.weight_readiness
+              from workout_exercises we
+             where we.id = \(workoutExerciseID)
+            -- Снимок упражнения (§3.1) пишется только вставкой: ретрай того же
+            -- подхода после замены упражнения не должен приписать его новому.
             on conflict (id) do update
                set set_index      = excluded.set_index,
                    prescribed_kg  = excluded.prescribed_kg,

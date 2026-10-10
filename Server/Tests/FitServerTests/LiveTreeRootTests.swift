@@ -95,9 +95,12 @@ struct LiveTreeRootTests {
                     try await tx.query("""
                         insert into sets (id, workout_exercise_id, set_index, prescribed_kg,
                                           prescribed_reps, actual_kg, actual_reps, feedback,
-                                          pain_flag, skipped, completed_at)
-                        values (\(UUID()), \(exerciseID), 1, null, \(self.range.upperBound),
-                                40, \(self.range.upperBound), 'easy', false, false, now())
+                                          pain_flag, skipped, completed_at,
+                                          exercise_slug, is_calibration, weight_readiness)
+                        select \(UUID()), we.id, 1, null, \(self.range.upperBound),
+                               40, \(self.range.upperBound), 'easy', false, false, now(),
+                               we.exercise_slug, we.is_calibration, we.weight_readiness
+                          from workout_exercises we where we.id = \(exerciseID)
                         """)
                 }
 
