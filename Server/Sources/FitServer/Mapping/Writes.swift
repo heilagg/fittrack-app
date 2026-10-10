@@ -274,19 +274,23 @@ extension Mapping {
     /// суставов на момент события (§8.4 п.5). Оба считает сервер.
     public static func upsertSet(
         _ tx: UserTransaction, id: UUID, workoutExerciseID: UUID, body: LogSetRequest,
-        prescribedReps: Int, painJoints: [String]
+        prescribedReps: Int, painJoints: [String], timeZone: TimeZone
     ) async throws {
         _ = try await tx.query("""
             insert into sets (id, workout_exercise_id, set_index, prescribed_kg, prescribed_reps,
                               actual_kg, actual_reps, feedback, pain_flag, pain_joints,
                               rest_seconds, completed_at, skipped,
-                              exercise_slug, is_calibration, weight_readiness)
+                              exercise_slug, is_calibration, weight_readiness, performed_on)
             select \(id), we.id, \(body.setIndex), \(body.prescribedKg),
                    \(prescribedReps), \(body.actualKg), \(body.actualReps),
                    \(body.feedback?.rawValue), \(body.painFlag), \(painJoints),
                    \(body.restSeconds), \(body.completedAt)::timestamptz, \(body.skipped),
-                   we.exercise_slug, we.is_calibration, we.weight_readiness
+                   we.exercise_slug, we.is_calibration, we.weight_readiness,
+                   -- День сессии на шкале FitCore, в зоне ЭТОГО запроса (§20.7):
+                   -- один раз, при записи; читатели журнала его не пересчитывают.
+                   (w.started_at at time zone \(timeZone.identifier))::date
               from workout_exercises we
+              join workouts w on w.id = we.workout_id
              where we.id = \(workoutExerciseID)
             -- Снимок упражнения (§3.1) пишется только вставкой: ретрай того же
             -- подхода после замены упражнения не должен приписать его новому.

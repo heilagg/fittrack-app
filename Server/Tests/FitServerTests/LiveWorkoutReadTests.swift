@@ -88,10 +88,11 @@ struct LiveWorkoutReadTests {
                 insert into sets (id, workout_exercise_id, set_index, prescribed_kg,
                                   prescribed_reps, actual_kg, actual_reps, feedback,
                                   pain_flag, skipped, completed_at,
-                                  exercise_slug, is_calibration, weight_readiness)
+                                  exercise_slug, is_calibration, weight_readiness, performed_on)
                 select \(UUID()), we.id, \(index), \(kg),
                        \(reps), \(kg), \(reps), \(feedback), false, false, now(),
-                       we.exercise_slug, we.is_calibration, we.weight_readiness
+                       we.exercise_slug, we.is_calibration, we.weight_readiness,
+                       (select (w.started_at at time zone 'Europe/Moscow')::date from workouts w where w.id = we.workout_id)
                   from workout_exercises we where we.id = \(UUID(uuidString: exerciseID)!)
                 """)
         }

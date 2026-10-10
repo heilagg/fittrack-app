@@ -157,9 +157,10 @@ struct LiveSubstituteTests {
                     try await tx.query("""
                         insert into sets (id, workout_exercise_id, set_index, prescribed_kg,
                             prescribed_reps, actual_kg, actual_reps, feedback, pain_flag, skipped,
-                            completed_at, exercise_slug, is_calibration, weight_readiness)
+                            completed_at, exercise_slug, is_calibration, weight_readiness, performed_on)
                         values (\(UUID()), \(pastExercise), \(index), 52, 12, 52, 10, 'ok',
-                                false, false, now() - interval '3 days', \(target.slug), false, 1.0)
+                                false, false, now() - interval '3 days', \(target.slug), false, 1.0,
+                                ((now() - interval '3 days') at time zone 'Europe/Moscow')::date)
                         """)
                 }
                 try await tx.query("""

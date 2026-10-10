@@ -297,7 +297,8 @@ extension WorkoutRoutes {
             // `workout_exercises.target_rep_max` (§20.3), а не вторым вызовом
             // `repRange`: тот дал бы диапазон на состояние ПОСЛЕ подхода.
             try await Mapping.upsertSet(tx, id: setID, workoutExerciseID: exerciseID, body: body,
-                                        prescribedReps: exercise.targetRepMax, painJoints: joints)
+                                        prescribedReps: exercise.targetRepMax, painJoints: joints,
+                                        timeZone: day.timeZone)
 
             guard let userID = UUID(uuidString: tx.token.subject) else { throw APIError(.internal) }
             let journal = try await Mapping.readSets(tx, since: nil, timeZone: day.timeZone)

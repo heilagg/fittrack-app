@@ -298,10 +298,12 @@ struct Test20cDecisionTreeOverHTTP {
                                 insert into sets (id, workout_exercise_id, set_index, prescribed_kg,
                                     prescribed_reps, actual_kg, actual_reps, feedback, pain_flag,
                                     skipped, completed_at, exercise_slug, is_calibration,
-                                    weight_readiness)
+                                    weight_readiness, performed_on)
                                 values (\(UUID()), \(we), \(setIndex), 4, \(base.upperBound), 4,
                                         \(base.upperBound), \(feedback), false, false,
-                                        now() - make_interval(days => \(daysAgo)::int), \(slug), false, 1.0)
+                                        now() - make_interval(days => \(daysAgo)::int), \(slug), false, 1.0,
+                                        ((now() - make_interval(days => \(daysAgo)::int))
+                                            at time zone 'Europe/Moscow')::date)
                                 """)
                         }
                     }
