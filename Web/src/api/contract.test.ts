@@ -12,6 +12,8 @@ import {
   errorEnvelopeSchema,
   exerciseContentListSchema,
   generateWeekPlanRequestSchema,
+  logSetRequestSchema,
+  logSetResponseSchema,
   patchProfileRequestSchema,
   profileSchema,
   startWorkoutRequestSchema,
@@ -38,6 +40,10 @@ const schemaFor: Record<string, ZodType> = {
   'error_unlinked_account.json': errorEnvelopeSchema,
   'error_day_not_planned.json': errorEnvelopeSchema,
   'request_start_workout.json': startWorkoutRequestSchema,
+  'request_log_set.json': logSetRequestSchema,
+  'request_log_set_bodyweight.json': logSetRequestSchema,
+  'response_log_set.json': logSetResponseSchema,
+  'response_log_set_terminated.json': logSetResponseSchema,
   'error_profile_incomplete.json': errorEnvelopeSchema,
   'error_unauthorized.json': errorEnvelopeSchema,
   'error_date_skew.json': errorEnvelopeSchema,
@@ -131,6 +137,69 @@ describe('тренировка (срез 2)', () => {
     const envelope = errorEnvelopeSchema.parse(load('error_unlinked_account.json'))
     expect(envelope.error.code).toBe('unlinked_account')
     expect(envelope.error.details).toBeUndefined()
+  })
+})
+
+describe('подход (срез 3)', () => {
+  it('упражнение без веса: в теле запроса нет ни prescribed_kg, ни actual_kg', () => {
+    const body = logSetRequestSchema.parse(load('request_log_set_bodyweight.json'))
+    expect(body.prescribed_kg).toBeUndefined()
+    expect(body.actual_kg).toBeUndefined()
+    expect(body.feedback).toBe('hard')
+  })
+
+  it('подход приезжает завершённым: completed_at обязателен, pain_flag и skipped есть', () => {
+    const body = logSetRequestSchema.parse(load('request_log_set.json'))
+    expect(body.completed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(body.pain_flag).toBe(false)
+    expect(body.skipped).toBe(false)
+    expect(body.set_index).toBe(1)
+  })
+
+  it('ответ несёт дерево целиком; завершающее — один узел с terminates', () => {
+    const tree = logSetResponseSchema.parse(load('response_log_set_terminated.json')).decision_tree
+    expect(Object.values(tree.nodes)).toHaveLength(1)
+    expect(tree.nodes[tree.start]!.terminates).toBe(true)
+  })
+
+  it('ответ без дерева не проходит схему: дерево обязательно', () => {
+    expect(() => logSetResponseSchema.parse({})).toThrow()
+  })
+
+  it('клиент: logSet шлёт подход по пути упражнения и добавляет date и tz', async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = []
+    const api = new ApiClient({
+      getToken: async () => 't',
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+        return new Response(JSON.stringify(load('response_log_set.json')), { status: 200 })
+      },
+    })
+    const fixture = load('request_log_set.json') as Record<string, unknown>
+    const { date, tz, ...body } = fixture
+    void date
+    void tz
+    await api.logSet('w-1', 'we-1', body as Parameters<typeof api.logSet>[2])
+    expect(calls[0]!.url).toBe('/v1/workouts/w-1/exercises/we-1/sets')
+    expect(Object.keys(calls[0]!.body).sort()).toEqual(Object.keys(fixture).sort())
+    expect(calls[0]!.body.id).toBe(fixture.id)
+  })
+
+  it('повтор с тем же телом уходит с тем же id (идемпотентность 20e)', async () => {
+    const ids: string[] = []
+    const api = new ApiClient({
+      getToken: async () => 't',
+      fetch: async (_url, init) => {
+        ids.push((JSON.parse(String(init?.body)) as { id: string }).id)
+        return new Response(JSON.stringify(load('response_log_set.json')), { status: 200 })
+      },
+    })
+    const { date, tz, ...body } = load('request_log_set.json') as Record<string, unknown>
+    void date
+    void tz
+    await api.logSet('w', 'e', body as Parameters<typeof api.logSet>[2])
+    await api.logSet('w', 'e', body as Parameters<typeof api.logSet>[2])
+    expect(ids[0]).toBe(ids[1])
   })
 })
 

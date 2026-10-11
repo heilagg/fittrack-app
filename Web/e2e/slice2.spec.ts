@@ -3,22 +3,7 @@ import { expect, test } from '@playwright/test'
 // Срез 2: «Начать» на анонимном аккаунте → экран привязки → письмо в Mailpit →
 // ссылка → привязанный аккаунт → старт тренировки → состав. Мок письма не
 // используется: письмо отправляет настоящий Supabase Auth.
-const MAILPIT = 'http://127.0.0.1:54324'
-
-async function verifyLink(email: string): Promise<string> {
-  for (let attempt = 0; attempt < 30; attempt++) {
-    const found = await fetch(`${MAILPIT}/api/v1/search?query=${encodeURIComponent(`to:${email}`)}`)
-    const list = (await found.json()) as { messages: { ID: string }[] }
-    const first = list.messages[0]
-    if (first) {
-      const message = (await (await fetch(`${MAILPIT}/api/v1/message/${first.ID}`)).json()) as { HTML: string }
-      const href = /href="([^"]*\/auth\/v1\/verify[^"]*)"/.exec(message.HTML)?.[1]
-      if (href) return href.replaceAll('&amp;', '&')
-    }
-    await new Promise((resolve) => setTimeout(resolve, 500))
-  }
-  throw new Error(`Письмо для ${email} не пришло в Mailpit`)
-}
+import { verifyLink } from './helpers'
 
 test('привязка аккаунта по ссылке из письма и старт тренировки', async ({ page }) => {
   const email = `web-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
