@@ -9,6 +9,8 @@ import {
   errorEnvelopeSchema,
   exerciseContentListSchema,
   generateWeekPlanRequestSchema,
+  logSetRequestSchema,
+  logSetResponseSchema,
   patchProfileRequestSchema,
   profileSchema,
   startWorkoutRequestSchema,
@@ -18,6 +20,8 @@ import {
   type ErrorCode,
   type ExerciseContent,
   type GenerateWeekPlanRequest,
+  type LogSetRequest,
+  type LogSetResponse,
   type PatchProfileRequest,
   type Profile,
   type StartWorkoutRequest,
@@ -132,6 +136,24 @@ export class ApiClient {
     return this.request('POST', '/v1/workouts', workoutSchema, {
       authorized: true,
       body: startWorkoutRequestSchema.parse(body),
+    })
+  }
+
+  /**
+   * Логирует подход. Идемпотентен по `body.id` (upsert, §20.6, тест 20e):
+   * повтор после обрыва уходит с ТЕМ ЖЕ `id` и не создаёт второй строки.
+   * `date` и `tz` добавляются здесь, из того же единственного источника дня.
+   */
+  logSet(
+    workoutId: string,
+    exerciseId: string,
+    body: Omit<LogSetRequest, 'date' | 'tz'>,
+  ): Promise<LogSetResponse> {
+    const { date, tz } = this.today()
+    const path = `/v1/workouts/${encodeURIComponent(workoutId)}/exercises/${encodeURIComponent(exerciseId)}/sets`
+    return this.request('POST', path, logSetResponseSchema, {
+      authorized: true,
+      body: logSetRequestSchema.parse({ ...body, date, tz }),
     })
   }
 

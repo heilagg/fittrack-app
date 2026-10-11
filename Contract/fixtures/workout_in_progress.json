@@ -17,7 +17,7 @@
           ],
           "prescribed_reps" : 15,
           "rest_seconds" : 90,
-          "set_index" : 0,
+          "set_index" : 1,
           "skipped" : false
         }
       ],

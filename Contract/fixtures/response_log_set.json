@@ -1,0 +1,36 @@
+{
+  "decision_tree" : {
+    "nodes" : {
+      "n0" : {
+        "terminates" : false,
+        "transitions" : {
+          "easy_at_or_above_max" : "n2",
+          "easy_below_max" : "n0",
+          "failed" : "n1",
+          "hard_at_or_above_min" : "n0",
+          "hard_below_min" : "n1",
+          "ok" : "n0"
+        },
+        "truncated" : false,
+        "weight_kg" : 40
+      },
+      "n1" : {
+        "terminates" : false,
+        "transitions" : {
+
+        },
+        "truncated" : false,
+        "weight_kg" : 36
+      },
+      "n2" : {
+        "terminates" : false,
+        "transitions" : {
+
+        },
+        "truncated" : false,
+        "weight_kg" : 42.5
+      }
+    },
+    "start" : "n0"
+  }
+}

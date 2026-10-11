@@ -246,6 +246,30 @@ export const workoutSchema = z.object({
 })
 export type Workout = z.infer<typeof workoutSchema>
 
+/**
+ * Тело `POST …/sets` (§20.3). `prescribed_kg` приходит от клиента — вес назначило
+ * дерево; `prescribed_reps` в запросе нет, его пишет сервер.
+ */
+export const logSetRequestSchema = z.object({
+  id: z.string(),
+  set_index: z.number().int(),
+  prescribed_kg: z.number().optional(),
+  actual_kg: z.number().optional(),
+  actual_reps: z.number().int().optional(),
+  feedback: z.enum(['easy', 'ok', 'hard', 'failed']).optional(),
+  pain_flag: z.boolean(),
+  rest_seconds: z.number().int().optional(),
+  completed_at: z.string(),
+  skipped: z.boolean(),
+  date: z.string(),
+  tz: z.string(),
+})
+export type LogSetRequest = z.infer<typeof logSetRequestSchema>
+
+/** Ответ — только новое дерево, без готового следующего подхода (§20.3). */
+export const logSetResponseSchema = z.object({ decision_tree: decisionTreeSchema })
+export type LogSetResponse = z.infer<typeof logSetResponseSchema>
+
 export const startWorkoutRequestSchema = z.object({
   planned_day_id: z.string(),
   equipment_profile_id: z.string().optional(),
