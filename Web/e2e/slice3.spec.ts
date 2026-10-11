@@ -43,6 +43,15 @@ test.describe('экран упражнения', () => {
     await startLinkedWorkout(page)
     const before = await counterText(page)
 
+    // Что именно ушло на сервер: повтор обязан нести тот же клиентский id, а не
+    // полагаться на то, что сервер как-нибудь свёл две строки в одну.
+    const sentIds: string[] = []
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().includes('/sets')) {
+        sentIds.push((request.postDataJSON() as { id: string }).id)
+      }
+    })
+
     // Запрос ДОХОДИТ до сервера и записывается, а ответ теряется — худший случай:
     // клиент не знает, записан ли подход.
     await page.route('**/exercises/*/sets', async (route) => {
@@ -58,6 +67,9 @@ test.describe('экран упражнения', () => {
     await page.getByRole('button', { name: 'Повторить' }).click()
     await expect(page.getByTestId('log-failure')).toHaveCount(0)
     await expect(counter(page)).toContainText(`Подход ${before.n + 1} из`)
+
+    expect(sentIds).toHaveLength(2)
+    expect(sentIds[1]).toBe(sentIds[0])
 
     // На сервере ровно один подход, а не два.
     await page.reload()
