@@ -214,7 +214,7 @@ final class ContractFixturesTests: XCTestCase {
                     isCalibration: false,
                     sets: [
                         SetDTO(id: "55555555-5555-4555-8555-555555555555",
-                               exerciseSlug: "pushup_bw", setIndex: 0, prescribedReps: 15,
+                               exerciseSlug: "pushup_bw", setIndex: 1, prescribedReps: 15,
                                actualReps: 12, feedback: .ok, restSeconds: 90,
                                completedAt: "2026-10-12T09:36:00Z"),
                     ]),
@@ -262,6 +262,43 @@ final class ContractFixturesTests: XCTestCase {
         try check("request_start_workout.json", StartWorkoutRequest(
             plannedDayID: "11111111-1111-4111-8111-111111111111",
             day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
+
+    /// Первый подход взвешенного упражнения: вес — тот, что показало дерево
+    /// (`prescribed_kg` приходит от клиента, §20.3), `set_index` отсчитывается
+    /// с единицы — как во всех серверных тестах и в умолчании `StoredSet`.
+    func test_requestLogSet() throws {
+        try check("request_log_set.json", LogSetRequest(
+            id: "66666666-6666-4666-8666-666666666666", setIndex: 1,
+            prescribedKg: 40, actualKg: 40, actualReps: 10, feedback: .ok,
+            completedAt: "2026-10-12T09:36:00Z",
+            day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
+
+    /// Упражнение без веса: ни `prescribed_kg`, ни `actual_kg` в теле нет.
+    func test_requestLogSetBodyweight() throws {
+        try check("request_log_set_bodyweight.json", LogSetRequest(
+            id: "77777777-7777-4777-8777-777777777777", setIndex: 2,
+            actualReps: 8, feedback: .hard, completedAt: "2026-10-12T09:40:00Z",
+            day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
+
+    /// Ответ — только новое дерево (§20.3): корень уже «после этого подхода».
+    func test_responseLogSet() throws {
+        try check("response_log_set.json", LogSetResponseDTO(decisionTree: DecisionTreeDTO(
+            start: "n0", nodes: [
+                "n0": DecisionNode(weightKg: 40, truncated: false, terminates: false, transitions: [
+                    "failed": "n1", "hard_below_min": "n1", "hard_at_or_above_min": "n0",
+                    "ok": "n0", "easy_below_max": "n0", "easy_at_or_above_max": "n2",
+                ]),
+                "n1": DecisionNode(weightKg: 36, truncated: false, terminates: false, transitions: [:]),
+                "n2": DecisionNode(weightKg: 42.5, truncated: false, terminates: false, transitions: [:]),
+            ])))
+    }
+
+    func test_responseLogSetTerminated() throws {
+        try check("response_log_set_terminated.json", LogSetResponseDTO(
+            decisionTree: DecisionTree.terminated))
     }
 
     func test_requestGenerateWeekPlan() throws {

@@ -1,0 +1,14 @@
+{
+  "decision_tree" : {
+    "nodes" : {
+      "n0" : {
+        "terminates" : true,
+        "transitions" : {
+
+        },
+        "truncated" : false
+      }
+    },
+    "start" : "n0"
+  }
+}
