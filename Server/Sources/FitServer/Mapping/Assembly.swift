@@ -116,7 +116,9 @@ extension Mapping {
             // ПОСЛЕ распада, до фактического момента старта (§20.3).
             fatigue: decayedFatigue(fatigue, to: startMoment),
             readiness: Readiness.value(cycleState: cycleState, override: override, checkin: checkin),
-            cycleState: cycleState
+            // `push` снимает фазовый RIR +1 тем же вызовом, что у планировщика
+            // (§10, §11.7): иначе RIR старта разошёлся бы с карточкой (20l).
+            cycleState: Readiness.sessionCycleState(cycleState, override: override)
         )
     }
 
