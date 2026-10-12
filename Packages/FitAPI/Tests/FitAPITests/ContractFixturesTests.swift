@@ -70,8 +70,10 @@ final class ContractFixturesTests: XCTestCase {
                                  periodization: nil, effectivePhaseAdjustment: nil))
     }
 
-    private var session: BuiltSessionDTO {
-        BuiltSessionDTO(BuiltSession(
+    private var session: BuiltSessionDTO { BuiltSessionDTO(coreSession, kind: .lower) }
+
+    private var coreSession: BuiltSession {
+        BuiltSession(
             dayID: "11111111-1111-4111-8111-111111111111",
             exercises: [
                 PrescribedExercise(slug: "squat_barbell", orderIndex: 0, targetSets: 3,
@@ -82,7 +84,7 @@ final class ContractFixturesTests: XCTestCase {
                                    prescribedKg: nil, weightReadiness: 1.0),
             ],
             estimatedSeconds: 2400, effectiveVolume: [:], leadingMuscle: .quads, scale: 1,
-            reasons: []))
+            reasons: [])
     }
 
     // MARK: - Тела ответов
@@ -129,18 +131,7 @@ final class ContractFixturesTests: XCTestCase {
     }
 
     func test_weekPlanResponse() throws {
-        var day = try JSONDecoder().decode(DayOutcomeDTO.self, from: Data("""
-            {"day_id":"11111111-1111-4111-8111-111111111111","kind":"session",
-             "loses_planned_volume":false}
-            """.utf8))
-        day.session = session
-        // `WeekPlanDTO` собирается только из значения ядра, а своего поэлементного
-        // инициализатора не имеет; поэтому собираем его из JSON дня, который
-        // кодирует тот же `DayOutcomeDTO`.
-        let plan = try JSONDecoder().decode(WeekPlanDTO.self, from: Data(
-            ("{\"days\":[" + String(decoding: try encode(day), as: UTF8.self)
-             + "],\"status_lines\":[]}").utf8))
-        try check("week_plan_response.json", WeekPlanResponseDTO(plan: plan))
+        try check("week_plan_response.json", WeekPlanResponseDTO(plan: weekPlanDTO()))
     }
 
     func test_contentExercises() throws {
@@ -223,15 +214,22 @@ final class ContractFixturesTests: XCTestCase {
 
     // MARK: - Завершение (срез 4)
 
-    private func weekPlanDTO() throws -> WeekPlanDTO {
-        var day = try JSONDecoder().decode(DayOutcomeDTO.self, from: Data("""
-            {"day_id":"11111111-1111-4111-8111-111111111111","kind":"session",
-             "loses_planned_volume":false}
-            """.utf8))
-        day.session = session
-        return try JSONDecoder().decode(WeekPlanDTO.self, from: Data(
-            ("{\"days\":[" + String(decoding: try encode(day), as: UTF8.self)
-             + "],\"status_lines\":[]}").utf8))
+    /// Неделя из двух дней: сегодняшний (низ тела, собран) и выполненный позже
+    /// по дате, но раньше по `day_id` — эталон показывает порядок по датам.
+    private func weekPlanDTO() -> WeekPlanDTO {
+        let today = "11111111-1111-4111-8111-111111111111"
+        let later = "00000000-0000-4000-8000-000000000000"
+        let plan = WeekPlan(days: [
+            today: DayOutcome(dayID: today, kind: .session, cause: nil,
+                              losesPlannedVolume: false, session: coreSession),
+            later: DayOutcome(dayID: later, kind: .notBuilt, cause: .done,
+                              losesPlannedVolume: false, session: nil),
+        ], statusLines: [])
+        func day(_ id: String, _ kind: SessionKind) -> PlannedDay {
+            PlannedDay(id: id, date: CalendarDay(dayNumber: 0), kind: kind, accent: nil, vector: [:])
+        }
+        return WeekPlanDTO(plan, week: [(day: day(later, .upper), isoDate: "2026-10-14"),
+                                        (day: day(today, .lower), isoDate: "2026-10-12")])
     }
 
     private var finishedWorkout: WorkoutDTO {
@@ -266,7 +264,7 @@ final class ContractFixturesTests: XCTestCase {
         try check("response_finish_workout.json", FinishWorkoutResponseDTO(
             workout: finishedWorkout,
             week: WeekPlanResponseDTO(
-                plan: try weekPlanDTO(),
+                plan: weekPlanDTO(),
                 notice: ReasonDTO(.planRebuilt(cause: .workoutCompleted)))))
     }
 
@@ -274,7 +272,7 @@ final class ContractFixturesTests: XCTestCase {
     func test_responseFinishWorkoutNoNotice() throws {
         try check("response_finish_workout_no_notice.json", FinishWorkoutResponseDTO(
             workout: finishedWorkout,
-            week: WeekPlanResponseDTO(plan: try weekPlanDTO(), notice: nil)))
+            week: WeekPlanResponseDTO(plan: weekPlanDTO(), notice: nil)))
     }
 
     /// Недели нет: ключа `week` в теле нет вовсе.

@@ -114,12 +114,14 @@ enum TodayRoutes {
 
             // Строка сегодняшнего дня — и только она: карточка показывает один
             // день, а не ближайший из оставшихся.
-            guard let row = week.days.first(where: { $0.date == day.date }),
-                  let outcome = plan.days[row.id]
+            // Тип берётся из того же дня контекста, по которому считан итог, — так
+            // сессия несёт тип своего дня (§20.3), а не прочитанный отдельно.
+            guard let planned = context.week.first(where: { $0.date == day.date }),
+                  let outcome = plan.days[planned.id]
             else {
                 return try card(day: .notBuilt(cause: .notATrainingDay), reasons: reasons)
             }
-            return try card(day: DayOutcomeDTO(outcome), reasons: reasons)
+            return try card(day: DayOutcomeDTO(outcome, dayKind: planned.kind), reasons: reasons)
         }
     }
 }

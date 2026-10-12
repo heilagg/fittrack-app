@@ -55,6 +55,35 @@ describe('ApiClient', () => {
     expect(body.date >= body.week_start).toBe(true)
   })
 
+  it('GET недели: путь с понедельником, date и tz в query, токен', async () => {
+    const fetchMock = vi.fn(async () => json({ plan: { days: [], status_lines: [] } }))
+    const week = await client(fetchMock as unknown as typeof fetch).getWeekPlan('2026-10-12')
+    expect(week).toEqual({ plan: { days: [], status_lines: [] } })
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/week-plans/2026-10-12')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(parsed.searchParams.get('tz')).toBeTruthy()
+    expect(init.method).toBe('GET')
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jwt')
+  })
+
+  it('GET недели: not_found — недели нет, это null, а не ошибка', async () => {
+    const fetchMock = vi.fn(async () =>
+      json({ error: { code: 'not_found', message: 'Не найдено', details: {} } }, 404),
+    )
+    expect(await client(fetchMock as unknown as typeof fetch).getWeekPlan('2026-10-12')).toBeNull()
+  })
+
+  it('GET недели: прочая ошибка не глотается', async () => {
+    const fetchMock = vi.fn(async () =>
+      json({ error: { code: 'date_skew', message: 'Проверьте часы', details: {} } }, 422),
+    )
+    await expect(client(fetchMock as unknown as typeof fetch).getWeekPlan('2026-10-12')).rejects.toMatchObject({
+      code: 'date_skew',
+    })
+  })
+
   it('ответ с кодом ошибки становится ApiError с code и details', async () => {
     const fetchMock = vi.fn(async () =>
       json({ error: { code: 'profile_incomplete', message: 'Профиль не заполнен', details: { missing: 'goal' } } }, 409),

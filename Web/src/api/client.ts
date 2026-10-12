@@ -126,6 +126,23 @@ export class ApiClient {
     })
   }
 
+  /**
+   * Неделя с датами дней (§20.3) или `null`, если её ещё не генерировали
+   * (`not_found`). Путь пишущий: он сверяет план со снимком, и `notice` в
+   * ответе обязан быть показан — молчаливой пересборки нет (§7.1).
+   */
+  async getWeekPlan(weekStart: string): Promise<WeekPlanResponse | null> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz })
+    try {
+      return await this.request('GET', `/v1/week-plans/${encodeURIComponent(weekStart)}?${query}`,
+        weekPlanResponseSchema, { authorized: true })
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'not_found') return null
+      throw e
+    }
+  }
+
   /** Идемпотентна по неделе: те же параметры — 200 и та же неделя. */
   generateWeek(weekStart?: string): Promise<WeekPlanResponse> {
     const { date, tz } = this.today()

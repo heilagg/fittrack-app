@@ -79,6 +79,11 @@ test('онбординг, Сегодня, привязка, тренировка
   await page.getByRole('button', { name: 'Перейти к тренировкам' }).click()
 
   await expect(page.getByTestId('exercise-name').first()).toBeVisible()
+  // Календарь дорисовывается ответом недели: ждать, пока у сегодняшнего дня появится статус.
+  await expect(page.locator('[data-testid="week-calendar"] > li[data-today="true"]')).toHaveAttribute(
+    'data-status',
+    'planned',
+  )
   await shot(page, '11-today')
 
   const email = `screens-${Date.now()}@example.com`
@@ -142,8 +147,16 @@ test('онбординг, Сегодня, привязка, тренировка
   await expect(page.getByTestId('summary')).toBeVisible()
   await shot(page, '19-workout-summary')
 
+  // «Сегодня» после тренировки: сегодняшний день выполнен, точка под числом.
+  await page.getByRole('link', { name: 'Сегодня' }).click()
+  await expect(page.locator('[data-testid="week-calendar"] > li[data-today="true"]')).toHaveAttribute(
+    'data-status',
+    'done',
+  )
+  await shot(page, '20-today-after-workout')
+
   await page.route('**/v1/today*', (route) => route.abort('failed'))
   await page.goto('/')
   await expect(page.getByRole('alert')).toBeVisible()
-  await shot(page, '20-error-network')
+  await shot(page, '21-error-network')
 })

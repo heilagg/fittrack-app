@@ -84,9 +84,10 @@ extension WorkoutRoutes {
                 if closedNow {
                     let (plan, notice) = try await WeekPlanRoutes.planAndNotice(
                         tx, weekPlanID: loaded.id, context: context, cause: cause)
-                    week = WeekPlanRoutes.response(plan, notice: notice)
+                    week = WeekPlanRoutes.response(plan, week: context.week, notice: notice)
                 } else {
-                    week = WeekPlanRoutes.response(Planner.planRemainingDays(context), notice: nil)
+                    week = WeekPlanRoutes.response(Planner.planRemainingDays(context), week: context.week,
+                                                   notice: nil)
                 }
             }
 
