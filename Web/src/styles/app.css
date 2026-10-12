@@ -548,9 +548,27 @@ input[type='checkbox'] {
 
 .week > li {
   display: flex;
+  justify-content: center;
+}
+
+/* День недели — кнопка (срез 6: тап показывает состав дня). Без своей
+   обводки и фона: состояние рисуют круг и точка, как раньше. */
+.week-button {
+  display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-xs);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+}
+
+/* Выбранный для показа день — кольцом вокруг круга, заливка значит «сегодня». */
+.week-button[aria-current='date'] .week-day {
+  outline: var(--size-focus-ring) solid var(--color-text);
+  outline-offset: var(--size-focus-ring-offset);
 }
 
 .week-weekday {
