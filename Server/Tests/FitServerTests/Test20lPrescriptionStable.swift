@@ -173,4 +173,82 @@ struct Test20lPrescriptionStable {
             }
         }
     }
+    /// `push` снимает фазовый RIR +1 в сборке (§10, §11.7); пересчёт на старте
+    /// обязан снять его тем же вызовом, иначе RIR старта на единицу выше
+    /// показанного на карточке.
+    @Test("push в менструальную фазу: RIR старта тот же, что у сборки")
+    func test20l_pushRIRMatchesTheBuild() async throws {
+        let user = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("test.20l.push")
+        let library = try Content.loadBundled()
+
+        try await Live.withServer("test.20l.push") { app, database in
+            try await Live.seed(app, user, logger: logger, weekdays: [self.todayISOWeekday])
+            let cycle = PatchProfileRequest(
+                cycleTracking: .manual,
+                cycle: CycleProfileDTO(typicalCycleLengthDays: 28, declaredRegularity: .regular,
+                                       phaseMode: .phases))
+            try await app.testing().test(.PATCH, "/v1/profile", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(cycle) }) { response in
+                #expect(response.status == .ok)
+            }
+            // Три ровных цикла и начало сегодня: менструальная при полной
+            // уверенности, фазовый RIR +1.
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                for offset in [-84, -56, -28, 0] {
+                    let date = Mapping.LocalTime.iso(self.today.adding(days: offset))
+                    try await tx.query("""
+                        insert into cycle_events (id, user_id, kind, occurred_on)
+                        values (\(UUID()), \(user.id), 'period_start', \(date)::date)
+                        """)
+                }
+            }
+            try await Live.setOverride(user, on: self.today, value: "push", logger: logger)
+
+            let body = GenerateWeekPlanRequest(weekStart: Mapping.LocalTime.iso(self.weekStart),
+                                               day: self.day)
+            try await app.testing().test(.POST, "/v1/week-plans", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(body) }) { response in
+                #expect(response.status == .created, Comment(rawValue: String(buffer: response.body)))
+            }
+
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                let requestDay = try RequestDay.validated(date: self.day.date, tz: self.day.tz)
+                let inputs = try await WeekPlanRoutes.inputs(tx, on: requestDay)
+                #expect(inputs.override == .push)
+                let weekPlan = try #require(try await Mapping.readWeekPlan(tx, weekStart: self.weekStart))
+                let rows = try await Mapping.readPlannedDays(tx, weekPlanID: weekPlan.id)
+                func built(_ override: Override?) throws -> BuiltSession {
+                    var copy = inputs
+                    copy.override = override
+                    let context = WeekPlanRoutes.context(
+                        copy, weekStart: self.weekStart, today: requestDay.date, days: rows,
+                        isDeload: weekPlan.isDeload, library: library,
+                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
+                    let outcome = try #require(Planner.planRemainingDays(context).days.values
+                        .first { $0.session != nil })
+                    return try #require(outcome.session)
+                }
+                let session = try built(.push)
+                let plannedDay = try #require(
+                    Mapping.plannedDays(from: rows, vectors: library.vectors)
+                        .first { $0.id == session.dayID })
+                let prescribed = try #require(Planner.prescribe(
+                    session,
+                    on: Mapping.prescriptionInput(
+                        day: plannedDay, startMoment: Planner.evaluationMoment(for: plannedDay.date),
+                        library: library.candidates, profile: inputs.complete,
+                        equipment: inputs.equipment, safety: inputs.safety, cycle: inputs.cycle,
+                        checkin: inputs.checkin, override: inputs.override,
+                        fatigue: inputs.fatigue, journal: inputs.journal)))
+                #expect(prescribed.exercises.map(\.targetRIR) == session.exercises.map(\.targetRIR),
+                        "RIR старта под push совпадает со сборкой")
+
+                // Неслепота: без push фазовый +1 на месте — RIR выше.
+                let plain = try built(nil)
+                #expect(zip(plain.exercises, session.exercises).allSatisfy { $0.targetRIR == $1.targetRIR + 1 },
+                        "push действительно снимает фазовый RIR +1 — иначе совпадение ничего не значит")
+            }
+        }
+    }
 }
