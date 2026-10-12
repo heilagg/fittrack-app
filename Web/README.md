@@ -15,7 +15,8 @@ src/
   auth/       # supabase-js, анонимный вход
   direct/     # прямые записи в таблицы под RLS
   content/    # кеш /v1/content/*
-  features/   # today (срез 1), dev (dev-кнопка подготовки данных)
+  features/   # today (срез 1), dev (dev-кнопка подготовки данных), link (срез 2),
+              # workout (срезы 3–4: упражнение, завершение и сводка)
   app/        # корень приложения, роутинг
 e2e/          # Playwright против локальных Supabase и Server
 ```

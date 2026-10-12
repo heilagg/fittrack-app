@@ -1,15 +1,18 @@
 // Экран тренировки (SPEC §13.1): текущее упражнение и состав.
 //
 // Срез 3: логирование подходов, дерево §20.9, таймер отдыха, Wake Lock.
-// Замена упражнения, флаг боли и завершение — отдельные срезы.
+// Срез 4: завершение и сводка. Замена упражнения и флаг боли — отдельный срез.
 
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
+import type { FinishWorkoutResponse } from '../../api/schemas'
 import { useExerciseNames } from '../../content/useExercises'
 import { useWakeLock } from '../../workout/wakeLock'
 import { ErrorBlock } from '../today/TodayScreen'
 import { ExercisePanel } from './ExercisePanel'
+import { FinishButton, WorkoutSummary } from './FinishPanel'
 
 function WakeLockNote({ enabled }: { enabled: boolean }) {
   const state = useWakeLock(enabled)
@@ -26,11 +29,14 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
   const { id = '' } = useParams()
   const workout = useQuery({ queryKey: ['workout', id], queryFn: () => api.getWorkout(id) })
   const names = useExerciseNames(api)
+  const [finished, setFinished] = useState<FinishWorkoutResponse | null>(null)
+  const [busy, setBusy] = useState(false)
 
   if (workout.isPending) return <p role="status">Загрузка…</p>
   if (workout.isError) return <ErrorBlock error={workout.error} />
 
   const w = workout.data
+  const isFinished = w.finished_at !== undefined
   const ordered = w.exercises.slice().sort((a, b) => a.order_index - b.order_index)
   // Текущее — первое, где подходы остались и дерево не оборвано досрочно.
   const current = ordered.find((e) => {
@@ -40,20 +46,24 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
   return (
     <main>
       <h1>Тренировка</h1>
-      <p data-testid="workout-state">{w.finished_at ? 'Завершена' : 'Идёт'}</p>
+      <p data-testid="workout-state">{isFinished ? 'Завершена' : 'Идёт'}</p>
       {w.is_calibration && <p>Калибровочная тренировка: веса занижены намеренно.</p>}
-      <WakeLockNote enabled={!w.finished_at} />
-      {current ? (
+      <WakeLockNote enabled={!isFinished} />
+      {isFinished ? (
+        <WorkoutSummary workout={w} week={finished?.week} names={names.data} />
+      ) : current ? (
         <ExercisePanel
           key={current.id}
           api={api}
           workoutId={w.id}
           exercise={current}
           content={names.data?.get(current.slug)}
+          onBusyChange={setBusy}
         />
       ) : (
         <p data-testid="all-sets-done">Все подходы выполнены.</p>
       )}
+      {!isFinished && <FinishButton api={api} workoutId={w.id} disabled={busy} onFinished={setFinished} />}
       <ol data-testid="workout-exercises">
         {ordered
           .map((exercise) => (

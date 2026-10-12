@@ -270,6 +270,21 @@ export type LogSetRequest = z.infer<typeof logSetRequestSchema>
 export const logSetResponseSchema = z.object({ decision_tree: decisionTreeSchema })
 export type LogSetResponse = z.infer<typeof logSetResponseSchema>
 
+/** Тело `POST …/finish`: только пара дня (§20.3). */
+export const finishWorkoutRequestSchema = z.object({ date: z.string(), tz: z.string() })
+export type FinishWorkoutRequest = z.infer<typeof finishWorkoutRequestSchema>
+
+/**
+ * Ответ `POST …/finish` (§20.3): итог тренировки и неделя. Ключа `week` может
+ * не быть (недели нет, `/finish` её не генерирует); `week.notice` — строка
+ * «План обновлён», в повторе `/finish` её нет.
+ */
+export const finishWorkoutResponseSchema = z.object({
+  workout: workoutSchema,
+  week: weekPlanResponseSchema.optional(),
+})
+export type FinishWorkoutResponse = z.infer<typeof finishWorkoutResponseSchema>
+
 export const startWorkoutRequestSchema = z.object({
   planned_day_id: z.string(),
   equipment_profile_id: z.string().optional(),

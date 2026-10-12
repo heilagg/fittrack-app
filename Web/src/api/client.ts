@@ -7,6 +7,8 @@
 import { z } from 'zod'
 import {
   errorEnvelopeSchema,
+  finishWorkoutRequestSchema,
+  finishWorkoutResponseSchema,
   exerciseContentListSchema,
   generateWeekPlanRequestSchema,
   logSetRequestSchema,
@@ -18,6 +20,7 @@ import {
   weekPlanResponseSchema,
   workoutSchema,
   type ErrorCode,
+  type FinishWorkoutResponse,
   type ExerciseContent,
   type GenerateWeekPlanRequest,
   type LogSetRequest,
@@ -154,6 +157,19 @@ export class ApiClient {
     return this.request('POST', path, logSetResponseSchema, {
       authorized: true,
       body: logSetRequestSchema.parse({ ...body, date, tz }),
+    })
+  }
+
+  /**
+   * Закрывает тренировку. Повтор после обрыва — то же 200 и то же тело, но
+   * `week.notice` в нём `null`: строку «План обновлён» показывает первый ответ.
+   */
+  finishWorkout(workoutId: string): Promise<FinishWorkoutResponse> {
+    const { date, tz } = this.today()
+    const path = `/v1/workouts/${encodeURIComponent(workoutId)}/finish`
+    return this.request('POST', path, finishWorkoutResponseSchema, {
+      authorized: true,
+      body: finishWorkoutRequestSchema.parse({ date, tz }),
     })
   }
 
