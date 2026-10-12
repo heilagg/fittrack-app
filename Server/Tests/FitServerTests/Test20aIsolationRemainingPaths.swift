@@ -1,5 +1,6 @@
 //  Тест 20a (§20.15) на путях, которых недельный набор не касается:
-//  `/today`, `/preview`, `GET`/`PATCH /profile`, `POST …/sets`, `/substitute`.
+//  `/today`, `/preview`, `GET`/`PATCH /profile`, `POST …/sets`, `/substitute`,
+//  `/cycle/calendar`.
 //  Остальные пути проверены там, где написаны (недельные — в
 //  `Test20aIsolationOverHTTP`, тренировочные — в своих наборах).
 //
@@ -60,6 +61,49 @@ struct Test20aIsolationRemainingPaths {
 
     private func code(_ raw: Data) -> APIErrorCode? {
         try? JSONDecoder().decode(APIErrorEnvelope.self, from: raw).error.code
+    }
+
+    // MARK: - /cycle/calendar
+
+    @Test("20a: календарь Боба не несёт отметок Алисы, её строки не тронуты")
+    func test20a_cycleCalendar() async throws {
+        let alice = try await Live.signUpAnonymous()
+        let bob = try await Live.signUpAnonymous()
+        let logger = Live.quietLogger("test.20a.calendar")
+        try await Live.withServer("test.20a.calendar") { app, database in
+            try await Live.seed(app, alice, logger: logger)
+            try await Live.seed(app, bob, logger: logger)
+            let client = Live.ownerClient(logger)
+            let date = Mapping.LocalTime.iso(self.today.adding(days: -3))
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { await client.run() }
+                group.addTask {
+                    _ = try await client.query("""
+                        insert into cycle_events (id, user_id, kind, occurred_on)
+                        values (\(UUID()), \(alice.id), 'period_start', \(date)::date)
+                        """, logger: logger)
+                }
+                try await group.next()
+                group.cancelAll()
+            }
+            let window = "from=\(Mapping.LocalTime.iso(self.today.adding(days: -10)))&to=\(Mapping.LocalTime.iso(self.today))"
+            let path = "/v1/cycle/calendar?\(self.query)&\(window)"
+
+            // Контроль: у Алисы отметка видна, иначе отсутствие у Боба ничего не значит.
+            let (own, ownRaw) = try await self.call(app, .GET, path, alice)
+            #expect(own == 200)
+            #expect(try JSONDecoder().decode(CycleCalendarDTO.self, from: ownRaw).days.flatMap(\.marks).count == 1)
+
+            let (status, raw) = try await self.call(app, .GET, path, bob)
+            #expect(status == 200)
+            let bobs = try JSONDecoder().decode(CycleCalendarDTO.self, from: raw)
+            #expect(bobs.days.allSatisfy { $0.marks.isEmpty && $0.period == nil }, "чужих отметок нет")
+
+            let aliceRows = try await self.sql(database, alice) { tx in
+                try await Mapping.readCycleMarks(tx).values.flatMap { $0 }.count
+            }
+            #expect(aliceRows == 1, "строки Алисы на месте")
+        }
     }
 
     // MARK: - /today и /preview

@@ -533,4 +533,53 @@ final class ContractTests: XCTestCase {
         XCTAssertFalse((error?["message"] as? String ?? "").isEmpty)
         XCTAssertEqual((error?["details"] as? [String: Any])?["sent"] as? String, "2026-09-01")
     }
+    // MARK: - Календарь цикла (§11.6, §20.3)
+
+    func test_cycleCalendar_phaseTextsAreFourInCycleOrderWithTheNote() {
+        let dto = CycleCalendarDTO(CycleCalendar(nextPeriod: nil, overdue: false, days: []),
+                                   from: CalendarDay(dayNumber: 0), to: CalendarDay(dayNumber: 0),
+                                   cycle: CycleStateDTO(CycleState(phaseMode: .phases, noPhaseReason: nil,
+                                                                   hasAnchor: false, phase: nil, cycleConfidence: nil,
+                                                                   periodization: nil, effectivePhaseAdjustment: nil)),
+                                   marks: [:], iso: { "\($0.dayNumber)" })
+        XCTAssertEqual(dto.phases.map(\.phase), ["menstrual", "follicular", "ovulatory", "luteal"])
+        XCTAssertEqual(dto.phases.map(\.name), ["Менструация", "После месячных", "Середина цикла", "Вторая половина цикла"])
+        XCTAssertTrue(dto.phases.allSatisfy { $0.note == ReasonStrings.phaseTextNote && !$0.feeling.isEmpty && !$0.why.isEmpty })
+        XCTAssertEqual(Set(dto.phases.map(\.feeling)).count, 4, "у каждой фазы свой текст")
+    }
+
+    func test_cycleCalendarDay_withoutPhase_carriesNoConfidenceKey() throws {
+        let day = CycleCalendarDayDTO(CycleCalendarEntry(date: CalendarDay(dayNumber: 1), period: .forecast),
+                                      marks: [], iso: { _ in "2026-11-21" })
+        let json = String(decoding: try JSONEncoder().encode(day), as: UTF8.self)
+        XCTAssertFalse(json.contains("cycle_confidence"))
+        XCTAssertFalse(json.contains("\"phase\""))
+        XCTAssertTrue(json.contains("\"period\":\"forecast\""))
+    }
+
+    func test_cycleCalendar_marksGoToTheirDayOnly() {
+        let mark = CycleMarkDTO(id: "x", kind: "period_start", source: "manual")
+        let days = [CycleCalendarEntry(date: CalendarDay(dayNumber: 1)), CycleCalendarEntry(date: CalendarDay(dayNumber: 2))]
+        let dto = CycleCalendarDTO(CycleCalendar(nextPeriod: nil, overdue: false, days: days),
+                                   from: CalendarDay(dayNumber: 1), to: CalendarDay(dayNumber: 2),
+                                   cycle: CycleStateDTO(CycleState(phaseMode: .noPhases, noPhaseReason: .declined,
+                                                                   hasAnchor: false, phase: nil, cycleConfidence: nil,
+                                                                   periodization: nil, effectivePhaseAdjustment: nil)),
+                                   marks: [CalendarDay(dayNumber: 2): [mark]], iso: { "\($0.dayNumber)" })
+        XCTAssertEqual(dto.days.map(\.marks), [[], [mark]])
+    }
+    func test_cycleCalendar_overdueAndNextPeriodPassThrough() {
+        let next = NextPeriod(expected: CalendarDay(dayNumber: 10), rangeStart: CalendarDay(dayNumber: 8),
+                              rangeEnd: CalendarDay(dayNumber: 12), cycleConfidence: 0.6)
+        let dto = CycleCalendarDTO(CycleCalendar(nextPeriod: next, overdue: true, days: []),
+                                   from: CalendarDay(dayNumber: 1), to: CalendarDay(dayNumber: 2),
+                                   cycle: CycleStateDTO(CycleState(phaseMode: .phases, noPhaseReason: nil,
+                                                                   hasAnchor: true, phase: nil, cycleConfidence: 0.6,
+                                                                   periodization: nil, effectivePhaseAdjustment: nil)),
+                                   marks: [:], iso: { "\($0.dayNumber)" })
+        XCTAssertTrue(dto.overdue)
+        XCTAssertEqual(dto.nextPeriod?.expected, "10")
+        XCTAssertEqual(dto.nextPeriod?.rangeStart, "8")
+        XCTAssertEqual(dto.nextPeriod?.rangeEnd, "12")
+    }
 }

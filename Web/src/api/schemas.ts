@@ -177,6 +177,53 @@ export const todayCardSchema = z.object({
 })
 export type TodayCard = z.infer<typeof todayCardSchema>
 
+// Календарь цикла, `GET /v1/cycle/calendar` (SPEC §11.6, §20.3). Фаза уже
+// свёрнута сервером в четыре; ниже порога 0.3 ключей `phase` и
+// `cycle_confidence` нет.
+export const cyclePeriodDays = ['marked', 'estimated', 'forecast'] as const
+export const calendarPhases = ['menstrual', 'follicular', 'ovulatory', 'luteal'] as const
+
+export const cycleMarkSchema = z.object({
+  id: z.string(),
+  kind: z.string(),
+  source: z.string(),
+})
+
+export const cycleCalendarDaySchema = z.object({
+  date: z.string(),
+  marks: z.array(cycleMarkSchema),
+  period: z.enum(cyclePeriodDays).optional(),
+  phase: z.enum(calendarPhases).optional(),
+  cycle_confidence: z.number().optional(),
+  ovulation_estimate: z.boolean(),
+})
+
+export const cycleCalendarSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  cycle: cycleStateSchema,
+  next_period: z
+    .object({
+      expected: z.string(),
+      range_start: z.string(),
+      range_end: z.string(),
+      cycle_confidence: z.number(),
+    })
+    .optional(),
+  overdue: z.boolean(),
+  days: z.array(cycleCalendarDaySchema),
+  phases: z.array(
+    z.object({
+      phase: z.enum(calendarPhases),
+      name: z.string(),
+      feeling: z.string(),
+      why: z.string(),
+      note: z.string(),
+    }),
+  ),
+})
+export type CycleCalendar = z.infer<typeof cycleCalendarSchema>
+
 /**
  * День недели (§20.3, `WeekDay`): поля дня плюс дата и тип. `day_id`
  * обязателен — день недели всегда строка `planned_days`. Дни приходят по дате.

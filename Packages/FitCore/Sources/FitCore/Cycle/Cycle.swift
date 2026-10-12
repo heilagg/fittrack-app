@@ -2,6 +2,8 @@
 //
 //  Конвейер: CycleHistory.derive → LengthEstimator.expected →
 //  PhaseResolver.phase → ConfidenceModel.confidence → CycleState → PhasePolicy.
+//  CycleCalendar — показ того же конвейера по дням (SPEC §11.6), без своей
+//  модели.
 //
 //  Второй вход конвейера, кроме журнала событий, — профиль цикла
 //  (cycle_profiles, SPEC §3.1): ConfidenceModel берёт из него declared_regularity,

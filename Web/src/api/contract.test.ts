@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ZodType } from 'zod'
 import {
+  cycleCalendarSchema,
   errorEnvelopeSchema,
   finishWorkoutRequestSchema,
   finishWorkoutResponseSchema,
@@ -61,6 +62,8 @@ const schemaFor: Record<string, ZodType> = {
   'response_finish_workout.json': finishWorkoutResponseSchema,
   'response_finish_workout_no_notice.json': finishWorkoutResponseSchema,
   'response_finish_workout_no_week.json': finishWorkoutResponseSchema,
+  'cycle_calendar.json': cycleCalendarSchema,
+  'cycle_calendar_no_phases.json': cycleCalendarSchema,
 }
 
 describe('эталонные JSON границы /v1', () => {
@@ -78,6 +81,24 @@ describe('эталонные JSON границы /v1', () => {
       expect(parsed).toEqual(json)
     })
   }
+
+  it('календарь: прогнозные дни без фазы, ниже порога ключей фазы нет, тексты четырёх фаз', () => {
+    const grid = cycleCalendarSchema.parse(load('cycle_calendar.json'))
+    const forecast = grid.days.filter((d) => d.period === 'forecast')
+    expect(forecast.length).toBeGreaterThan(0)
+    expect(forecast.every((d) => d.phase === undefined && d.cycle_confidence === undefined)).toBe(true)
+    expect(grid.days.filter((d) => d.ovulation_estimate)).toHaveLength(1)
+    expect(grid.phases.map((p) => p.phase)).toEqual(['menstrual', 'follicular', 'ovulatory', 'luteal'])
+    const off = cycleCalendarSchema.parse(load('cycle_calendar_no_phases.json'))
+    expect(off.next_period).toBeUndefined()
+    expect(off.days.every((d) => d.phase === undefined)).toBe(true)
+  })
+
+  it('календарь: фаза вне словаря не проходит схему', () => {
+    const json = load('cycle_calendar.json') as { days: { phase?: string }[] }
+    json.days.find((d) => d.phase)!.phase = 'early_luteal'
+    expect(() => cycleCalendarSchema.parse(json)).toThrow()
+  })
 
   it('карточка без недели: ключа day_id нет, и cause отсутствует', () => {
     const card = todayCardSchema.parse(load('today_not_built.json'))

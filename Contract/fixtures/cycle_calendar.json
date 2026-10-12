@@ -1,0 +1,357 @@
+{
+  "cycle" : {
+    "cycle_confidence" : 1,
+    "has_anchor" : true,
+    "phase" : "follicular",
+    "phase_mode" : "phases"
+  },
+  "days" : [
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-24",
+      "marks" : [
+        {
+          "id" : "22222222-2222-4222-8222-222222222222",
+          "kind" : "period_start",
+          "source" : "manual"
+        }
+      ],
+      "ovulation_estimate" : false,
+      "period" : "marked",
+      "phase" : "menstrual"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-25",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "estimated",
+      "phase" : "menstrual"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-26",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "estimated",
+      "phase" : "menstrual"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-27",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "estimated",
+      "phase" : "menstrual"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-28",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "estimated",
+      "phase" : "menstrual"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-29",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-30",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-10-31",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-01",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-02",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-03",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-04",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "follicular"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-05",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "ovulatory"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-06",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "ovulatory"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-07",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : true,
+      "phase" : "ovulatory"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-08",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "ovulatory"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-09",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-10",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-11",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-12",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-13",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-14",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-15",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-16",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-17",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-18",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-19",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "cycle_confidence" : 1,
+      "date" : "2026-11-20",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "phase" : "luteal"
+    },
+    {
+      "date" : "2026-11-21",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "forecast"
+    },
+    {
+      "date" : "2026-11-22",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "forecast"
+    },
+    {
+      "date" : "2026-11-23",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "forecast"
+    },
+    {
+      "date" : "2026-11-24",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "forecast"
+    },
+    {
+      "date" : "2026-11-25",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false,
+      "period" : "forecast"
+    },
+    {
+      "date" : "2026-11-26",
+      "marks" : [
+
+      ],
+      "ovulation_estimate" : false
+    }
+  ],
+  "from" : "2026-10-24",
+  "next_period" : {
+    "cycle_confidence" : 1,
+    "expected" : "2026-11-21",
+    "range_end" : "2026-11-23",
+    "range_start" : "2026-11-19"
+  },
+  "overdue" : false,
+  "phases" : [
+    {
+      "feeling" : "Многие в эти дни чувствуют усталость, тянущие ощущения внизу живота или просто меньше сил. У кого-то самочувствие обычное — так тоже бывает.",
+      "name" : "Менструация",
+      "note" : "Это частые наблюдения, а не диагноз. Как вы себя чувствуете на самом деле, важнее — отметьте это в чек-ине.",
+      "phase" : "menstrual",
+      "why" : "Это начало цикла: уровень гормонов, которые меняются по ходу цикла, в эти дни самый низкий."
+    },
+    {
+      "feeling" : "Многие замечают, что сил становится больше, а нагрузка переносится легче.",
+      "name" : "После месячных",
+      "note" : "Это частые наблюдения, а не диагноз. Как вы себя чувствуете на самом деле, важнее — отметьте это в чек-ине.",
+      "phase" : "follicular",
+      "why" : "Обычно это связывают с тем, что в первой половине цикла растёт эстроген."
+    },
+    {
+      "feeling" : "Кто-то чувствует пик энергии, кто-то — лёгкий дискомфорт сбоку внизу живота.",
+      "name" : "Середина цикла",
+      "note" : "Это частые наблюдения, а не диагноз. Как вы себя чувствуете на самом деле, важнее — отметьте это в чек-ине.",
+      "phase" : "ovulatory",
+      "why" : "Примерно в эти дни овуляция. Дата здесь — оценка по прогнозу, а не измерение."
+    },
+    {
+      "feeling" : "Ближе к месячным многие отмечают усталость, вздутие, перепады настроения, а на тренировке бывает жарче обычного.",
+      "name" : "Вторая половина цикла",
+      "note" : "Это частые наблюдения, а не диагноз. Как вы себя чувствуете на самом деле, важнее — отметьте это в чек-ине.",
+      "phase" : "luteal",
+      "why" : "Обычно это связывают с прогестероном во второй половине цикла и со спадом гормонов перед следующими месячными."
+    }
+  ],
+  "to" : "2026-11-26"
+}

@@ -170,6 +170,24 @@ extension Mapping {
 
     // MARK: - Цикл
 
+    /// Строки `cycle_events` для календаря (§11.6, §20.3): с `id` и `source`,
+    /// которые нужны клиенту для правки последнего события и показа, а
+    /// FitCore не нужны вовсе. Отдельный запрос, а не расширение `readCycle`:
+    /// у всех остальных путей событий с идентификаторами нет и не должно быть.
+    public static func readCycleMarks(_ tx: UserTransaction) async throws -> [CalendarDay: [CycleMarkDTO]] {
+        var marks: [CalendarDay: [CycleMarkDTO]] = [:]
+        let rows = try await tx.query("""
+            select id::text, kind, source, to_char(occurred_on, 'YYYY-MM-DD')
+              from cycle_events order by occurred_on, kind, id
+            """)
+        for try await row in rows {
+            let (id, kind, source, date) = try row.decode((String, String, String, String).self)
+            marks[try day(date, column: "cycle_events.occurred_on"), default: []]
+                .append(CycleMarkDTO(id: id, kind: kind, source: source))
+        }
+        return marks
+    }
+
     /// Состояние цикла после применения закрытых циклов (§11.5, §20.6).
     ///
     /// `persist` — пишущий ли это путь. `/today` и `/preview` по §20.6 не пишут

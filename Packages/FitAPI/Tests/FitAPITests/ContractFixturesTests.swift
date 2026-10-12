@@ -89,6 +89,52 @@ final class ContractFixturesTests: XCTestCase {
 
     // MARK: - Тела ответов
 
+    // MARK: - Календарь цикла (§11.6, §20.3)
+
+    /// Даты эталона календаря отсчитываются от 2026-08-01: `iso` пишет их
+    /// через Foundation, а не через `Mapping.LocalTime` сервера — FitAPI от
+    /// сервера не зависит.
+    private static let calendarBase = CalendarDay(year: 2026, month: 8, day: 1)
+    private func calendarDay(_ n: Int) -> CalendarDay { Self.calendarBase.adding(days: n) }
+    private func iso(_ day: CalendarDay) -> String {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC")!
+        let base = utc.date(from: DateComponents(year: 2026, month: 8, day: 1))!
+        let date = utc.date(byAdding: .day, value: Self.calendarBase.days(until: day), to: base)!
+        let c = utc.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
+    }
+
+    func test_cycleCalendar() throws {
+        // Три цикла по 28, текущий с 84-го дня без отмеченного конца;
+        // сегодня 94. В окне — отмеченное начало, расчётные дни, оценка
+        // овуляции (98), прогнозные месячные (112…116) и пустой день за ними.
+        let events = [0, 28, 56, 84].map { CycleEvent(kind: .periodStart, occurredOn: calendarDay($0)) }
+        let profile = CycleProfile(typicalCycleLengthDays: 28)
+        let today = calendarDay(94)
+        let calendar = Cycle.calendar(events: events, profile: profile,
+                                      from: calendarDay(84), to: calendarDay(117), asOf: today)
+        let state = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: today)
+        let marks = [calendarDay(84): [CycleMarkDTO(id: "22222222-2222-4222-8222-222222222222",
+                                                    kind: "period_start", source: "manual")]]
+        try check("cycle_calendar.json", CycleCalendarDTO(
+            calendar, from: calendarDay(84), to: calendarDay(117), cycle: CycleStateDTO(state),
+            marks: marks, iso: iso))
+    }
+
+    func test_cycleCalendarNoPhases() throws {
+        let events = [CycleEvent(kind: .periodStart, occurredOn: calendarDay(0))]
+        let profile = CycleProfile(phaseMode: .noPhases, noPhaseReason: .contraception)
+        let calendar = Cycle.calendar(events: events, profile: profile,
+                                      from: calendarDay(0), to: calendarDay(6), asOf: calendarDay(3))
+        let state = Cycle.state(events: events, profile: profile, responseProfiles: [:], asOf: calendarDay(3))
+        let marks = [calendarDay(0): [CycleMarkDTO(id: "33333333-3333-4333-8333-333333333333",
+                                                   kind: "period_start", source: "manual")]]
+        try check("cycle_calendar_no_phases.json", CycleCalendarDTO(
+            calendar, from: calendarDay(0), to: calendarDay(6), cycle: CycleStateDTO(state),
+            marks: marks, iso: iso))
+    }
+
     func test_todayNotBuilt() throws {
         try check("today_not_built.json", TodayCardDTO(
             date: "2026-10-12", readiness: 1.0, cycle: noCycle,
