@@ -2,7 +2,7 @@
 //
 // Показывается на `unlinked_account` от `POST /v1/workouts`: «Начать» требует
 // привязанного аккаунта, потому что защищается история тренировок, а не план.
-// Разметка функциональная; визуальные решения принимаются отдельно.
+// Визуальные решения — токены web-domain §8.
 
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
@@ -40,9 +40,11 @@ export function LinkScreen() {
     return (
       <main>
         <h1>Аккаунт</h1>
-        <p data-testid="account-linked">Аккаунт привязан{account.email ? `: ${account.email}` : ''}.</p>
+        <p data-testid="account-linked" className="card">Аккаунт привязан{account.email ? `: ${account.email}` : ''}.</p>
         <p>
-          <Link to="/">К тренировке</Link>
+          <Link to="/" className="link-back">
+            К тренировке
+          </Link>
         </p>
       </main>
     )
@@ -51,16 +53,16 @@ export function LinkScreen() {
   return (
     <main>
       <h1>Сохранить прогресс</h1>
-      <p>
+      <p className="caption">
         Чтобы начать тренировку, привяжите почту: так история не потеряется, если очистить данные сайта.
       </p>
       {sentTo ? (
-        <p role="status" data-testid="link-sent">
+        <p role="status" data-testid="link-sent" className="notice">
           Письмо отправлено на {sentTo}. Перейдите по ссылке из письма, затем вернитесь сюда и нажмите «Начать».
         </p>
       ) : (
-        <form onSubmit={submit}>
-          <label>
+        <form onSubmit={submit} className="card">
+          <label className="field">
             Почта
             <input
               type="email"
@@ -71,14 +73,16 @@ export function LinkScreen() {
               required
             />
           </label>
-          <button type="submit" disabled={busy}>
+          <button type="submit" className="button-primary" disabled={busy}>
             Отправить ссылку
           </button>
         </form>
       )}
       {error && <p role="alert">{error}</p>}
       <p>
-        <Link to="/">Назад</Link>
+        <Link to="/" className="link-back">
+          Назад
+        </Link>
       </p>
     </main>
   )

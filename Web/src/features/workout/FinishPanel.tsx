@@ -54,14 +54,21 @@ export function FinishButton({
   }
 
   return (
-    <div>
-      <button type="button" disabled={disabled || sending} onClick={() => void finish()}>
-        Завершить тренировку
+    <div className="finish">
+      {/* Видимое «Завершить» входит в доступное имя (WCAG 2.5.3). */}
+      <button
+        type="button"
+        className="button-text"
+        aria-label="Завершить тренировку"
+        disabled={disabled || sending}
+        onClick={() => void finish()}
+      >
+        Завершить
       </button>
       {failure !== null && (
         <div role="alert" data-testid="finish-failure">
           <p>{failureText(failure)}</p>
-          <button type="button" disabled={sending} onClick={() => void finish()}>
+          <button type="button" className="button-primary" disabled={sending} onClick={() => void finish()}>
             Повторить
           </button>
         </div>
@@ -85,19 +92,25 @@ export function WorkoutSummary({
   const total = ordered.reduce((n, e) => n + done(e).length, 0)
 
   return (
-    <section aria-label="Сводка тренировки" data-testid="summary">
-      <h2>Тренировка завершена</h2>
-      {week?.notice && <p data-testid="plan-notice">{week.notice.message}</p>}
-      <p data-testid="summary-total">
+    <section aria-label="Сводка тренировки" data-testid="summary" className="exercise">
+      <h2 className="screen-title">Тренировка завершена</h2>
+      {week?.notice && (
+        <p data-testid="plan-notice" className="notice">
+          {week.notice.message}
+        </p>
+      )}
+      <p data-testid="summary-total" className="chip">
         {total === 0 ? 'Ни одного подхода не выполнено.' : `Выполнено подходов: ${total}`}
       </p>
-      <ol data-testid="summary-exercises">
+      <ol data-testid="summary-exercises" className="card rows rows--stacked">
         {ordered.map((e) => (
           <li key={e.id}>
-            <span data-testid="summary-exercise-name">{names?.get(e.slug)?.name ?? e.slug}</span>
-            {`: ${done(e).length} из ${e.target_sets}`}
+            <span>
+              <span data-testid="summary-exercise-name">{names?.get(e.slug)?.name ?? e.slug}</span>
+              <span className="row-value">{`: ${done(e).length} из ${e.target_sets}`}</span>
+            </span>
             {done(e).length > 0 && (
-              <ul>
+              <ul className="caption">
                 {done(e).map((s) => (
                   <li key={s.id}>
                     {s.actual_kg !== undefined ? `${s.actual_kg} кг × ` : ''}
