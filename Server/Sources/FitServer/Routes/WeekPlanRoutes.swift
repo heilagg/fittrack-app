@@ -157,7 +157,12 @@ enum WeekPlanRoutes {
         return (plan, notice)
     }
 
-    static func response(_ plan: WeekPlan, notice: ReasonCode?) -> WeekPlanResponseDTO {
-        WeekPlanResponseDTO(plan: WeekPlanDTO(plan), notice: notice.map { ReasonDTO($0) })
+    /// `week` — строки недели, из которых посчитан `plan`: у каждого дня ответа
+    /// дата и тип (§20.3, `WeekDay`). Дата переводится в ISO здесь, в `Mapping/`
+    /// (§20.7), а не в `FitAPI`.
+    static func response(_ plan: WeekPlan, week: [PlannedDay], notice: ReasonCode?) -> WeekPlanResponseDTO {
+        WeekPlanResponseDTO(
+            plan: WeekPlanDTO(plan, week: week.map { (day: $0, isoDate: Mapping.LocalTime.iso($0.date)) }),
+            notice: notice.map { ReasonDTO($0) })
     }
 }
