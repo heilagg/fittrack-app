@@ -89,6 +89,25 @@ test.describe('тренировка', () => {
   })
 })
 
+test.describe('картинки упражнений (§6.5)', () => {
+  test('кадры с /illustrations грузятся; без картинки — заглушка', async ({ page }) => {
+    // Файлы раздаёт Vite из public/: картинка с сопоставлением отдаётся, ненайденная — нет.
+    const ok = await page.request.get('/illustrations/plank_bw/start.jpg')
+    expect(ok.status()).toBe(200)
+    expect(ok.headers()['content-type']).toContain('image/jpeg')
+
+    await startLinkedWorkout(page)
+    const figure = page.getByTestId('illustration')
+    const placeholder = page.getByTestId('illustration-placeholder')
+    await expect(figure.or(placeholder)).toBeVisible()
+    if (await figure.count()) {
+      const loaded = await figure.locator('img').first().evaluate((img: HTMLImageElement) =>
+        img.complete ? img.naturalWidth : new Promise<number>((r) => (img.onload = () => r(img.naturalWidth))))
+      expect(loaded).toBeGreaterThan(0)
+    }
+  })
+})
+
 test.describe('Профиль', () => {
   test('инвентарь: правка строки по умолчанию, /rebuild с equipment_changed', async ({ page }) => {
     await completeOnboarding(page)

@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ApiClient } from '../../api/client'
 import type { AlternativesPurpose, ExerciseContent, SubstituteRequest, Workout, WorkoutExercise } from '../../api/schemas'
 import { ErrorBlock } from '../today/TodayScreen'
+import { ExerciseThumbnail } from './Illustration'
 
 const REASONS: { value: SubstituteRequest['reason']; label: string }[] = [
   { value: 'occupied', label: 'Занят снаряд' },
@@ -97,8 +98,9 @@ export function AlternativesPanel({
       {alternatives.data && alternatives.data.length > 0 && (
         <ul className="rows card" aria-label="Альтернативы">
           {alternatives.data.map((alt) => (
-            <li key={alt.slug} data-slug={alt.slug}>
-              <span>
+            <li key={alt.slug} data-slug={alt.slug} className="alternative">
+              <ExerciseThumbnail content={names?.get(alt.slug)} />
+              <span className="alternative-text">
                 <span data-testid="alternative-name">{names?.get(alt.slug)?.name ?? alt.slug}</span>
                 {alt.reasons.map((r, i) => (
                   <span key={i} className="caption">
