@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FitTrack</title>
+    <!-- Шрифты (web-domain §8): Space Grotesk и Manrope, 500/600/700.
+         Google отдаёт все наборы символов с unicode-range и параметр subset не
+         учитывает; браузер скачивает только нужные файлы. Space Grotesk стоит
+         первым и закрывает латиницу и цифры, поэтому у Manrope скачивается
+         только кириллица (проверяет e2e/fonts.spec.ts). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
   <body>
     <div id="root"></div>

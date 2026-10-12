@@ -18,6 +18,8 @@ src/
   onboarding/ # чистая логика онбординга: продолжение с экрана, PAR-Q, пресеты, цикл, тексты
   features/   # today (срез 1), link (срез 2), workout (срезы 3–4),
               # onboarding (срез 5: десять шагов §5)
+  styles/     # tokens.css (генерируется) и app.css (стили экранов)
+  ui/         # форматирование для показа
   app/        # корень приложения, роутинг
 e2e/          # Playwright против локальных Supabase и Server
 ```
@@ -61,6 +63,9 @@ npm test            # Vitest: клиент /v1 и эталонные JSON
 npm run e2e         # Playwright; поднимает Vite и сервер, Supabase — снаружи
 ```
 
+Скриншоты основных экранов в ширине 390 px — `npm run screens`, кадры
+ложатся в `design-screens/` (в `.gitignore`).
+
 Playwright использует системный Chrome (`channel: 'chrome'`) либо путь из
 `PLAYWRIGHT_CHROME_PATH`; браузер скачивать не нужно.
 
@@ -75,3 +80,14 @@ FITAPI_REGENERATE_FIXTURES=1 swift test --filter ContractFixturesTests
 ```
 
 `src/api/contract.test.ts` читает те же файлы руками написанными схемами.
+
+## Дизайн-токены
+
+Цвета, шрифт, размеры — в `../Tools/design-tokens/tokens.json` (формат DTCG).
+`src/styles/tokens.css` из него генерирует скрипт и коммитится; `src/styles/tokens.test.ts`
+падает, если файл устарел, если пара «текст на фоне» ниже 4.5:1 или если в
+рукописном CSS появился литерал цвета или размера. Перегенерация:
+
+```bash
+npm run tokens
+```

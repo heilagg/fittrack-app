@@ -1,4 +1,4 @@
-// Онбординг (SPEC §5, §14.1, §14.2; web-domain срез 5). Разметка функциональная.
+// Онбординг (SPEC §5, §14.1, §14.2; web-domain срез 5). Визуальные решения — токены web-domain §8.
 //
 // «Пошагово» на вебе — запись на сервер: шаги 3–6 и цикл уходят через
 // `PATCH /v1/profile`, экраны 2, 3 (вес), 7, 8 и дата цикла — прямыми записями
@@ -70,7 +70,7 @@ function useAction() {
 
 function StepFrame({ n, title, children }: { n: Step; title: string; children: ReactNode }) {
   return (
-    <section aria-label={title} data-testid={`step-${n}`}>
+    <section aria-label={title} data-testid={`step-${n}`} className="exercise">
       <h2>{title}</h2>
       {children}
     </section>
@@ -112,7 +112,7 @@ export function OnboardingScreen({ api }: { api: ApiClient }) {
 
   return (
     <main>
-      <h1>Знакомство</h1>
+      <h1 className="eyebrow">Знакомство</h1>
       {step === 1 && <DisclaimerStep api={api} onDone={() => go(1)} />}
       {step === 2 && <ParqStep onDone={() => go(2)} />}
       {step === 3 && (
@@ -163,6 +163,7 @@ function DisclaimerStep({ api, onDone }: { api: ApiClient; onDone: () => void })
       ))}
       <button
         type="button"
+        className="button-primary"
         disabled={busy}
         onClick={() =>
           // Строка `profiles` нужна до экрана 2: parq_responses ссылается на неё
@@ -204,7 +205,7 @@ function ParqStep({ onDone }: { onDone: () => void }) {
         {RED_FLAG_PENDING_LEGAL.map((line) => (
           <p key={line}>{line}</p>
         ))}
-        <button type="button" disabled={busy} onClick={() => void save(true)}>
+        <button type="button" className="button-primary" disabled={busy} onClick={() => void save(true)}>
           Я прочитал(а) рекомендацию
         </button>
         {error !== null && <ErrorBlock error={error} />}
@@ -222,36 +223,38 @@ function ParqStep({ onDone }: { onDone: () => void }) {
           else void save(false)
         }}
       >
-        <ol>
+        <ol className="parq">
           {PARQ_QUESTIONS.map((question, i) => (
             <li key={i}>
               <fieldset>
                 <legend>{question}</legend>
-                <label>
-                  <input
-                    type="radio"
-                    name={`q${i + 1}`}
-                    value="yes"
-                    checked={answers[i] === true}
-                    onChange={() => setAnswers((a) => a.map((v, j) => (j === i ? true : v)))}
-                  />{' '}
-                  Да
-                </label>{' '}
-                <label>
-                  <input
-                    type="radio"
-                    name={`q${i + 1}`}
-                    value="no"
-                    checked={answers[i] === false}
-                    onChange={() => setAnswers((a) => a.map((v, j) => (j === i ? false : v)))}
-                  />{' '}
-                  Нет
-                </label>
+                <div className="option-row">
+                  <label className="option">
+                    <input
+                      type="radio"
+                      name={`q${i + 1}`}
+                      value="yes"
+                      checked={answers[i] === true}
+                      onChange={() => setAnswers((a) => a.map((v, j) => (j === i ? true : v)))}
+                    />{' '}
+                    Да
+                  </label>{' '}
+                  <label className="option">
+                    <input
+                      type="radio"
+                      name={`q${i + 1}`}
+                      value="no"
+                      checked={answers[i] === false}
+                      onChange={() => setAnswers((a) => a.map((v, j) => (j === i ? false : v)))}
+                    />{' '}
+                    Нет
+                  </label>
+                </div>
               </fieldset>
             </li>
           ))}
         </ol>
-        <button type="submit" disabled={!complete || busy}>
+        <button type="submit" className="button-primary" disabled={!complete || busy}>
           Далее
         </button>
       </form>
@@ -293,7 +296,7 @@ function BasicsStep({ api, onDone }: { api: ApiClient; onDone: (sex: string) => 
     <StepFrame n={3} title="Базовое">
       <form onSubmit={submit}>
         <p>
-          <label>
+          <label className="field">
             Пол при рождении{' '}
             <select value={sex} onChange={(e) => setSex(e.target.value)}>
               <option value="">—</option>
@@ -304,22 +307,22 @@ function BasicsStep({ api, onDone }: { api: ApiClient; onDone: (sex: string) => 
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Год рождения{' '}
             <input inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} />
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Рост, см <input inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} />
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Вес, кг <input inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} />
           </label>
         </p>
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="button-primary" disabled={busy}>
           Далее
         </button>
       </form>
@@ -364,7 +367,7 @@ function ChoiceStep<T extends string>({
           <legend>{question ?? title}</legend>
           {options.map((o) => (
             <p key={o.value}>
-              <label>
+              <label className="option">
                 <input
                   type="radio"
                   name={`choice-${n}`}
@@ -377,7 +380,7 @@ function ChoiceStep<T extends string>({
             </p>
           ))}
         </fieldset>
-        <button type="submit" disabled={value === null || busy}>
+        <button type="submit" className="button-primary" disabled={value === null || busy}>
           Далее
         </button>
       </form>
@@ -446,14 +449,14 @@ function WeekdaysStep({ api, onDone }: { api: ApiClient; onDone: () => void }) {
           <legend>В какие дни недели вы занимаетесь?</legend>
           {WEEKDAYS.map((label, i) => (
             <p key={label}>
-              <label>
+              <label className="option">
                 <input type="checkbox" checked={days.includes(i + 1)} onChange={() => toggle(i + 1)} /> {label}
               </label>
             </p>
           ))}
         </fieldset>
-        <p data-testid="days-count">Дней в неделю: {days.length}</p>
-        <button type="submit" disabled={days.length === 0 || busy}>
+        <p data-testid="days-count" className="caption">Дней в неделю: {days.length}</p>
+        <button type="submit" className="button-primary" disabled={days.length === 0 || busy}>
           Далее
         </button>
       </form>
@@ -507,7 +510,7 @@ function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
 
   return (
     <StepFrame n={7} title="Инвентарь">
-      <div role="group" aria-label="Пресеты">
+      <div role="group" aria-label="Пресеты" className="presets">
         {PRESET_IDS.map((id) => (
           <button key={id} type="button" data-preset={id} aria-pressed={preset === id} onClick={() => choose(id)}>
             {PRESETS[id].name}
@@ -516,18 +519,18 @@ function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
       </div>
       <form onSubmit={submit}>
         <p>
-          <label>
+          <label className="field">
             Гантели, кг (через пробел){' '}
             <input value={dumbbells} onChange={(e) => setDumbbells(e.target.value)} />
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Блины, кг (через пробел) <input value={plates} onChange={(e) => setPlates(e.target.value)} />
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Гриф, кг{' '}
             <input
               inputMode="decimal"
@@ -544,7 +547,7 @@ function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Шаг стека тренажёров, кг{' '}
             <input
               inputMode="decimal"
@@ -560,39 +563,39 @@ function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
             />
           </label>
         </p>
-        <p>
-          <label>
+        <p className="option-grid">
+          <label className="option">
             <input type="checkbox" checked={form.has_kettlebells} onChange={(e) => set('has_kettlebells', e.target.checked)} />{' '}
             Есть гири
           </label>{' '}
           {form.has_kettlebells && (
-            <label>
+            <label className="field">
               Гири, кг <input value={kettlebells} onChange={(e) => setKettlebells(e.target.value)} />
             </label>
           )}
         </p>
-        <p>
-          <label>
+        <p className="option-grid">
+          <label className="option">
             <input type="checkbox" checked={form.bands} onChange={(e) => set('bands', e.target.checked)} /> Резинки
           </label>{' '}
-          <label>
+          <label className="option">
             <input type="checkbox" checked={form.pullup_bar} onChange={(e) => set('pullup_bar', e.target.checked)} />{' '}
             Турник
           </label>{' '}
-          <label>
+          <label className="option">
             <input type="checkbox" checked={form.step_platform} onChange={(e) => set('step_platform', e.target.checked)} />{' '}
             Степ-платформа
           </label>{' '}
-          <label>
+          <label className="option">
             <input type="checkbox" checked={form.plyo_box} onChange={(e) => set('plyo_box', e.target.checked)} /> Тумба
           </label>{' '}
-          <label>
+          <label className="option">
             <input type="checkbox" checked={form.cable_machine} onChange={(e) => set('cable_machine', e.target.checked)} />{' '}
             Блочная рама
           </label>
         </p>
         <p>
-          <label>
+          <label className="field">
             Скамья{' '}
             <select
               value={form.bench ?? ''}
@@ -613,8 +616,9 @@ function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
         </p>
         <fieldset>
           <legend>Тренажёры</legend>
+          <div className="option-grid">
           {MACHINE_SLUGS.map((slug) => (
-            <label key={slug}>
+            <label key={slug} className="option">
               <input
                 type="checkbox"
                 checked={form.machines.includes(slug)}
@@ -625,8 +629,9 @@ function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
               {slug}{' '}
             </label>
           ))}
+          </div>
         </fieldset>
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="button-primary" disabled={busy}>
           Сохранить инвентарь
         </button>
       </form>
@@ -668,7 +673,7 @@ function RestrictionsStep({ onDone }: { onDone: () => void }) {
       >
         {JOINTS.map(({ joint, label }) => (
           <p key={joint}>
-            <label>
+            <label className="field">
               {label}{' '}
               <select
                 data-joint={joint}
@@ -689,7 +694,7 @@ function RestrictionsStep({ onDone }: { onDone: () => void }) {
             </label>
           </p>
         ))}
-        <button type="submit" disabled={busy}>
+        <button type="submit" className="button-primary" disabled={busy}>
           Далее
         </button>
       </form>
@@ -751,7 +756,7 @@ function CycleStep({ api, onDone }: { api: ApiClient; onDone: () => void }) {
     current: T | null,
     set: (v: T) => void,
   ) => (
-    <label key={value}>
+    <label key={value} className="option">
       <input type="radio" name={name} value={value} checked={current === value} onChange={() => set(value)} /> {label}{' '}
     </label>
   )
@@ -774,34 +779,34 @@ function CycleStep({ api, onDone }: { api: ApiClient; onDone: () => void }) {
               {radio('contraception', 'declined' as ContraceptionAnswer, 'Не хочу отвечать', contraception, setContraception)}
             </fieldset>
             {contraception === 'yes' && (
-              <p>
+              <p className="notice">
                 При гормональной контрацепции естественных фаз цикла нет: приложение работает без фаз и
                 предлагает ежедневный чек-ин.
               </p>
             )}
             {contraception === 'no' && (
               <>
-                <p>Любой из ответов ниже можно пропустить.</p>
+                <p className="caption">Любой из ответов ниже можно пропустить.</p>
                 <p>
-                  <label>
+                  <label className="field">
                     Дата начала последней менструации{' '}
                     <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
                   </label>
                 </p>
                 <p>
-                  <label>
+                  <label className="field">
                     Обычная длина цикла, дней{' '}
                     <input inputMode="numeric" value={cycleLength} onChange={(e) => setCycleLength(e.target.value)} />
                   </label>
                 </p>
                 <p>
-                  <label>
+                  <label className="field">
                     Обычная длительность менструации, дней{' '}
                     <input inputMode="numeric" value={periodLength} onChange={(e) => setPeriodLength(e.target.value)} />
                   </label>
                 </p>
                 <p>
-                  <label>
+                  <label className="field">
                     Регулярность{' '}
                     <select value={regularity} onChange={(e) => setRegularity(e.target.value as Regularity | '')}>
                       <option value="">—</option>
@@ -815,7 +820,7 @@ function CycleStep({ api, onDone }: { api: ApiClient; onDone: () => void }) {
             )}
           </>
         )}
-        <button type="submit" disabled={busy || tracking === null || (tracking === 'yes' && contraception === null)}>
+        <button type="submit" className="button-primary" disabled={busy || tracking === null || (tracking === 'yes' && contraception === null)}>
           Далее
         </button>
       </form>
@@ -831,9 +836,10 @@ function SummaryStep({ api, onDone }: { api: ApiClient; onDone: () => Promise<vo
   const { busy, error, run } = useAction()
   return (
     <StepFrame n={10} title="Готово">
-      <p data-testid="onboarding-summary">{ONBOARDING_SUMMARY}</p>
+      <p data-testid="onboarding-summary" className="card">{ONBOARDING_SUMMARY}</p>
       <button
         type="button"
+        className="button-primary"
         disabled={busy}
         onClick={() =>
           void run(async () => {

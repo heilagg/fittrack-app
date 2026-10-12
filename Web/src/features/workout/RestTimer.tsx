@@ -29,11 +29,14 @@ function beep() {
 
 export function RestTimer({
   endAt,
+  nextWeightKg,
   onExtend,
   onSkip,
 }: {
   /** Абсолютная метка конца отдыха, мс от эпохи. */
   endAt: number
+  /** Вес следующего подхода из дерева; без веса или без следующего подхода — нет. */
+  nextWeightKg?: number
   onExtend: (seconds: number) => void
   onSkip: () => void
 }) {
@@ -64,16 +67,31 @@ export function RestTimer({
   }, [endAt])
 
   return (
-    <section aria-label="Отдых">
-      <p data-testid="rest-clock" role="timer">
-        {left > 0 ? `Отдых ${formatClock(left)}` : 'Отдых закончился'}
+    <section aria-label="Отдых" className="card rest">
+      <p data-testid="rest-clock" role="timer" className="rest-clock">
+        {left > 0 ? (
+          <>
+            <span className="caption">Отдых</span> {formatClock(left)}
+          </>
+        ) : (
+          <span className="hero-text">Отдых закончился</span>
+        )}
       </p>
-      <button type="button" onClick={() => onExtend(EXTEND_SECONDS)}>
-        +30 сек
-      </button>
-      <button type="button" onClick={onSkip}>
-        Пропустить
-      </button>
+      {/* Только во время отдыха (решение по дизайну): подход уже записан, и
+          вес следующего известен из дерева, а не угадан до фидбэка. */}
+      {left > 0 && nextWeightKg !== undefined && (
+        <p data-testid="next-set">
+          Следующий подход: <span className="row-weight">{nextWeightKg} кг</span>
+        </p>
+      )}
+      <div className="button-row">
+        <button type="button" onClick={() => onExtend(EXTEND_SECONDS)}>
+          +30 сек
+        </button>
+        <button type="button" onClick={onSkip}>
+          Пропустить
+        </button>
+      </div>
     </section>
   )
 }

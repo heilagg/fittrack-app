@@ -1,7 +1,7 @@
 // Экран «Сегодня», срез 1 (SPEC §13.1): карточка дня и состав тренировки.
 //
-// Разметка функциональная, без визуального дизайна: он решается отдельно
-// (web-domain §8). Тексты причин приходят с сервера и показываются как есть.
+// Визуальные решения — токены web-domain §8. Тексты причин приходят с сервера
+// и показываются как есть.
 //
 // Ветка показа — по `day.kind` (закрытый словарь §20.3). Различать
 // «неделя не сгенерирована» (`cause` отсутствует) и «сегодня отдых»
@@ -14,6 +14,7 @@ import type { ApiClient } from '../../api/client'
 import { ApiError } from '../../api/client'
 import type { DayOutcome, ExerciseContent } from '../../api/schemas'
 import { useExerciseNames } from '../../content/useExercises'
+import { formatDayHeading, formatMinutes } from '../../ui/format'
 
 export function TodayScreen({ api }: { api: ApiClient }) {
   const today = useQuery({ queryKey: ['today'], queryFn: () => api.getToday() })
@@ -65,11 +66,17 @@ export function TodayScreen({ api }: { api: ApiClient }) {
   const card = today.data
   return (
     <main>
-      <h1>Сегодня</h1>
-      <p data-testid="today-date">{card.date}</p>
+      <header className="screen-header">
+        <p className="eyebrow">
+          <time data-testid="today-date" dateTime={card.date}>
+            {formatDayHeading(card.date)}
+          </time>
+        </p>
+        <h1>Сегодня</h1>
+      </header>
       <DayBlock day={card.day} names={names.data} />
       {card.day.kind === 'session' && card.day.day_id !== undefined && (
-        <button type="button" disabled={starting} onClick={() => start(card.day.day_id!)}>
+        <button type="button" className="button-primary" disabled={starting} onClick={() => start(card.day.day_id!)}>
           Начать тренировку
         </button>
       )}
@@ -79,7 +86,7 @@ export function TodayScreen({ api }: { api: ApiClient }) {
       {card.day.kind === 'not_built' &&
         card.day.cause?.code === 'started' &&
         card.day.day_id !== undefined && (
-          <button type="button" disabled={starting} onClick={() => start(card.day.day_id!)}>
+          <button type="button" className="button-primary" disabled={starting} onClick={() => start(card.day.day_id!)}>
             Продолжить тренировку
           </button>
         )}
@@ -87,13 +94,13 @@ export function TodayScreen({ api }: { api: ApiClient }) {
           инвентаря, оставляет профиль полным, а неделю генерирует его
           последний экран. Явная кнопка вместо тихой генерации на чтении. */}
       {card.day.kind === 'not_built' && card.day.cause === undefined && (
-        <button type="button" disabled={starting} onClick={() => void buildWeek()}>
+        <button type="button" className="button-primary" disabled={starting} onClick={() => void buildWeek()}>
           Собрать неделю
         </button>
       )}
       {startError !== null && <ErrorBlock error={startError} />}
       {card.reasons.length > 0 && (
-        <ul aria-label="Статус недели">
+        <ul aria-label="Статус недели" className="caption">
           {card.reasons.map((reason, i) => (
             <li key={i}>{reason.message}</li>
           ))}
@@ -109,34 +116,47 @@ function DayBlock({ day, names }: { day: DayOutcome; names: Map<string, Exercise
       const session = day.session
       if (!session) return <p>Состав тренировки недоступен</p>
       return (
-        <section aria-label="Тренировка">
-          <h2>Тренировка</h2>
-          <ol data-testid="session-exercises">
+        <section aria-label="Тренировка" className="card">
+          <div className="card-header">
+            <h2 className="chip">Тренировка</h2>
+            <span className="caption" data-testid="session-duration">
+              {formatMinutes(session.estimated_seconds)}
+            </span>
+          </div>
+          <ol data-testid="session-exercises" className="rows">
             {session.exercises.map((exercise) => (
               <li key={exercise.slug}>
                 <span data-testid="exercise-name">{names?.get(exercise.slug)?.name ?? exercise.slug}</span>
-                {': '}
-                {exercise.target_sets} × {exercise.target_rep_min}–{exercise.target_rep_max}
-                {exercise.prescribed_kg !== undefined ? `, ${exercise.prescribed_kg} кг` : ''}
+                <span className="row-value">
+                  {exercise.target_sets} × {exercise.target_rep_min}–{exercise.target_rep_max}
+                  {exercise.prescribed_kg !== undefined && (
+                    <>
+                      {' · '}
+                      <span className="row-weight">{exercise.prescribed_kg} кг</span>
+                    </>
+                  )}
+                </span>
               </li>
             ))}
           </ol>
           {session.reasons.map((reason, i) => (
-            <p key={i}>{reason.message}</p>
+            <p key={i} className="caption">
+              {reason.message}
+            </p>
           ))}
         </section>
       )
     }
     case 'not_built':
       return (
-        <p data-testid="day-not-built">
+        <p data-testid="day-not-built" className="card">
           {day.cause ? day.cause.message : 'Неделя ещё не сгенерирована'}
         </p>
       )
     case 'stretching':
     case 'vector_missing':
     case 'generator_disabled':
-      return <p data-testid={`day-${day.kind}`}>{day.cause?.message ?? day.kind}</p>
+      return <p data-testid={`day-${day.kind}`} className="card">{day.cause?.message ?? day.kind}</p>
   }
 }
 

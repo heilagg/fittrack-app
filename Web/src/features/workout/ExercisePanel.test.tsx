@@ -145,6 +145,19 @@ describe('экран упражнения', () => {
     expect(weight()).toBe('42.5 кг') // ответ сервера согласован с показанным
   })
 
+  it('подход в пути отмечает свою кнопку фидбэка, подтверждённый — снимает отметку', async () => {
+    let resolve!: (r: LogSetResponse) => void
+    const logSet = vi.fn<LogSet>(() => new Promise((r) => (resolve = r)))
+    mount(logSet)
+    const selected = () =>
+      [...document.querySelectorAll('[data-selected="true"]')].map((b) => b.getAttribute('data-feedback'))
+    expect(selected()).toEqual([])
+    tap('hard')
+    expect(selected()).toEqual(['hard'])
+    await act(async () => resolve(nextTree))
+    await waitFor(() => expect(selected()).toEqual([]))
+  })
+
   it('«легко» ниже верха диапазона вес не поднимает (повторы входят предикатом)', async () => {
     const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
     mount(logSet)
@@ -301,6 +314,45 @@ describe('таймер отдыха после подхода', () => {
       vi.advanceTimersByTime(250)
     })
     await waitFor(() => expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых 1:00'))
+  })
+
+  it('«Следующий подход» — только во время отдыха, с весом из дерева', async () => {
+    let resolve!: (r: LogSetResponse) => void
+    mount(vi.fn<LogSet>(() => new Promise((r) => (resolve = r))))
+    expect(screen.queryByTestId('next-set')).toBeNull() // до первого подхода отдыха нет
+    tap('easy') // easy_at_or_above_max → 42.5
+    expect(screen.getByTestId('next-set').textContent).toBe('Следующий подход: 42.5 кг')
+    await act(async () => resolve(nextTree))
+    await waitFor(() => expect(screen.getByTestId('next-set').textContent).toBe('Следующий подход: 42.5 кг'))
+    await act(async () => {
+      vi.setSystemTime(new Date('2026-10-12T09:32:00Z')) // отдых 2:00 истёк
+      vi.advanceTimersByTime(250)
+    })
+    await waitFor(() => expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых закончился'))
+    expect(screen.queryByTestId('next-set')).toBeNull()
+  })
+
+  it('«Пропустить» убирает и строку следующего подхода', async () => {
+    mount(vi.fn<LogSet>(async () => nextTree))
+    tap('ok')
+    await flush()
+    expect(screen.getByTestId('next-set')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
+    expect(screen.queryByTestId('next-set')).toBeNull()
+  })
+
+  it('без веса и после последнего подхода строки нет', async () => {
+    const bodyweight = { ...tree, nodes: { n0: { truncated: false, terminates: false, transitions: { ok: 'n0' } } } }
+    mount(vi.fn<LogSet>(async () => ({ decision_tree: bodyweight })), { ...exercise, prescribed_kg: undefined, decision_tree: bodyweight })
+    tap('ok')
+    await flush()
+    expect(screen.getByTestId('rest-clock')).toBeTruthy()
+    expect(screen.queryByTestId('next-set')).toBeNull()
+    cleanup()
+    mount(vi.fn<LogSet>(() => new Promise(() => {})), { ...exercise, target_sets: 1 })
+    tap('ok')
+    expect(screen.getByTestId('rest-clock')).toBeTruthy()
+    expect(screen.queryByTestId('next-set')).toBeNull()
   })
 
   it('таймер не блокирует ввод: кнопки фидбэка доступны во время отдыха', async () => {

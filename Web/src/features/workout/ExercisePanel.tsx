@@ -144,10 +144,12 @@ export function ExercisePanel({
   const weight = view.kind === 'node' ? view.weightKg : undefined
 
   return (
-    <section aria-label="Упражнение">
-      <h2 data-testid="current-exercise">{content?.name ?? exercise.slug}</h2>
+    <section aria-label="Упражнение" className="exercise">
+      <h2 data-testid="current-exercise" className="exercise-title">
+        {content?.name ?? exercise.slug}
+      </h2>
       {content && content.cues.length > 0 && (
-        <ul aria-label="Подсказки">
+        <ul aria-label="Подсказки" className="cues caption">
           {content.cues.map((cue, i) => (
             <li key={i}>{cue}</li>
           ))}
@@ -155,37 +157,65 @@ export function ExercisePanel({
       )}
 
       {terminated ? (
-        <p data-testid="exercise-terminated">Упражнение завершено досрочно.</p>
+        <p data-testid="exercise-terminated" className="card">
+          Упражнение завершено досрочно.
+        </p>
       ) : allDone ? (
-        <p data-testid="exercise-done">Подходы выполнены.</p>
+        <p data-testid="exercise-done" className="card">
+          Подходы выполнены.
+        </p>
       ) : (
         <>
-          <p data-testid="set-counter">
-            Подход {nextSetNumber} из {exercise.target_sets}
-          </p>
-          <p data-testid="weight">
-            {view.kind === 'ask-server'
-              ? 'Ждём сервер…'
-              : weight !== undefined
-                ? `${weight} кг`
-                : 'Без веса'}
-          </p>
-          <p>
-            Повторы:{' '}
-            <button type="button" aria-label="Меньше повторов" onClick={() => setReps((r) => Math.max(1, r - 1))} disabled={pending !== null}>
-              −
-            </button>{' '}
-            <span data-testid="reps">{reps}</span>{' '}
-            <button type="button" aria-label="Больше повторов" onClick={() => setReps((r) => r + 1)} disabled={pending !== null}>
-              +
-            </button>
-          </p>
-          <div role="group" aria-label="Как прошёл подход">
+          <div className="card set-card">
+            <p data-testid="set-counter" className="chip">
+              Подход {nextSetNumber} из {exercise.target_sets}
+            </p>
+            <p data-testid="weight" className="hero">
+              {view.kind === 'ask-server' ? (
+                <span className="hero-text">Ждём сервер…</span>
+              ) : weight !== undefined ? (
+                <>
+                  <span className="hero-number">{weight}</span> <span className="hero-unit">кг</span>
+                </>
+              ) : (
+                <span className="hero-text">Без веса</span>
+              )}
+            </p>
+            <p className="caption">
+              Цель: {exercise.target_rep_min}–{exercise.target_rep_max} повторов
+            </p>
+            <div className="stepper" role="group" aria-label="Повторы">
+              <button
+                type="button"
+                className="round-button"
+                aria-label="Меньше повторов"
+                onClick={() => setReps((r) => Math.max(1, r - 1))}
+                disabled={pending !== null}
+              >
+                −
+              </button>
+              <span data-testid="reps" className="reps-value">
+                {reps}
+              </span>
+              <button
+                type="button"
+                className="round-button"
+                aria-label="Больше повторов"
+                onClick={() => setReps((r) => r + 1)}
+                disabled={pending !== null}
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div role="group" aria-label="Как прошёл подход" className="feedback-grid">
             {FEEDBACK.map((f) => (
               <button
                 key={f.value}
                 type="button"
                 data-feedback={f.value}
+                // Подход в пути отмечен своей кнопкой, пока сервер его не подтвердил.
+                data-selected={pending?.body.feedback === f.value}
                 disabled={pending !== null || sending || base.kind !== 'node'}
                 onClick={() => log(f.value)}
               >
@@ -199,7 +229,7 @@ export function ExercisePanel({
       {failure !== null && pending && (
         <div role="alert" data-testid="log-failure">
           <p>{failureText(failure)}</p>
-          <button type="button" disabled={sending} onClick={() => void send(pending.body)}>
+          <button type="button" className="button-primary" disabled={sending} onClick={() => void send(pending.body)}>
             Повторить
           </button>
         </div>
@@ -209,6 +239,7 @@ export function ExercisePanel({
         <RestTimer
           key={restEndAt}
           endAt={restEndAt}
+          nextWeightKg={terminated || allDone ? undefined : weight}
           onExtend={(seconds) => setRestEndAt((end) => (end ?? clock.now()) + seconds * 1000)}
           onSkip={() => setRestEndAt(null)}
         />
