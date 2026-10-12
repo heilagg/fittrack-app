@@ -428,4 +428,9 @@ final class ContractFixturesTests: XCTestCase {
         try check("request_generate_week_plan.json", GenerateWeekPlanRequest(
             weekStart: "2026-10-12", day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
     }
+
+    func test_requestRebuildCycleEvent() throws {
+        try check("request_rebuild_cycle_event.json", RebuildWeekPlanRequest(
+            cause: .cycleEventAdded, day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
 }
