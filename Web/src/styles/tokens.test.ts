@@ -16,6 +16,11 @@ describe('tokens.css', () => {
     const committed = readFileSync(join(__dirname, 'tokens.css'), 'utf-8')
     expect(committed, 'tokens.css устарел: npm run tokens').toBe(renderCss(source))
   })
+
+  it('стек шрифтов — принятое решение: Space Grotesk, Manrope под кириллицу, sans-serif', () => {
+    const committed = readFileSync(join(__dirname, 'tokens.css'), 'utf-8')
+    expect(committed).toContain("--font-family-base: 'Space Grotesk', 'Manrope', sans-serif;")
+  })
 })
 
 // MARK: - Контраст текста не ниже 4.5:1 (WCAG 2.x, AA)
