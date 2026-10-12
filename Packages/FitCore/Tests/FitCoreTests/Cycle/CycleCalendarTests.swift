@@ -105,6 +105,11 @@ final class CycleCalendarTests: XCTestCase {
         XCTAssertEqual(periods[d(0)], .marked)
         XCTAssertEqual(periods[d(2)], .estimated, "конец 5 относится ко второму началу, не к первому")
         XCTAssertEqual((3...5).map { periods[d($0)] }, Array(repeating: .marked, count: 3))
+
+        // Второй период короче хвоста первого: хвост не переживает новое начало.
+        let short = Cycle.periodDays(events: [start(0), start(3), end(3)], profile: CycleProfile())
+        XCTAssertEqual(short[d(3)], .marked)
+        XCTAssertNil(short[d(4)], "расчётные дни первого периода обрываются на следующем начале")
     }
 
     // MARK: - Даты дней
