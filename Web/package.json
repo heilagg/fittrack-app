@@ -10,7 +10,8 @@
     "lint": "eslint src e2e",
     "test": "vitest run",
     "tokens": "node ../Tools/design-tokens/build.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "screens": "playwright test -c playwright.screens.config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3",
