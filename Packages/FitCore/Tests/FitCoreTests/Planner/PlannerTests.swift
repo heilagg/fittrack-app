@@ -104,6 +104,35 @@ final class PlannerTests: XCTestCase {
                           "объём на утомлённую мышцу срезан, push его не вернул")
     }
 
+    // MARK: - Сценарий 23d: push в менструальную фазу — без поблажек дня, тот же недельный план
+
+    /// §11.7: push снимает фазовые поблажки ДНЯ — RIR +1 и падение готовности —
+    /// и не трогает недельный объём блока. Три утверждения на одной сессии:
+    /// RIR на единицу ниже, чем без push; вес не ниже, чем без push; объём
+    /// мышц тот же (плановый срез ×0.75 фазы остался).
+    func test_scenario23d_pushInMenstrualRemovesDayEasingOnly() {
+        // Опорная дата — сегодня: день 1 цикла, менструальная. Три
+        // одинаковых прошлых цикла дают полную уверенность.
+        let starts = [-84, -56, -28, 0].map { CycleEvent(kind: .periodStart, occurredOn: F.day($0)) }
+        let cycle = CycleInputs(events: starts, profile: CycleProfile(typicalCycleLengthDays: 28))
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes)])
+        let plain = Planner.planRemainingDays(F.context(week: week, cycle: cycle)).sessions["day0"]!
+        let pushed = Planner.planRemainingDays(F.context(week: week, cycle: cycle, override: .push)).sessions["day0"]!
+
+        XCTAssertEqual(pushed.exercises.map(\.slug), plain.exercises.map(\.slug))
+        for (p, q) in zip(pushed.exercises, plain.exercises) {
+            XCTAssertEqual(p.targetRIR, q.targetRIR - 1, "фазовый RIR +1 снят: \(p.slug)")
+            XCTAssertGreaterThanOrEqual(p.weightReadiness, q.weightReadiness, "вес не ниже: \(p.slug)")
+        }
+        // Без push готовность ровно 0.90 — граница строгая, −1 подхода нет;
+        // объём обязан совпасть точно: срез ×0.75 фазы остался.
+        XCTAssertEqual(pushed.effectiveVolume[.gluteMax] ?? 0, plain.effectiveVolume[.gluteMax] ?? 0, accuracy: 0.0001,
+                       "недельный срез объёма фазы push не трогает")
+        XCTAssertLessThan(plain.effectiveVolume[.gluteMax] ?? 0,
+                          Planner.planRemainingDays(F.context(week: week)).sessions["day0"]!.effectiveVolume[.gluteMax] ?? 0,
+                          "срез фазы действительно есть — иначе равенство выше ничего не доказывает")
+    }
+
     // MARK: - Сценарий 26 (часть планировщика): беременность отключает генератор
 
     /// §14.3 выключает генератор, и «тренировка без упражнений» — это не он:

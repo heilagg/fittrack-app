@@ -54,18 +54,74 @@ final class ReadinessTests: XCTestCase {
         )
     }
 
-    // MARK: - Сценарий 23: оверрайд заменяет фазовую поправку, не складывается
+    // MARK: - Сценарий 23: push снимает понижение фазы, ease заменяет фазу
 
-    func test_scenario23_pushInMenstrualPhase_replacesPhaseTermEntirely() {
+    func test_scenario23_pushInMenstrualPhase_removesDownwardPhaseTerm() {
         // Менструальная: effectivePhaseAdjustment = −0.10, confidence = 1.0 →
-        // без оверрайда phaseTerm был бы −0.10. push обязан ЗАМЕНИТЬ это на
-        // +0.08, а не сложить (+0.08 + −0.10 = −0.02 — неверно).
+        // без оверрайда phaseTerm был бы −0.10. push снимает понижение
+        // (§11.7): готовность нейтральная, 1.0 — не 1.08 (своей надбавки у
+        // push больше нет) и не 0.90.
         let state = phaseState(phase: .menstrual, cycleConfidence: 1.0)
 
         let readiness = Readiness.value(cycleState: state, override: .push, checkin: DailyCheckin())
 
-        XCTAssertEqual(readiness, 1.08, accuracy: 0.0001,
-            "push должен полностью заменить фазовую поправку −0.10 на +0.08")
+        XCTAssertEqual(readiness, 1.0, accuracy: 0.0001,
+            "push снимает −0.10 фазы и сам ничего не добавляет")
+    }
+
+    func test_scenario23_pushKeepsCheckin() {
+        // push трогает только фазовую составляющую: чек-ин действует как без него.
+        let state = phaseState(phase: .lateLuteal, cycleConfidence: 1.0)
+        let checkin = DailyCheckin(energy: 5, soreness: nil, sleepQuality: nil, stress: nil)
+        let readiness = Readiness.value(cycleState: state, override: .push, checkin: checkin)
+        XCTAssertEqual(readiness, 1.04, accuracy: 0.0001, "−0.07 фазы снято, +0.04 чек-ина осталось")
+    }
+
+    // MARK: - Сценарий 23d: push не трогает положительную фазу и режим без фаз
+
+    func test_scenario23d_pushInFollicularKeepsPositivePhaseTerm() {
+        let state = phaseState(phase: .follicular, cycleConfidence: 0.8)
+        let plain = Readiness.value(cycleState: state, override: nil, checkin: DailyCheckin())
+        let pushed = Readiness.value(cycleState: state, override: .push, checkin: DailyCheckin())
+        XCTAssertEqual(plain, 1.04, accuracy: 0.0001)
+        XCTAssertEqual(pushed, plain, accuracy: 0.0001, "+0.05 × 0.8 — не поблажка, push его не снимает")
+    }
+
+    func test_scenario23d_pushWithoutPhasesChangesNothing() {
+        let checkin = DailyCheckin(energy: 2, soreness: nil, sleepQuality: nil, stress: nil)
+        for state in [noPhasesState(), noAnchorState()] {
+            XCTAssertEqual(Readiness.value(cycleState: state, override: .push, checkin: checkin),
+                           Readiness.value(cycleState: state, override: nil, checkin: checkin),
+                           accuracy: 0.0001, "фазовой поправки нет — push снимать нечего")
+        }
+    }
+
+    func test_scenario23d_pushRemovesOnlyUpwardPhaseRIR() {
+        let menstrual = phaseState(phase: .menstrual, cycleConfidence: 1.0)
+        XCTAssertEqual(menstrual.periodization?.rirShift, 1)
+        let pushed = Readiness.sessionCycleState(menstrual, override: .push)
+        XCTAssertEqual(pushed.periodization?.rirShift, 0, "фазовый RIR +1 — поблажка дня, push её снимает")
+        XCTAssertEqual(Readiness.targetRIR(baseRIR: 2, readiness: 1.0, cycleState: pushed, fatigueRIRBump: 0), 2)
+
+        let follicular = phaseState(phase: .follicular, cycleConfidence: 1.0)
+        XCTAssertEqual(Readiness.sessionCycleState(follicular, override: .push).periodization?.rirShift, -1,
+                       "RIR −1 — не поблажка, остаётся")
+    }
+
+    func test_scenario23d_pushKeepsWeeklyVolumeAndBlock() {
+        let state = phaseState(phase: .menstrual, cycleConfidence: 1.0)
+        let pushed = Readiness.sessionCycleState(state, override: .push)
+        XCTAssertEqual(pushed.periodization?.volumeMultiplier, state.periodization?.volumeMultiplier)
+        XCTAssertEqual(pushed.periodization?.blockType, state.periodization?.blockType)
+        XCTAssertEqual(pushed.phase, state.phase)
+        XCTAssertEqual(pushed.cycleConfidence, state.cycleConfidence)
+    }
+
+    func test_sessionCycleState_onlyPushChangesIt() {
+        let state = phaseState(phase: .lateLuteal, cycleConfidence: 1.0)
+        for override in [nil, Override.ease, .rest] {
+            XCTAssertEqual(Readiness.sessionCycleState(state, override: override), state)
+        }
     }
 
     func test_scenario23_easeInEarlyLutealPhase_replacesPositivePhaseTerm() {
@@ -82,9 +138,9 @@ final class ReadinessTests: XCTestCase {
     // MARK: - Сценарий 23a: оверрайд действует на готовность без фазы
 
     func test_scenario23a_overrideActsInNoPhasesMode() {
-        let readiness = Readiness.value(cycleState: noPhasesState(), override: .push, checkin: DailyCheckin())
-        XCTAssertEqual(readiness, 1.08, accuracy: 0.0001,
-            "в режиме без фаз оверрайд всё равно двигает готовность")
+        let readiness = Readiness.value(cycleState: noPhasesState(), override: .ease, checkin: DailyCheckin())
+        XCTAssertEqual(readiness, 0.90, accuracy: 0.0001,
+            "в режиме без фаз ease всё равно двигает готовность")
     }
 
     func test_scenario23a_overrideActsWhenNoAnchorAtAll() {
@@ -145,8 +201,11 @@ final class ReadinessTests: XCTestCase {
 
     func test_scenario25_pushOverride_doesNotLiftFatigueProtection() {
         let state = phaseState(phase: .earlyLuteal, cycleConfidence: 1.0) // rirShift = 0, не мешает
-        let readiness = Readiness.value(cycleState: state, override: .push, checkin: DailyCheckin())
-        XCTAssertEqual(readiness, 1.08, accuracy: 0.0001)
+        // Своей надбавки у push больше нет (§11.7): готовность выше 1.05 даёт
+        // хороший чек-ин, push лишь сопровождает его.
+        let checkin = DailyCheckin(energy: 5, soreness: nil, sleepQuality: 5, stress: nil)
+        let readiness = Readiness.value(cycleState: state, override: .push, checkin: checkin)
+        XCTAssertEqual(readiness, 1.07, accuracy: 0.0001)
 
         let notRecovered = RecoveryAdjustment(targetRIRDelta: 1, volumeMultiplier: 0.7)
 
@@ -163,11 +222,11 @@ final class ReadinessTests: XCTestCase {
         let volume = Readiness.volumeFactor(plannedFactor: planned, fatigueFactor: notRecovered.volumeMultiplier)
         XCTAssertEqual(volume, 0.7, accuracy: 0.0001, "push не снимает срез утомления")
 
-        // Вес: надбавка выше 1.0 срезана до 1.0, несмотря на readiness = 1.08.
+        // Вес: надбавка выше 1.0 срезана до 1.0, несмотря на readiness = 1.07.
         let weight = Readiness.weightReadiness(readiness: readiness, contributingMuscleAdjustments: [notRecovered])
         XCTAssertEqual(weight, 1.0, accuracy: 0.0001, "push не снимает срез веса на невосстановленной мышце")
 
-        // +1 подход на сессию (readiness 1.08 > 1.05) не ложится на упражнение
+        // +1 подход на сессию (readiness 1.07 > 1.05) не ложится на упражнение
         // с утомлённой мышцей.
         let delta = Readiness.sessionSetDelta(readiness: readiness)
         XCTAssertEqual(delta, 1)
@@ -468,11 +527,9 @@ final class ReadinessTests: XCTestCase {
         }
     }
 
-    // MARK: - Контракт: override.rest численно равен ease на уровне слагаемого
+    // MARK: - Контракт: ease −0.10
 
-    func test_overrideAdjustment_restEqualsEase() {
-        XCTAssertEqual(Readiness.overrideAdjustment(.rest), Readiness.overrideAdjustment(.ease), accuracy: 0.0001)
-        XCTAssertEqual(Readiness.overrideAdjustment(.push), 0.08, accuracy: 0.0001)
-        XCTAssertEqual(Readiness.overrideAdjustment(.ease), -0.10, accuracy: 0.0001)
+    func test_easeAdjustment() {
+        XCTAssertEqual(Readiness.easeAdjustment, -0.10, accuracy: 0.0001)
     }
 }

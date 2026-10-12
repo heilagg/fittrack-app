@@ -3,14 +3,17 @@
 //  readiness = clamp(1.0 + phaseTerm + checkinAdj×checkinScale + recoveryAdj,
 //                    0.75, 1.10)
 //
-//  phaseTerm — ОДНО слагаемое, а не два: оверрайд подставляется вместо
-//  фазовой поправки, а не складывается с ней, и живёт один день (SPEC §11.4).
-//  Иначе одна и та же кнопка значила бы разное в разных фазах.
+//  phaseTerm — ОДНО слагаемое, а не два: `ease`/`rest` подставляются вместо
+//  фазовой поправки, а не складываются с ней, и живут один день (SPEC §11.4).
+//  Иначе одна и та же кнопка значила бы разное в разных фазах. `push` своего
+//  числа не имеет: он снимает отрицательную фазовую поправку и оставляет
+//  положительную (SPEC §11.7); фазовый RIR +1 он снимает в
+//  `sessionCycleState`.
 //
 //  checkinScale = 1.0 + 0.6×(1 − confidence); 1.6 в режиме без фаз и когда
 //  опорной даты нет. Чем меньше известно о цикле, тем больше веса у сегодняшнего
 //  чек-ина. Пропущенный компонент чек-ина — нейтральный (0). Без фазы фазовая
-//  составляющая равна нулю, оверрайд действует всё равно.
+//  составляющая равна нулю, `ease`/`rest` действуют всё равно.
 //
 //  `recoveryAdj` — v2-данные HealthKit (HRV, сон), в MVP = 0. К модулю Recovery
 //  (§8, утомление мышц) отношения не имеет, несмотря на имя.
@@ -71,16 +74,16 @@ extension Readiness {
         public static let lowReadiness = 0.85
     }
 
-    /// SPEC §10: `push`/`ease` → числовая поправка `phaseTerm`. `rest`
-    /// численно приравнен к `ease` — если пользователь всё же начинает
+    /// SPEC §10: `ease` → числовая поправка `phaseTerm`, ЗАМЕНЯЮЩАЯ фазу.
+    /// `rest` численно приравнен к `ease` — если пользователь всё же начинает
     /// тренировку в день `rest`, готовность обязана на что-то опереться, хотя
     /// планировщик в этот день предлагает растяжку, а не тренировку.
-    static func overrideAdjustment(_ override: Override) -> Double {
-        switch override {
-        case .push: return 0.08
-        case .ease, .rest: return -0.10
-        }
-    }
+    ///
+    /// У `push` своего числа нет (SPEC §10, §11.7, решение 2026-10-12): он не
+    /// заменяет фазу, а снимает с неё понижение — см. `value`. Прежний +0.08
+    /// поднимал нагрузку выше плана, а «поблажек не нужно» значит «план без
+    /// фазовых поблажек», не тяжелее.
+    static let easeAdjustment = -0.10
 
     /// SPEC §10: `checkinAdjustment` — отсутствующий компонент нейтрален
     /// (эквивалентен ответу 3), поэтому пропущенный чек-ин или строка без
@@ -125,15 +128,19 @@ extension Readiness {
         let phaseUnknown = phaseUnknown(cycleState)
 
         let phaseTerm: Double
-        if let override {
-            // §11.4: оверрайд ЗАМЕНЯЕТ фазовую поправку, не складывается с
-            // ней, и проверяется раньше phaseUnknown — он действует и без
-            // опорной даты, и в режиме без фаз (сценарий 23a).
-            phaseTerm = overrideAdjustment(override)
+        if override == .ease || override == .rest {
+            // §11.4: `ease`/`rest` ЗАМЕНЯЮТ фазовую поправку, не складываются с
+            // ней, и проверяются раньше phaseUnknown — действуют и без опорной
+            // даты, и в режиме без фаз (сценарий 23a).
+            phaseTerm = easeAdjustment
         } else if phaseUnknown {
+            // `push` здесь снимать нечего: фазовой составляющей нет.
             phaseTerm = 0
         } else {
-            phaseTerm = (cycleState.effectivePhaseAdjustment ?? 0) * (cycleState.cycleConfidence ?? 0)
+            let phase = (cycleState.effectivePhaseAdjustment ?? 0) * (cycleState.cycleConfidence ?? 0)
+            // §11.7: `push` снимает только понижение фазы; положительная
+            // поправка — не поблажка и остаётся (сценарии 23, 23d).
+            phaseTerm = override == .push ? max(0, phase) : phase
         }
 
         let recoveryAdjustment = 0.0 // v2, SPEC §15 — HealthKit ещё не подключён

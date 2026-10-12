@@ -170,8 +170,8 @@ extension Planner {
             let cycleState = Cycle.state(events: ctx.cycle.events, profile: ctx.cycle.profile,
                                          responseProfiles: ctx.cycle.responseProfiles, asOf: day.date)
             let isToday = day.date == ctx.today
-            let readiness = Readiness.value(cycleState: cycleState,
-                                            override: isToday ? ctx.todayOverride : nil,
+            let override = isToday ? ctx.todayOverride : nil
+            let readiness = Readiness.value(cycleState: cycleState, override: override,
                                             checkin: isToday ? ctx.todayCheckin : DailyCheckin())
             let moment = evaluationMoment(for: day.date)
             let fatigue = Dictionary(uniqueKeysWithValues: ctx.fatigue.map { m, state in
@@ -182,7 +182,9 @@ extension Planner {
                 availability: ctx.availability, equipment: ctx.equipment, safety: ctx.safety,
                 goal: ctx.goal, sessionMinutes: ctx.sessionMinutes,
                 fatigue: fatigue, weekDone: weekDone, previousWorkoutSlugs: previous,
-                exerciseStates: states, cycleState: cycleState, readiness: readiness,
+                exerciseStates: states,
+                cycleState: Readiness.sessionCycleState(cycleState, override: override),
+                readiness: readiness,
                 isDeloadWeek: ctx.isDeloadWeek, seed: daySeed(userSeed: ctx.userSeed, day: day.date),
                 weights: ctx.weights
             )

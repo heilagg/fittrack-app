@@ -32,6 +32,26 @@ extension Readiness {
         return baseRIR + rirFromPhaseAndReadiness + fatigueRIRBump
     }
 
+    /// Состояние цикла, с которым собирается СЕГОДНЯШНЯЯ сессия при
+    /// оверрайде (SPEC §10, `phaseRIR`; §11.7).
+    ///
+    /// `push` снимает фазовый сдвиг RIR вверх (+1 в менструальную и позднюю
+    /// лютеиновую) — это поблажка дня. Сдвиг вниз (−1) остаётся: он не
+    /// поблажка. Объём блока, тип блока и причина не трогаются — недельное
+    /// планирование `push` не меняет. Остальные оверрайды состояние не
+    /// меняют: `ease`/`rest` действуют через готовность.
+    ///
+    /// Функция одна на оба места, где собирается сессия дня, — планировщик и
+    /// пересчёт чисел на старте (сервер, §20.3): иначе числа старта
+    /// разошлись бы с показанными на карточке дня (20l).
+    public static func sessionCycleState(_ cycleState: CycleState, override: Override?) -> CycleState {
+        guard override == .push, var periodization = cycleState.periodization else { return cycleState }
+        periodization.rirShift = min(periodization.rirShift, 0)
+        var adjusted = cycleState
+        adjusted.periodization = periodization
+        return adjusted
+    }
+
     // MARK: - Объём (SPEC §10, «срезы объёма не перемножаются»)
 
     /// Плановый недельный срез объёма мышцы — ровно один источник:
