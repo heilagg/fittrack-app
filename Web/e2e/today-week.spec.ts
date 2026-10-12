@@ -51,5 +51,6 @@ test('после завершённой тренировки сегодняшн�
 
   const todayLi = page.locator('[data-testid="week-calendar"] > li[data-today="true"]')
   await expect(todayLi).toHaveAttribute('data-status', 'done')
-  await expect(todayLi).toHaveAccessibleName(/сегодня, тренировка выполнена/)
+  // Имя дня — у кнопки внутри колонки: с среза 6 день нажимается (`/preview`).
+  await expect(todayLi.getByRole('button')).toHaveAccessibleName(/сегодня, тренировка выполнена/)
 })
