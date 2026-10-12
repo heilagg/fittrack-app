@@ -62,7 +62,7 @@ export async function basics(page: Page, sex: 'female' | 'male' = 'female') {
 
 export async function experience(page: Page) {
   await expect(step(page, 4)).toBeVisible()
-  await page.getByLabel('Средний (6 мес – 2 года)').check()
+  await page.getByLabel('От 6 месяцев до 2 лет').check()
   await next(page).click()
 }
 

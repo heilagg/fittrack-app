@@ -1,6 +1,6 @@
 {
   "slug": "chest_press_band",
-  "name": "Жим резинки от груди",
+  "name": "Жим от груди с резинкой",
   "pattern": "push_h",
   "muscle_contributions": {
     "pecs": 0.50,

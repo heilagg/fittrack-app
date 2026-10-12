@@ -1,6 +1,6 @@
 {
   "slug": "lateral_raise_cable",
-  "name": "Махи в сторону в блоке",
+  "name": "Отведение руки в сторону на нижнем блоке",
   "pattern": "isolation",
   "muscle_contributions": {
     "side_delts": 0.82,

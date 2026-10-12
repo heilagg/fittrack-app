@@ -5,6 +5,7 @@
 import { useState, type FormEvent } from 'react'
 import type { EquipmentRow } from '../../direct/equipmentRow'
 import type { Joint } from '../../direct/onboarding'
+import { MACHINE_LABELS } from '../../onboarding/labels'
 import type { Levels } from '../../profile/restrictions'
 import { MACHINE_SLUGS, normalizeEquipment, parseKgList, PRESETS, type PresetId } from '../../onboarding/presets'
 import { ErrorBlock } from '../today/TodayScreen'
@@ -193,7 +194,7 @@ export function EquipmentForm({
                   set('machines', e.target.checked ? [...form.machines, slug] : form.machines.filter((m) => m !== slug))
                 }
               />{' '}
-              {slug}{' '}
+              {MACHINE_LABELS[slug] ?? slug}{' '}
             </label>
           ))}
           </div>

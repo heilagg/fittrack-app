@@ -156,4 +156,41 @@ final class SchemaChecksTests: XCTestCase {
                                        fatigueCost: 0)
         XCTAssertTrue(findings([broken]).contains { $0.message.contains("fatigue_cost") })
     }
+
+    // MARK: - §6.2, русские названия (механическая часть)
+
+    private func named(_ names: [String]) -> [ExerciseSchema] {
+        names.enumerated().map { i, name in
+            Fixtures.exercise("ex\(i)", pattern: .squat, contributions: [.quads: 1.0], name: name)
+        }
+    }
+
+    func test_cleanRussianNamesPass() {
+        XCTAssertEqual(findings(named(["Узкие отжимания", "Фейс-пул с резинкой", "Ягодичный мост (хип-траст)"]),
+                                rule: "§6.2"), [])
+    }
+
+    func test_latinInNameIsReported() {
+        let found = findings(named(["Pallof жим"]), rule: "§6.2")
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("латиницу"), found[0].message)
+    }
+
+    func test_lowercaseStartIsReported() {
+        let found = findings(named(["узкие отжимания"]), rule: "§6.2")
+        XCTAssertEqual(found.map(\.message).filter { $0.contains("заглавной") }.count, 1)
+    }
+
+    func test_trailingDotIsReported() {
+        XCTAssertTrue(findings(named(["Узкие отжимания."]), rule: "§6.2").contains { $0.message.contains("точкой") })
+    }
+
+    func test_emptyNameIsReported() {
+        XCTAssertTrue(findings(named([""]), rule: "§6.2").contains { $0.message.contains("пустое") })
+    }
+
+    func test_duplicateNameIsReportedOnBoth() {
+        let found = findings(named(["Планка", "Планка", "Боковая планка"]), rule: "§6.2")
+        XCTAssertEqual(found.map(\.subject).sorted(), ["ex0", "ex1"])
+    }
 }

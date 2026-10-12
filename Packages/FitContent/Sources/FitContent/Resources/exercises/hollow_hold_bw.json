@@ -1,6 +1,6 @@
 {
   "slug": "hollow_hold_bw",
-  "name": "Удержание уголка лёжа",
+  "name": "Лодочка лёжа на спине",
   "pattern": "core",
   "muscle_contributions": {
     "abs": 0.70,

@@ -1,6 +1,6 @@
 {
   "slug": "hip_thrust_dumbbell",
-  "name": "Ягодичный мостик с гантелью",
+  "name": "Ягодичный мост с гантелью (хип-траст)",
   "pattern": "hinge",
   "muscle_contributions": {
     "glute_max": 0.58,

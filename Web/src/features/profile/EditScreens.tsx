@@ -21,8 +21,10 @@ import { currentUserId } from '../../auth/supabase'
 import { readDefaultEquipment, updateEquipmentProfile } from '../../direct/equipment'
 import { upsertBodyWeight } from '../../direct/onboarding'
 import { addRestrictions, latestBodyWeight, readActiveRestrictions, resolveRestrictions } from '../../direct/profile'
+import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION } from '../../onboarding/labels'
 import { personalPatch } from '../../profile/personal'
 import { levelsOf, restrictionChanges } from '../../profile/restrictions'
+import { BirthYearField } from '../onboarding/BirthYearField'
 import { ErrorBlock } from '../today/TodayScreen'
 import { EquipmentForm, RestrictionsForm } from './forms'
 
@@ -46,11 +48,7 @@ const refresh = (queryClient: ReturnType<typeof useQueryClient>, keys: string[])
 // MARK: - Личные данные
 
 const WEEKDAYS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
-const LEVELS = [
-  { value: 'novice', label: 'Новичок (< 6 мес)' },
-  { value: 'intermediate', label: 'Средний (6 мес – 2 года)' },
-  { value: 'advanced', label: 'Опытный (> 2 лет)' },
-] as const
+const LEVELS = EXPERIENCE_OPTIONS
 const GOALS = [
   { value: 'strength', label: 'Сила' },
   { value: 'hypertrophy', label: 'Набор мышечной массы' },
@@ -126,11 +124,7 @@ function PersonalForm({ api, profile, weight }: { api: ApiClient; profile: Profi
   return (
     <>
       <form onSubmit={submit}>
-        <p>
-          <label className="field">
-            Год рождения <input inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} />
-          </label>
-        </p>
+        <BirthYearField value={birthYear} onChange={setBirthYear} />
         <p>
           <label className="field">
             Рост, см <input inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} />
@@ -143,7 +137,7 @@ function PersonalForm({ api, profile, weight }: { api: ApiClient; profile: Profi
         </p>
         <p>
           <label className="field">
-            Опыт{' '}
+            {EXPERIENCE_QUESTION}{' '}
             <select value={level} onChange={(e) => setLevel(e.target.value as typeof level)}>
               {LEVELS.map((l) => (
                 <option key={l.value} value={l.value}>

@@ -1,6 +1,6 @@
 {
   "slug": "pulldown_band",
-  "name": "Тяга резинки сверху",
+  "name": "Вертикальная тяга резинки к груди",
   "pattern": "pull_v",
   "muscle_contributions": {
     "lats": 0.52,

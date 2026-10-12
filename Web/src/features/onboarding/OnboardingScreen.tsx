@@ -21,9 +21,11 @@ import {
   upsertParq,
 } from '../../direct/onboarding'
 import { buildParqRow, hasRedFlag, PARQ_QUESTIONS } from '../../onboarding/parq'
+import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION } from '../../onboarding/labels'
 import { resumeStep } from '../../onboarding/resume'
 import { DISCLAIMER_PENDING_LEGAL, ONBOARDING_SUMMARY, RED_FLAG_PENDING_LEGAL } from '../../onboarding/texts'
 import { CycleSettingsForm } from '../cycle/CycleSettingsForm'
+import { BirthYearField } from './BirthYearField'
 import { EquipmentForm, JOINTS, RestrictionsForm } from '../profile/forms'
 import { ErrorBlock } from '../today/TodayScreen'
 
@@ -291,12 +293,7 @@ function BasicsStep({ api, onDone }: { api: ApiClient; onDone: (sex: string) => 
             </select>
           </label>
         </p>
-        <p>
-          <label className="field">
-            Год рождения{' '}
-            <input inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} />
-          </label>
-        </p>
+        <BirthYearField value={birthYear} onChange={setBirthYear} />
         <p>
           <label className="field">
             Рост, см <input inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} />
@@ -379,12 +376,8 @@ function ExperienceStep({ api, onDone }: { api: ApiClient; onDone: () => void })
     <ChoiceStep
       n={4}
       title="Опыт"
-      question="Знаю ли я, как выглядит правильная становая тяга?"
-      options={[
-        { value: 'novice', label: 'Новичок (< 6 мес)' },
-        { value: 'intermediate', label: 'Средний (6 мес – 2 года)' },
-        { value: 'advanced', label: 'Опытный (> 2 лет)' },
-      ]}
+      question={EXPERIENCE_QUESTION}
+      options={[...EXPERIENCE_OPTIONS]}
       save={(v) => api.patchProfile({ experience_level: v })}
       onDone={onDone}
     />

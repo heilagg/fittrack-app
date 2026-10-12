@@ -18,8 +18,10 @@ public enum SchemaChecks {
     public static func run(_ library: ContentLibrary, into findings: FindingCollector) {
         let machineSlugs = Set(EquipmentLevel.machineSlugs)
         var familySizes: [String: Int] = [:]
+        var nameCounts: [String: Int] = [:]
         for exercise in library.exercises {
             familySizes[exercise.progressionFamily, default: 0] += 1
+            nameCounts[exercise.name, default: 0] += 1
         }
 
         for exercise in library.exercises {
@@ -31,6 +33,34 @@ public enum SchemaChecks {
             checkAlternatives(exercise, slug: slug, library: library, into: findings)
             checkFamily(exercise, slug: slug, familySizes: familySizes, into: findings)
             checkSanity(exercise, slug: slug, into: findings)
+            checkName(exercise, slug: slug, nameCounts: nameCounts, into: findings)
+        }
+    }
+
+    // MARK: - §6.2: русские названия, механическая часть правил
+
+    /// Только то, что проверяется машиной (§6.2, «Русские названия», п.7):
+    /// латиница, заглавная буква, точка в конце, повтор. Устоявшееся имя,
+    /// порядок слов и «с собственным весом» проверяются глазами.
+    private static func checkName(
+        _ exercise: ExerciseSchema, slug: String, nameCounts: [String: Int],
+        into findings: FindingCollector
+    ) {
+        let name = exercise.name
+        if name.unicodeScalars.contains(where: { ("a"..."z").contains($0) || ("A"..."Z").contains($0) }) {
+            findings.add(rule: "§6.2", subject: slug, "название «\(name)» содержит латиницу")
+        }
+        if let first = name.first, !(first.isUppercase && first.isLetter) {
+            findings.add(rule: "§6.2", subject: slug, "название «\(name)» не начинается с заглавной буквы")
+        }
+        if name.isEmpty {
+            findings.add(rule: "§6.2", subject: slug, "пустое название")
+        }
+        if name.hasSuffix(".") {
+            findings.add(rule: "§6.2", subject: slug, "название «\(name)» кончается точкой")
+        }
+        if (nameCounts[name] ?? 0) > 1 {
+            findings.add(rule: "§6.2", subject: slug, "название «\(name)» повторяется у другого упражнения")
         }
     }
 

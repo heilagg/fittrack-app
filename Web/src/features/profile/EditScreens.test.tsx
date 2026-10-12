@@ -42,6 +42,8 @@ describe('личные данные', () => {
     const patchProfile = vi.fn(async () => profile)
     mount(<PersonalScreen api={{ getProfileIfStarted: async () => profile, patchProfile } as unknown as ApiClient} />)
     expect(await screen.findByLabelText('Год рождения')).toHaveValue('1994')
+    expect(screen.getByLabelText('Год рождения')).toHaveAccessibleDescription('четыре цифры')
+    expect(screen.getByLabelText('Как давно вы занимаетесь в зале?')).toHaveValue('intermediate')
     expect(screen.getByLabelText('Вес, кг')).toHaveValue('64.5')
     fireEvent.change(screen.getByLabelText('Цель'), { target: { value: 'strength' } })
     fireEvent.click(screen.getByLabelText('Суббота'))
@@ -92,6 +94,17 @@ describe('инвентарь', () => {
     expect(row).toMatchObject({ name: 'Мой зал', is_default: true, dumbbells_kg: [4, 6, 8] })
     await waitFor(() => expect(rebuildWeek).toHaveBeenCalledWith('equipment_changed'))
     expect(await screen.findByTestId('equipment-saved')).toHaveTextContent('План обновлён')
+  })
+
+  it('тренажёры — русскими названиями, в строку пишется слаг', async () => {
+    equipment.readDefaultEquipment.mockResolvedValue({ id: 'eq-1', row: { ...PRESETS.gym, machines: [], name: 'Зал', is_default: true } })
+    mount(<EquipmentScreen api={{ rebuildWeek: async () => null } as unknown as ApiClient} />)
+    fireEvent.click(await screen.findByLabelText('Бабочка'))
+    expect(screen.queryByText('pec_deck')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить инвентарь' }))
+    await waitFor(() => expect(equipment.updateEquipmentProfile).toHaveBeenCalled())
+    expect((equipment.updateEquipmentProfile.mock.calls[0] as unknown as [string, { machines: string[] }])[1].machines)
+      .toEqual(['pec_deck'])
   })
 
   it('пресет не меняет имя и флаг строки', async () => {

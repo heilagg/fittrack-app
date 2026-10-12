@@ -29,11 +29,14 @@ enum Fixtures {
         familyLoadRatio: Double? = nil,
         alternatives: [String] = [],
         fatigueCost: Double = 1.0,
-        setupSeconds: Int = 20
+        setupSeconds: Int = 20,
+        name: String? = nil
     ) -> ExerciseSchema {
         ExerciseSchema(
             slug: slug,
-            name: slug,
+            // Слаг — латиница, а правило §6.2 её запрещает: имя по умолчанию
+            // русское, уникальное и одно и то же при каждом прогоне.
+            name: name ?? "Упражнение № \(slug.unicodeScalars.reduce(7) { ($0 &* 31 &+ Int($1.value)) & 0xFFFFFF })",
             pattern: pattern,
             muscleContributions: contributions,
             equipment: equipment,
