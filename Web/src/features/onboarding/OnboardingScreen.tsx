@@ -21,6 +21,7 @@ import {
   upsertParq,
 } from '../../direct/onboarding'
 import { buildParqRow, hasRedFlag, PARQ_QUESTIONS } from '../../onboarding/parq'
+import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION } from '../../onboarding/labels'
 import { resumeStep } from '../../onboarding/resume'
 import { DISCLAIMER_PENDING_LEGAL, ONBOARDING_SUMMARY, RED_FLAG_PENDING_LEGAL } from '../../onboarding/texts'
 import { CycleSettingsForm } from '../cycle/CycleSettingsForm'
@@ -379,12 +380,8 @@ function ExperienceStep({ api, onDone }: { api: ApiClient; onDone: () => void })
     <ChoiceStep
       n={4}
       title="Опыт"
-      question="Знаю ли я, как выглядит правильная становая тяга?"
-      options={[
-        { value: 'novice', label: 'Новичок (< 6 мес)' },
-        { value: 'intermediate', label: 'Средний (6 мес – 2 года)' },
-        { value: 'advanced', label: 'Опытный (> 2 лет)' },
-      ]}
+      question={EXPERIENCE_QUESTION}
+      options={[...EXPERIENCE_OPTIONS]}
       save={(v) => api.patchProfile({ experience_level: v })}
       onDone={onDone}
     />

@@ -45,7 +45,7 @@ test('онбординг, Сегодня, привязка, тренировка
   await next(page).click()
 
   await expect(step(page, 4)).toBeVisible()
-  await page.getByLabel('Средний (6 мес – 2 года)').check()
+  await page.getByLabel('От 6 месяцев до 2 лет').check()
   await shot(page, '05-onboarding-experience')
   await next(page).click()
 

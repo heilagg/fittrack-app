@@ -164,10 +164,10 @@ describe('шаги после PAR-Q', () => {
     void [_e, _g, _t, _d]
     mount(rest)
     await step(4)
-    expect(screen.getByText('Знаю ли я, как выглядит правильная становая тяга?')).toBeTruthy()
-    expect(screen.getByLabelText('Новичок (< 6 мес)')).toBeTruthy()
-    expect(screen.getByLabelText('Средний (6 мес – 2 года)')).toBeTruthy()
-    expect(screen.getByLabelText('Опытный (> 2 лет)')).toBeTruthy()
+    expect(screen.getByText('Как давно вы занимаетесь в зале?')).toBeTruthy()
+    expect((screen.getByLabelText('Меньше 6 месяцев') as HTMLInputElement).value).toBe('novice')
+    expect((screen.getByLabelText('От 6 месяцев до 2 лет') as HTMLInputElement).value).toBe('intermediate')
+    expect((screen.getByLabelText('Больше 2 лет') as HTMLInputElement).value).toBe('advanced')
   })
 
   it('шаг 6: дни недели уходят набором, количество выводится из него', async () => {
