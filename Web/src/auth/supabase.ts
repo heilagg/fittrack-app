@@ -43,3 +43,10 @@ export function ensureSession(): Promise<Session> {
   })
   return pending
 }
+
+/** `auth.uid()` текущей сессии: ключ строк, которые клиент пишет напрямую. */
+export async function currentUserId(): Promise<string> {
+  const { data } = await supabase.auth.getUser()
+  if (!data.user) throw new Error('Нет сессии')
+  return data.user.id
+}

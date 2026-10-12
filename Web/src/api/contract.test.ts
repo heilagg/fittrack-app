@@ -24,6 +24,7 @@ import {
   workoutSchema,
 } from './schemas'
 import { ApiClient } from './client'
+import { equipmentRowSchema } from '../direct/equipmentRow'
 
 const dir = join(__dirname, '../../../Contract/fixtures')
 const load = (name: string): unknown => JSON.parse(readFileSync(join(dir, name), 'utf-8'))
@@ -51,6 +52,11 @@ const schemaFor: Record<string, ZodType> = {
   'error_date_skew.json': errorEnvelopeSchema,
   'request_patch_profile.json': patchProfileRequestSchema,
   'request_generate_week_plan.json': generateWeekPlanRequestSchema,
+  'request_patch_profile_cycle_phases.json': patchProfileRequestSchema,
+  'request_patch_profile_cycle_declined.json': patchProfileRequestSchema,
+  'equipment_preset_home_bodyweight.json': equipmentRowSchema,
+  'equipment_preset_home_dumbbells.json': equipmentRowSchema,
+  'equipment_preset_gym.json': equipmentRowSchema,
   'request_finish_workout.json': finishWorkoutRequestSchema,
   'response_finish_workout.json': finishWorkoutResponseSchema,
   'response_finish_workout_no_notice.json': finishWorkoutResponseSchema,
@@ -289,5 +295,38 @@ describe('завершение (срез 4)', () => {
       Object.keys(load('request_finish_workout.json') as object).sort(),
     )
     expect(result.week?.notice?.code).toBe('plan_rebuilt')
+  })
+})
+
+describe('онбординг (срез 5)', () => {
+  it('шаг 9 «да»: режим фаз, источник вручную, заявленные длины в cycle', () => {
+    const body = patchProfileRequestSchema.parse(load('request_patch_profile_cycle_phases.json'))
+    expect(body.cycle_tracking).toBe('manual')
+    expect(body.cycle).toEqual({
+      phase_mode: 'phases',
+      typical_cycle_length_days: 28,
+      typical_period_length_days: 5,
+      declared_regularity: 'regular',
+    })
+  })
+
+  it('шаг 9 «не сейчас»: no_phases с причиной declined и без заявленных длин', () => {
+    const body = patchProfileRequestSchema.parse(load('request_patch_profile_cycle_declined.json'))
+    expect(body.cycle_tracking).toBe('off')
+    expect(body.cycle).toEqual({ phase_mode: 'no_phases', no_phase_reason: 'declined' })
+  })
+
+  it('неизвестная причина режима без фаз не проходит схему запроса', () => {
+    expect(() =>
+      patchProfileRequestSchema.parse({ cycle: { phase_mode: 'no_phases', no_phase_reason: 'tired' } }),
+    ).toThrow()
+  })
+
+  it('пресет «зал»: непрерывный шаг 2.5, все слаги тренажёров, гири включены', () => {
+    const gym = equipmentRowSchema.parse(load('equipment_preset_gym.json'))
+    expect(gym.dumbbells_kg[1]! - gym.dumbbells_kg[0]!).toBe(2.5)
+    expect(gym.machines).toHaveLength(12)
+    expect(gym.has_kettlebells).toBe(true)
+    expect(gym.bench).toBe('adjustable')
   })
 })

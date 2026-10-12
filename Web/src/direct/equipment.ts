@@ -3,27 +3,16 @@
 // Таблицу пишет фронтенд напрямую под JWT пользователя, политики §3.2
 // действуют буквально. После правки инвентаря НА СУЩЕСТВУЮЩЕЙ неделе клиент
 // обязан позвать `/rebuild` с причиной `equipment_changed` и показать `notice`.
-// В срезе 1 недели ещё нет, поэтому вызова здесь нет — он появляется вместе с
-// экраном инвентаря (срез 5).
+// На онбординге недели ещё нет (её генерирует последний экран), поэтому вызова
+// здесь нет — он появится вместе с экраном инвентаря в профиле (срез 6).
 
 import { supabase } from '../auth/supabase'
+import type { EquipmentRow } from './equipmentRow'
 
-/** Условно-«зальный» набор из шага 7 онбординга (§5, §6.6). */
-export interface EquipmentDraft {
-  name: string
-  is_default: boolean
-  dumbbells_kg: number[]
-  plates_kg: number[]
-  barbell_kg: number | null
-  bands: boolean
-  pullup_bar: boolean
-  bench: 'flat' | 'adjustable' | null
-}
-
-export async function insertEquipmentProfile(userId: string, draft: EquipmentDraft): Promise<void> {
+export async function insertEquipmentProfile(userId: string, row: EquipmentRow): Promise<void> {
   const { error } = await supabase
     .from('equipment_profiles')
-    .insert({ id: crypto.randomUUID(), user_id: userId, ...draft })
+    .insert({ id: crypto.randomUUID(), user_id: userId, ...row })
   if (error) throw new Error(`Не удалось записать инвентарь: ${error.message}`)
 }
 

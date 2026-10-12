@@ -151,3 +151,36 @@ describe('«Начать» на экране «Сегодня»', () => {
     expect(screen.queryByRole('button', { name: 'Начать тренировку' })).toBeNull()
   })
 })
+
+describe('неделя не сгенерирована', () => {
+  const notBuilt: TodayCard = { ...card, day: { kind: 'not_built', loses_planned_volume: false } }
+
+  it('кнопка «Собрать неделю» зовёт генерацию и перечитывает карточку', async () => {
+    let built = false
+    const generateWeek = vi.fn(async () => {
+      built = true
+      return { plan: { days: [], status_lines: [] } }
+    })
+    mount({
+      getToday: (async () => (built ? card : notBuilt)) as ApiClient['getToday'],
+      generateWeek: generateWeek as unknown as ApiClient['generateWeek'],
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Собрать неделю' }))
+    await screen.findByRole('button', { name: 'Начать тренировку' })
+    expect(generateWeek).toHaveBeenCalledTimes(1)
+  })
+
+  it('день отдыха (есть cause) кнопки «Собрать неделю» не получает', async () => {
+    const rest: TodayCard = {
+      ...card,
+      day: {
+        kind: 'not_built',
+        loses_planned_volume: false,
+        cause: { code: 'not_a_training_day', params: {}, message: 'Сегодня отдых' },
+      },
+    }
+    mount({ getToday: (async () => rest) as ApiClient['getToday'] })
+    await screen.findByTestId('day-not-built')
+    expect(screen.queryByRole('button', { name: 'Собрать неделю' })).toBeNull()
+  })
+})
