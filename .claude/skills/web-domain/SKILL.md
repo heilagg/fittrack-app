@@ -406,10 +406,13 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
 
 ### Типографика
 
-Space Grotesk 500/600/700 из Google Fonts (`index.html`), запасной —
-`sans-serif`. **Кириллицы у Space Grotesk нет** (только latin, latin-ext,
-vietnamese): русский текст рисуется запасным шрифтом, цифры и латиница —
-Space Grotesk.
+Стек — `'Space Grotesk', 'Manrope', sans-serif`, оба 500/600/700 из Google
+Fonts (`index.html`). **Кириллицы у Space Grotesk нет** (только latin,
+latin-ext, vietnamese): цифры и латиницу рисует Space Grotesk, русский текст —
+Manrope. Google параметр `subset` не учитывает и отдаёт все наборы с
+`unicode-range`; скачивается только кириллица Manrope, потому что латиницу уже
+закрыл Space Grotesk. Это проверяет `Web/e2e/fonts.spec.ts` — единственный e2e,
+который ходит наружу.
 
 | Токен | Размер / начертание | Где |
 |---|---|---|
