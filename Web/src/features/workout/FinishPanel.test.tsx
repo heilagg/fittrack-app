@@ -112,6 +112,14 @@ describe('положение в тренировке', () => {
     expect(segments()).toEqual(['done', 'current'])
   })
 
+  it('два открытых: текущее — первое по порядку', async () => {
+    mount({ getWorkout: vi.fn(async () => ({ ...running, exercises: [second, running.exercises[0]!] })) })
+    await ready()
+    expect(screen.getByTestId('exercise-position').textContent).toBe('Упражнение 1 из 2')
+    expect(screen.getByTestId('current-exercise').textContent).toBe('squat_barbell')
+    expect(segments()).toEqual(['current', 'upcoming'])
+  })
+
   it('всё выполнено: номера нет, все сегменты закрыты', async () => {
     mount({ getWorkout: vi.fn(async () => ({ ...running, exercises: [firstDone] })) })
     await ready()

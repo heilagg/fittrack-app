@@ -1,7 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { formatDayHeading, formatMinutes } from './format'
 
 describe('formatDayHeading', () => {
+  // Зона к западу от UTC: там полночь UTC — ещё вчерашний вечер, и дата,
+  // прочитанная в зоне браузера, уехала бы на сутки назад. Node подхватывает TZ
+  // на лету; файл тестов идёт в своём процессе.
+  const zone = process.env.TZ
+  beforeAll(() => {
+    process.env.TZ = 'America/Los_Angeles'
+  })
+  afterAll(() => {
+    if (zone === undefined) delete process.env.TZ
+    else process.env.TZ = zone
+  })
+
   it('день недели, число и месяц в родительном падеже', () => {
     expect(formatDayHeading('2026-10-12')).toBe('понедельник, 12 октября')
   })
