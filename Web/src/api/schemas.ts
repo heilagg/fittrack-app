@@ -373,6 +373,19 @@ export const patchProfileRequestSchema = z.object({
   training_weekdays: z.array(z.number().int()).nullable().optional(),
   session_minutes: z.number().int().optional(),
   cycle_tracking: z.enum(['off', 'manual', 'healthkit']).optional(),
+  // Шаг 9 онбординга: обе таблицы одним телом (§20.3). `null` вместо объекта
+  // сервер запрещает, поэтому здесь только объект.
+  cycle: z
+    .object({
+      typical_cycle_length_days: z.number().int().optional(),
+      typical_period_length_days: z.number().int().optional(),
+      declared_regularity: z.enum(['regular', 'variable', 'irregular']).optional(),
+      phase_mode: z.enum(['phases', 'no_phases']),
+      no_phase_reason: z
+        .enum(['contraception', 'amenorrhea', 'menopause', 'pregnancy', 'user_choice', 'declined', 'low_confidence'])
+        .optional(),
+    })
+    .optional(),
 })
 export type PatchProfileRequest = z.infer<typeof patchProfileRequestSchema>
 

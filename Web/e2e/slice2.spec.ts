@@ -3,16 +3,14 @@ import { expect, test } from '@playwright/test'
 // Срез 2: «Начать» на анонимном аккаунте → экран привязки → письмо в Mailpit →
 // ссылка → привязанный аккаунт → старт тренировки → состав. Мок письма не
 // используется: письмо отправляет настоящий Supabase Auth.
-import { verifyLink } from './helpers'
+import { completeOnboarding, verifyLink } from './helpers'
 
 test('привязка аккаунта по ссылке из письма и старт тренировки', async ({ page }) => {
   const email = `web-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
   const consoleErrors: string[] = []
   page.on('pageerror', (e) => consoleErrors.push(e.message))
 
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Подготовить тестовые данные' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Готово' })).toBeVisible()
+  await completeOnboarding(page)
   await expect(page.getByTestId('exercise-name').first()).toBeVisible()
 
   // Анонимный аккаунт: сервер отвечает unlinked_account, клиент открывает привязку.

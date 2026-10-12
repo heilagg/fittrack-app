@@ -1,0 +1,22 @@
+{
+  "bands" : false,
+  "cable_machine" : false,
+  "dumbbells_kg" : [
+
+  ],
+  "has_kettlebells" : false,
+  "is_default" : true,
+  "kettlebells_kg" : [
+
+  ],
+  "machines" : [
+
+  ],
+  "name" : "Дома без железа",
+  "plates_kg" : [
+
+  ],
+  "plyo_box" : false,
+  "pullup_bar" : false,
+  "step_platform" : false
+}

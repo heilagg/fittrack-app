@@ -105,6 +105,19 @@ export class ApiClient {
     return this.request('GET', '/v1/profile', profileSchema, { authorized: true })
   }
 
+  /**
+   * Профиль или `null`, если строки нет вовсе: сервер отвечает `not_found`, и
+   * для онбординга это «не начат», а не ошибка (SPEC §5).
+   */
+  async getProfileIfStarted(): Promise<Profile | null> {
+    try {
+      return await this.getProfile()
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'not_found') return null
+      throw e
+    }
+  }
+
   /** У `PATCH /v1/profile` нет `date`/`tz`: в профиле нет величин по дню. */
   patchProfile(body: PatchProfileRequest): Promise<Profile> {
     return this.request('PATCH', '/v1/profile', profileSchema, {

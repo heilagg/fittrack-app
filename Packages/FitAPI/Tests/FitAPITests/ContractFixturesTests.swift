@@ -320,6 +320,23 @@ final class ContractFixturesTests: XCTestCase {
             trainingWeekdays: .some([1, 3, 5]), sessionMinutes: 60, cycleTracking: .off))
     }
 
+    /// Шаг 9 онбординга, «да»: режим фаз, источник — вручную, заявленные
+    /// длины и регулярность (§5, решения по онбордингу).
+    func test_requestPatchProfileCyclePhases() throws {
+        try check("request_patch_profile_cycle_phases.json", PatchProfileRequest(
+            cycleTracking: .manual,
+            cycle: CycleProfileDTO(typicalCycleLengthDays: 28, typicalPeriodLengthDays: 5,
+                                   declaredRegularity: .regular, phaseMode: .phases)))
+    }
+
+    /// Шаг 9, «не сейчас»: `declined`, переспросить можно позже; «нет» несёт
+    /// ту же форму с `user_choice`.
+    func test_requestPatchProfileCycleDeclined() throws {
+        try check("request_patch_profile_cycle_declined.json", PatchProfileRequest(
+            cycleTracking: .off,
+            cycle: CycleProfileDTO(phaseMode: .noPhases, noPhaseReason: .declined)))
+    }
+
     func test_requestStartWorkout() throws {
         try check("request_start_workout.json", StartWorkoutRequest(
             plannedDayID: "11111111-1111-4111-8111-111111111111",

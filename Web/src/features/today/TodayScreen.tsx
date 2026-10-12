@@ -46,6 +46,19 @@ export function TodayScreen({ api }: { api: ApiClient }) {
     }
   }
 
+  async function buildWeek() {
+    setStarting(true)
+    setStartError(null)
+    try {
+      await api.generateWeek()
+      await today.refetch()
+    } catch (e) {
+      setStartError(e)
+    } finally {
+      setStarting(false)
+    }
+  }
+
   if (today.isPending) return <p role="status">Загрузка…</p>
   if (today.isError) return <ErrorBlock error={today.error} />
 
@@ -70,6 +83,14 @@ export function TodayScreen({ api }: { api: ApiClient }) {
             Продолжить тренировку
           </button>
         )}
+      {/* Недели нет (ключ `cause` отсутствует): онбординг, прерванный после
+          инвентаря, оставляет профиль полным, а неделю генерирует его
+          последний экран. Явная кнопка вместо тихой генерации на чтении. */}
+      {card.day.kind === 'not_built' && card.day.cause === undefined && (
+        <button type="button" disabled={starting} onClick={() => void buildWeek()}>
+          Собрать неделю
+        </button>
+      )}
       {startError !== null && <ErrorBlock error={startError} />}
       {card.reasons.length > 0 && (
         <ul aria-label="Статус недели">

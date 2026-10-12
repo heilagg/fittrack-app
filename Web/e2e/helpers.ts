@@ -18,15 +18,116 @@ export async function verifyLink(email: string): Promise<string> {
   throw new Error(`Письмо для ${email} не пришло в Mailpit`)
 }
 
+// MARK: - Онбординг (SPEC §5): шаги как действия пользователя
+
+const step = (page: Page, n: number) => page.getByTestId(`step-${n}`)
+const next = (page: Page) => page.getByRole('button', { name: 'Далее' })
+
+/** ISO-день недели «сегодня» в зоне, которую фиксирует конфиг Playwright. */
+export function todayIsoWeekday(): number {
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Moscow' })
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number]
+  return ((new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7) + 1
+}
+
+/** Три дня недели, первый из которых сегодняшний: «Сегодня» собирает состав. */
+export function trainingDays(): number[] {
+  const t = todayIsoWeekday()
+  const nextDay = (n: number) => ((t - 1 + n) % 7) + 1
+  return [t, nextDay(2), nextDay(4)].sort((a, b) => a - b)
+}
+const WEEKDAY_NAMES = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+
+export async function disclaimer(page: Page) {
+  await expect(step(page, 1)).toBeVisible()
+  await page.getByRole('button', { name: 'Понятно' }).click()
+}
+
+export async function parq(page: Page, yesOn: number[] = []) {
+  await expect(step(page, 2)).toBeVisible()
+  for (let i = 1; i <= 7; i++) {
+    await page.locator(`input[name="q${i}"][value="${yesOn.includes(i) ? 'yes' : 'no'}"]`).check()
+  }
+  await next(page).click()
+}
+
+export async function basics(page: Page, sex: 'female' | 'male' = 'female') {
+  await expect(step(page, 3)).toBeVisible()
+  await page.getByLabel('Пол при рождении').selectOption(sex)
+  await page.getByLabel('Год рождения').fill('1994')
+  await page.getByLabel('Рост, см').fill('168')
+  await page.getByLabel('Вес, кг').fill('64,5')
+  await next(page).click()
+}
+
+export async function experience(page: Page) {
+  await expect(step(page, 4)).toBeVisible()
+  await page.getByLabel('Средний (6 мес – 2 года)').check()
+  await next(page).click()
+}
+
+export async function goal(page: Page) {
+  await expect(step(page, 5)).toBeVisible()
+  await page.getByLabel('Набор мышечной массы').check()
+  await next(page).click()
+}
+
+export async function weekdays(page: Page) {
+  await expect(step(page, 6)).toBeVisible()
+  for (const d of trainingDays()) await page.getByLabel(WEEKDAY_NAMES[d - 1]!).check()
+  await next(page).click()
+}
+
+export async function equipment(page: Page, preset: 'Зал' | 'Дома с гантелями' | 'Дома без железа' = 'Зал') {
+  await expect(step(page, 7)).toBeVisible()
+  await page.getByRole('button', { name: preset }).click()
+  await page.getByRole('button', { name: 'Сохранить инвентарь' }).click()
+}
+
+export async function restrictions(page: Page, picks: Record<string, 'avoid' | 'careful'> = {}) {
+  await expect(step(page, 8)).toBeVisible()
+  for (const [joint, level] of Object.entries(picks)) {
+    await page.locator(`[data-joint="${joint}"]`).selectOption(level)
+  }
+  await next(page).click()
+}
+
+export async function cycleNo(page: Page) {
+  await expect(step(page, 9)).toBeVisible()
+  await page.getByLabel('Нет', { exact: true }).first().check()
+  await next(page).click()
+}
+
+export async function finishOnboarding(page: Page) {
+  await expect(step(page, 10)).toBeVisible()
+  await page.getByRole('button', { name: 'Перейти к тренировкам' }).click()
+  await expect(page.getByRole('heading', { name: 'Сегодня' })).toBeVisible()
+}
+
+/** Весь онбординг от первого экрана до «Сегодня» с собранной неделей. */
+export async function completeOnboarding(page: Page) {
+  await page.goto('/')
+  await expect(page).toHaveURL(/\/onboarding$/)
+  await disclaimer(page)
+  await parq(page)
+  await basics(page)
+  await experience(page)
+  await goal(page)
+  await weekdays(page)
+  await equipment(page)
+  await restrictions(page)
+  await cycleNo(page)
+  await finishOnboarding(page)
+}
+
 /**
- * Весь путь до начатой тренировки: данные dev-кнопкой, привязка по письму,
- * «Начать». Возвращает адрес экрана тренировки.
+ * Весь путь до начатой тренировки: онбординг, привязка по письму, «Начать».
+ * Возвращает адрес экрана тренировки.
  */
 export async function startLinkedWorkout(page: Page): Promise<string> {
   const email = `web-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Подготовить тестовые данные' }).click()
-  await expect(page.getByRole('status').filter({ hasText: 'Готово' })).toBeVisible()
+  await completeOnboarding(page)
+  await expect(page.getByTestId('exercise-name').first()).toBeVisible()
   await page.getByRole('button', { name: 'Начать тренировку' }).click()
   await expect(page).toHaveURL(/\/link$/)
   await page.getByLabel('Почта').fill(email)
