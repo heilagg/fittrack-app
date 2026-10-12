@@ -13,7 +13,7 @@ describe('ключ картинки (§6.5)', () => {
   })
 
   it('заглушка, неизвестное и пустое — заглушка', () => {
-    for (const key of ['placeholder/lower/squat_bw', 'catalog/maybe/x', 'catalog/exact/', 'catalog/exact', 'x', '', undefined]) {
+    for (const key of ['placeholder/lower/squat_bw', 'placeholder/exact/squat_bw', 'catalog/maybe/x', 'catalog/exact/', 'catalog/exact', 'x', '', undefined]) {
       expect(illustrationOf(key), String(key)).toEqual({ kind: 'placeholder' })
     }
   })
