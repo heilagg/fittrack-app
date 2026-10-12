@@ -594,3 +594,177 @@ input[type='checkbox'] {
 .week > li[data-status='done'] .week-dot {
   background: var(--color-accent);
 }
+
+/* MARK: - Нижняя навигация (срез 6: «Сегодня» и «Профиль») */
+
+#root:has(.bottom-nav) {
+  padding-bottom: calc(var(--space-xxl) + var(--size-bottom-nav-height));
+}
+
+.bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  height: var(--size-bottom-nav-height);
+  border-top: var(--size-border) solid var(--color-border);
+  background: var(--color-nav);
+}
+
+.bottom-nav > a {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  max-width: calc(var(--size-column-max) / 2);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
+.bottom-nav > a[aria-current='page'] {
+  color: var(--color-accent);
+}
+
+/* MARK: - Календарь цикла
+
+   Тот же язык, что у календаря недели: круг дня, акцентные заливка и обводка.
+   Отмеченные месячные — заливка чипа, расчётные — сплошная обводка, прогноз —
+   пунктир, диапазон ожидаемого начала — пунктир цвета границы, оценка
+   овуляции — точка под числом, сегодня — акцентная заливка. */
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.month-nav > h2 {
+  text-transform: capitalize;
+}
+
+.month {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.month th {
+  padding-bottom: var(--space-xs);
+  color: var(--color-text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+}
+
+.month td {
+  padding: var(--space-xs) 0;
+  text-align: center;
+}
+
+.month-day {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  width: var(--size-day-circle);
+  height: var(--size-day-circle);
+  min-width: var(--size-day-circle);
+  padding: 0;
+  border: var(--size-border) solid transparent;
+  border-radius: var(--radius-circle);
+  background: none;
+  color: var(--color-text);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.month-day[data-range='true'] {
+  border-style: dashed;
+  border-color: var(--color-border);
+}
+
+.month-day[data-period='marked'] {
+  border-style: solid;
+  border-color: var(--color-accent-chip-bg);
+  background: var(--color-accent-chip-bg);
+  color: var(--color-accent);
+}
+
+.month-day[data-period='estimated'] {
+  border-style: solid;
+  border-color: var(--color-accent);
+  background: none;
+  color: var(--color-accent);
+}
+
+.month-day[data-period='forecast'] {
+  border-style: dashed;
+  border-color: var(--color-accent);
+  background: none;
+  color: var(--color-accent);
+}
+
+.month-day[data-today='true'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* Выбранный день — кольцом, а не заливкой: заливка уже значит «сегодня». */
+.month-day[aria-pressed='true'] {
+  outline: var(--size-focus-ring) solid var(--color-text);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.month-dot {
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-circle);
+}
+
+.month-day[data-ovulation='true'] .month-dot {
+  background: currentColor;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-lg);
+}
+
+.legend > li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.legend > li::before {
+  content: '';
+  width: var(--size-check);
+  height: var(--size-check);
+  border: var(--size-border) solid transparent;
+  border-radius: var(--radius-circle);
+}
+
+.legend > li[data-legend='marked']::before {
+  background: var(--color-accent-chip-bg);
+}
+
+.legend > li[data-legend='estimated']::before {
+  border-color: var(--color-accent);
+}
+
+.legend > li[data-legend='forecast']::before {
+  border-style: dashed;
+  border-color: var(--color-accent);
+}
+
+.legend > li[data-legend='ovulation']::before {
+  width: var(--size-dot);
+  height: var(--size-dot);
+  background: var(--color-accent);
+}

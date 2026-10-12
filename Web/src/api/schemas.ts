@@ -197,6 +197,7 @@ export const cycleCalendarDaySchema = z.object({
   cycle_confidence: z.number().optional(),
   ovulation_estimate: z.boolean(),
 })
+export type CycleCalendarDay = z.infer<typeof cycleCalendarDaySchema>
 
 export const cycleCalendarSchema = z.object({
   from: z.string(),

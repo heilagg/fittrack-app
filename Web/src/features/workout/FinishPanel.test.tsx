@@ -6,6 +6,11 @@ import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { FinishWorkoutResponse, LogSetResponse, Workout } from '../../api/schemas'
 import { WorkoutScreen } from './WorkoutScreen'
 
+// «Сегодня» тянет за собой запись событий цикла (`direct/cycle`), а с ней
+// supabase-js, который без переменных среды теста не создаётся. Тесту экрана
+// прямые записи не нужны.
+vi.mock('../../auth/supabase', () => ({ currentUserId: async () => 'user-1' }))
+
 afterEach(cleanup)
 
 const tree = {

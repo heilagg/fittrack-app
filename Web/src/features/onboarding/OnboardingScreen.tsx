@@ -20,16 +20,9 @@ import {
   insertRestrictions,
   upsertBodyWeight,
   upsertParq,
-  upsertPeriodStart,
   type Joint,
   type Severity,
 } from '../../direct/onboarding'
-import {
-  cycleWrite,
-  type ContraceptionAnswer,
-  type Regularity,
-  type TrackingAnswer,
-} from '../../onboarding/cycle'
 import { buildParqRow, hasRedFlag, PARQ_QUESTIONS } from '../../onboarding/parq'
 import {
   MACHINE_SLUGS,
@@ -40,6 +33,7 @@ import {
 } from '../../onboarding/presets'
 import { resumeStep } from '../../onboarding/resume'
 import { DISCLAIMER_PENDING_LEGAL, ONBOARDING_SUMMARY, RED_FLAG_PENDING_LEGAL } from '../../onboarding/texts'
+import { CycleSettingsForm } from '../cycle/CycleSettingsForm'
 import { ErrorBlock } from '../today/TodayScreen'
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
@@ -706,126 +700,9 @@ function RestrictionsStep({ onDone }: { onDone: () => void }) {
 // MARK: - 9. Цикл (только sex_at_birth = female)
 
 function CycleStep({ api, onDone }: { api: ApiClient; onDone: () => void }) {
-  const [tracking, setTracking] = useState<TrackingAnswer | null>(null)
-  const [contraception, setContraception] = useState<ContraceptionAnswer | null>(null)
-  const [periodStart, setPeriodStart] = useState('')
-  const [cycleLength, setCycleLength] = useState('')
-  const [periodLength, setPeriodLength] = useState('')
-  const [regularity, setRegularity] = useState<Regularity | ''>('')
-  const [problem, setProblem] = useState<string | null>(null)
-  const { busy, error, run } = useAction()
-
-  const optionalInt = (text: string, min: number, max: number, what: string): number | undefined => {
-    if (text.trim() === '') return undefined
-    const v = Number(text)
-    if (!Number.isInteger(v) || v < min || v > max) throw new Error(`${what}: от ${min} до ${max}`)
-    return v
-  }
-
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    if (tracking === null) return
-    if (tracking === 'yes' && contraception === null) return
-    let write
-    try {
-      const length = optionalInt(cycleLength, 15, 60, 'Длина цикла')
-      const period = optionalInt(periodLength, 1, 14, 'Длительность менструации')
-      write = cycleWrite({
-        tracking,
-        ...(contraception ? { contraception } : {}),
-        ...(periodStart ? { periodStart } : {}),
-        ...(length !== undefined ? { cycleLength: length } : {}),
-        ...(period !== undefined ? { periodLength: period } : {}),
-        ...(regularity ? { regularity } : {}),
-      })
-    } catch (e) {
-      return setProblem(e instanceof Error ? e.message : 'Проверьте значения')
-    }
-    setProblem(null)
-    void run(async () => {
-      await api.patchProfile(write.patch)
-      if (write.periodStart) await upsertPeriodStart(await currentUserId(), write.periodStart)
-      onDone()
-    })
-  }
-
-  const radio = <T extends string>(
-    name: string,
-    value: T,
-    label: string,
-    current: T | null,
-    set: (v: T) => void,
-  ) => (
-    <label key={value} className="option">
-      <input type="radio" name={name} value={value} checked={current === value} onChange={() => set(value)} /> {label}{' '}
-    </label>
-  )
-
   return (
     <StepFrame n={9} title="Цикл">
-      <form onSubmit={submit}>
-        <fieldset>
-          <legend>Отслеживаете ли вы менструальный цикл?</legend>
-          {radio('tracking', 'yes' as TrackingAnswer, 'Да', tracking, setTracking)}
-          {radio('tracking', 'no' as TrackingAnswer, 'Нет', tracking, setTracking)}
-          {radio('tracking', 'not_now' as TrackingAnswer, 'Не сейчас', tracking, setTracking)}
-        </fieldset>
-        {tracking === 'yes' && (
-          <>
-            <fieldset>
-              <legend>Принимаете ли вы гормональную контрацепцию?</legend>
-              {radio('contraception', 'yes' as ContraceptionAnswer, 'Да', contraception, setContraception)}
-              {radio('contraception', 'no' as ContraceptionAnswer, 'Нет', contraception, setContraception)}
-              {radio('contraception', 'declined' as ContraceptionAnswer, 'Не хочу отвечать', contraception, setContraception)}
-            </fieldset>
-            {contraception === 'yes' && (
-              <p className="notice">
-                При гормональной контрацепции естественных фаз цикла нет: приложение работает без фаз и
-                предлагает ежедневный чек-ин.
-              </p>
-            )}
-            {contraception === 'no' && (
-              <>
-                <p className="caption">Любой из ответов ниже можно пропустить.</p>
-                <p>
-                  <label className="field">
-                    Дата начала последней менструации{' '}
-                    <input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
-                  </label>
-                </p>
-                <p>
-                  <label className="field">
-                    Обычная длина цикла, дней{' '}
-                    <input inputMode="numeric" value={cycleLength} onChange={(e) => setCycleLength(e.target.value)} />
-                  </label>
-                </p>
-                <p>
-                  <label className="field">
-                    Обычная длительность менструации, дней{' '}
-                    <input inputMode="numeric" value={periodLength} onChange={(e) => setPeriodLength(e.target.value)} />
-                  </label>
-                </p>
-                <p>
-                  <label className="field">
-                    Регулярность{' '}
-                    <select value={regularity} onChange={(e) => setRegularity(e.target.value as Regularity | '')}>
-                      <option value="">—</option>
-                      <option value="regular">Регулярный</option>
-                      <option value="variable">Плавает</option>
-                      <option value="irregular">Очень нерегулярный</option>
-                    </select>
-                  </label>
-                </p>
-              </>
-            )}
-          </>
-        )}
-        <button type="submit" className="button-primary" disabled={busy || tracking === null || (tracking === 'yes' && contraception === null)}>
-          Далее
-        </button>
-      </form>
-      {problem !== null && <p role="alert">{problem}</p>}
-      {error !== null && <ErrorBlock error={error} />}
+      <CycleSettingsForm api={api} onSaved={onDone} />
     </StepFrame>
   )
 }

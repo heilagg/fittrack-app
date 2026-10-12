@@ -17,6 +17,9 @@ import { mondayOf } from '../../api/day'
 import { useExerciseNames } from '../../content/useExercises'
 import { calendarDays } from '../../today/calendar'
 import { formatDayHeading, formatMinutes } from '../../ui/format'
+import { cycleVisibility } from '../../cycle/visibility'
+import { OverdueQuestion } from '../cycle/OverdueQuestion'
+import { PhaseCard } from '../cycle/PhaseCard'
 import { WeekCalendar } from './WeekCalendar'
 
 export function TodayScreen({ api }: { api: ApiClient }) {
@@ -30,6 +33,15 @@ export function TodayScreen({ api }: { api: ApiClient }) {
     enabled: weekStart !== null,
   })
   const names = useExerciseNames(api)
+  // Фаза сегодня и «Месячные уже начались?» — только там, где виден календарь
+  // цикла (§11.6, §19.2 п.27). Профиль уже прочитан `HomeGate` под тем же ключом.
+  const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.getProfileIfStarted() })
+  const cycleShown = profile.data !== undefined && cycleVisibility(profile.data).kind === 'calendar'
+  const cycle = useQuery({
+    queryKey: ['cycle-calendar', today.data?.date, today.data?.date],
+    queryFn: () => api.getCycleCalendar(today.data!.date, today.data!.date),
+    enabled: cycleShown && today.data !== undefined,
+  })
   const navigate = useNavigate()
   const [startError, setStartError] = useState<unknown>(null)
   const [starting, setStarting] = useState(false)
@@ -94,6 +106,12 @@ export function TodayScreen({ api }: { api: ApiClient }) {
         </p>
       )}
       {week.isError && <ErrorBlock error={week.error} />}
+      {cycleShown && cycle.data && (
+        <>
+          <OverdueQuestion api={api} calendar={cycle.data} today={card.date} />
+          <PhaseCard calendar={cycle.data} today={card.date} />
+        </>
+      )}
       <DayBlock day={card.day} names={names.data} />
       {card.day.kind === 'session' && card.day.day_id !== undefined && (
         <button type="button" className="button-primary" disabled={starting} onClick={() => start(card.day.day_id!)}>

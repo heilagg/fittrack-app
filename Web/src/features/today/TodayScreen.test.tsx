@@ -6,6 +6,11 @@ import { ApiClient, ApiError } from '../../api/client'
 import type { Reason, TodayCard, WeekDay, WeekPlanResponse } from '../../api/schemas'
 import { TodayScreen } from './TodayScreen'
 
+// «Сегодня» тянет за собой запись событий цикла (`direct/cycle`), а с ней
+// supabase-js, который без переменных среды теста не создаётся. Тесту экрана
+// прямые записи не нужны.
+vi.mock('../../auth/supabase', () => ({ currentUserId: async () => 'user-1' }))
+
 afterEach(cleanup)
 
 const card: TodayCard = {
@@ -250,3 +255,40 @@ describe('календарь недели и тип дня', () => {
     expect(screen.getByRole('button', { name: 'Начать тренировку' })).toBeTruthy()
   })
 })
+
+describe('фаза цикла на «Сегодня»', () => {
+  const calendar = {
+    from: '2026-10-12',
+    to: '2026-10-12',
+    cycle: { phase_mode: 'phases', has_anchor: true, phase: 'follicular', cycle_confidence: 1 },
+    overdue: false,
+    days: [{ date: '2026-10-12', marks: [], phase: 'follicular', cycle_confidence: 1, ovulation_estimate: false }],
+    phases: [{ phase: 'follicular', name: 'После месячных', feeling: 'Сил больше', why: 'Эстроген', note: 'Общая' }],
+  }
+  const profile = (cycle: object, tracking = 'manual') => ({
+    sex_at_birth: 'female', session_minutes: 60, cycle_tracking: tracking, is_complete: true, cycle,
+  })
+
+  it('режим фаз — карточка фазы с текстом сервера, окно — один сегодняшний день', async () => {
+    const getCycleCalendar = vi.fn(async () => calendar)
+    mount({
+      getProfileIfStarted: (async () => profile({ phase_mode: 'phases' })) as unknown as ApiClient['getProfileIfStarted'],
+      getCycleCalendar: getCycleCalendar as unknown as ApiClient['getCycleCalendar'],
+    })
+    expect((await screen.findByTestId('phase-feeling')).textContent).toBe('Сил больше')
+    expect(getCycleCalendar).toHaveBeenCalledWith('2026-10-12', '2026-10-12')
+  })
+
+  it('цикл выключен — календарь не запрашивается, карточки нет', async () => {
+    const getCycleCalendar = vi.fn(async () => calendar)
+    mount({
+      getProfileIfStarted: (async () =>
+        profile({ phase_mode: 'no_phases', no_phase_reason: 'contraception' })) as unknown as ApiClient['getProfileIfStarted'],
+      getCycleCalendar: getCycleCalendar as unknown as ApiClient['getCycleCalendar'],
+    })
+    await screen.findByTestId('session-kind')
+    expect(screen.queryByTestId('phase-card')).toBeNull()
+    expect(getCycleCalendar).not.toHaveBeenCalled()
+  })
+})
+
