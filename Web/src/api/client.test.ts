@@ -84,6 +84,46 @@ describe('ApiClient', () => {
     })
   })
 
+  it('POST …/rebuild: понедельник той же даты, причина cycle_event_added, date и tz в теле', async () => {
+    const fetchMock = vi.fn(async () => json({ plan: { days: [], status_lines: [] } }))
+    const c = client(fetchMock as unknown as typeof fetch, 'jwt', new Date('2026-10-14T09:00:00Z'))
+    await c.rebuildWeek('cycle_event_added')
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/v1/week-plans/2026-10-12/rebuild')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body)) as { cause: string; date: string; tz: string }
+    expect(body.cause).toBe('cycle_event_added')
+    expect(body.date).toBe('2026-10-14')
+    expect(body.tz).toBeTruthy()
+  })
+
+  it('POST …/rebuild: недели нет — null, прочая ошибка не глотается', async () => {
+    const notFound = vi.fn(async () => json({ error: { code: 'not_found', message: 'Нет', details: {} } }, 404))
+    expect(await client(notFound as unknown as typeof fetch).rebuildWeek('cycle_event_added')).toBeNull()
+    const skew = vi.fn(async () => json({ error: { code: 'date_skew', message: 'Часы', details: {} } }, 422))
+    await expect(client(skew as unknown as typeof fetch).rebuildWeek('cycle_event_added')).rejects.toMatchObject({
+      code: 'date_skew',
+    })
+  })
+
+  it('GET /v1/cycle/calendar: from, to, date и tz в query, токен', async () => {
+    const body = {
+      from: '2026-10-01', to: '2026-10-31',
+      cycle: { phase_mode: 'phases', has_anchor: false },
+      overdue: false, days: [], phases: [],
+    }
+    const fetchMock = vi.fn(async () => json(body))
+    expect(await client(fetchMock as unknown as typeof fetch).getCycleCalendar('2026-10-01', '2026-10-31')).toEqual(body)
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/cycle/calendar')
+    expect(parsed.searchParams.get('from')).toBe('2026-10-01')
+    expect(parsed.searchParams.get('to')).toBe('2026-10-31')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(parsed.searchParams.get('tz')).toBeTruthy()
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jwt')
+  })
+
   it('ответ с кодом ошибки становится ApiError с code и details', async () => {
     const fetchMock = vi.fn(async () =>
       json({ error: { code: 'profile_incomplete', message: 'Профиль не заполнен', details: { missing: 'goal' } } }, 409),

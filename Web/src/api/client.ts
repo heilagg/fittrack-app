@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import {
+  cycleCalendarSchema,
   errorEnvelopeSchema,
   finishWorkoutRequestSchema,
   finishWorkoutResponseSchema,
@@ -15,10 +16,12 @@ import {
   logSetResponseSchema,
   patchProfileRequestSchema,
   profileSchema,
+  rebuildWeekPlanRequestSchema,
   startWorkoutRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
   workoutSchema,
+  type CycleCalendar,
   type ErrorCode,
   type FinishWorkoutResponse,
   type ExerciseContent,
@@ -27,6 +30,7 @@ import {
   type LogSetResponse,
   type PatchProfileRequest,
   type Profile,
+  type RebuildWeekPlanRequest,
   type StartWorkoutRequest,
   type TodayCard,
   type WeekPlanResponse,
@@ -141,6 +145,32 @@ export class ApiClient {
       if (e instanceof ApiError && e.code === 'not_found') return null
       throw e
     }
+  }
+
+  /**
+   * Пересборка текущей недели после прямой записи (§20.3, §20.6). `notice` в
+   * ответе — «План обновлён» (§7.1), его обязаны показать. Недели ещё нет
+   * (`not_found`) — пересобирать нечего, `null`.
+   */
+  async rebuildWeek(cause: RebuildWeekPlanRequest['cause']): Promise<WeekPlanResponse | null> {
+    const { date, tz } = this.today()
+    const path = `/v1/week-plans/${encodeURIComponent(mondayOf(date))}/rebuild`
+    try {
+      return await this.request('POST', path, weekPlanResponseSchema, {
+        authorized: true,
+        body: rebuildWeekPlanRequestSchema.parse({ cause, date, tz }),
+      })
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'not_found') return null
+      throw e
+    }
+  }
+
+  /** Календарь цикла за `from…to` включительно, не больше 93 дней (§11.6, §20.3). */
+  getCycleCalendar(from: string, to: string): Promise<CycleCalendar> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz, from, to })
+    return this.request('GET', `/v1/cycle/calendar?${query}`, cycleCalendarSchema, { authorized: true })
   }
 
   /** Идемпотентна по неделе: те же параметры — 200 и та же неделя. */

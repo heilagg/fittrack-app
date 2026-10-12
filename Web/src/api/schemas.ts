@@ -460,3 +460,15 @@ export const generateWeekPlanRequestSchema = z.object({
   tz: z.string(),
 })
 export type GenerateWeekPlanRequest = z.infer<typeof generateWeekPlanRequestSchema>
+
+/**
+ * Тело `POST /v1/week-plans/{week_start}/rebuild` (§20.3). Причин две: клиент
+ * называет только то, что сервер не наблюдает сам, — прямые записи
+ * инвентаря и событий цикла (§20.6).
+ */
+export const rebuildWeekPlanRequestSchema = z.object({
+  cause: z.enum(['equipment_changed', 'cycle_event_added']),
+  date: z.string(),
+  tz: z.string(),
+})
+export type RebuildWeekPlanRequest = z.infer<typeof rebuildWeekPlanRequestSchema>

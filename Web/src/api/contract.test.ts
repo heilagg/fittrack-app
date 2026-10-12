@@ -19,6 +19,7 @@ import {
   logSetResponseSchema,
   patchProfileRequestSchema,
   profileSchema,
+  rebuildWeekPlanRequestSchema,
   startWorkoutRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
@@ -64,6 +65,7 @@ const schemaFor: Record<string, ZodType> = {
   'response_finish_workout_no_week.json': finishWorkoutResponseSchema,
   'cycle_calendar.json': cycleCalendarSchema,
   'cycle_calendar_no_phases.json': cycleCalendarSchema,
+  'request_rebuild_cycle_event.json': rebuildWeekPlanRequestSchema,
 }
 
 describe('эталонные JSON границы /v1', () => {
