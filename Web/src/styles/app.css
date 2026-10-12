@@ -768,3 +768,17 @@ input[type='checkbox'] {
   height: var(--size-dot);
   background: var(--color-accent);
 }
+
+/* MARK: - Флаг боли (§13.2): отдельная маленькая кнопка в углу карточки
+   подхода, не в ряду фидбэка и не похожая на него. */
+
+.pain-button {
+  min-height: var(--size-touch-target-min);
+  padding: 0 var(--space-md);
+  border-color: var(--color-border);
+  border-radius: var(--radius-chip);
+  background: none;
+  color: var(--color-text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: var(--font-weight-bold);
+}
