@@ -25,6 +25,21 @@ public enum ReasonStrings {
 
     // MARK: - Словарь
 
+    /// Название типа дня (§7.2): одно на значение и не зависит от недели —
+    /// `lower` всегда «Низ тела». `rest` сетка и правка дня не ставят; название
+    /// у него есть, чтобы ответ был определён и на строке, записанной в обход.
+    public static func sessionKindName(_ kind: SessionKind) -> String {
+        switch kind {
+        case .fullBody: return "Всё тело"
+        case .upper: return "Верх тела"
+        case .lower: return "Низ тела"
+        case .push: return "Жимовая"
+        case .pull: return "Тяговая"
+        case .stretch: return "Растяжка"
+        case .rest: return "Отдых"
+        }
+    }
+
     /// Форма «по <мышце>»: «выйдет меньше по ягодичным».
     public static func dative(_ muscle: MuscleSlug) -> String {
         switch muscle {

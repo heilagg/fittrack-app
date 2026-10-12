@@ -36,7 +36,9 @@
       "leading_muscle" : "quads",
       "reasons" : [
 
-      ]
+      ],
+      "session_kind" : "lower",
+      "session_kind_name" : "Низ тела"
     }
   },
   "readiness" : 1,

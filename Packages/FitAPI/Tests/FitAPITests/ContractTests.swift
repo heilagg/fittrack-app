@@ -259,7 +259,7 @@ final class ContractTests: XCTestCase {
         let kinds: [DayOutcome.Kind] = [.session, .stretching, .notBuilt, .vectorMissing, .generatorDisabled]
         let encoded = kinds.map { kind in
             DayOutcomeDTO(DayOutcome(dayID: "d", kind: kind, cause: nil,
-                                     losesPlannedVolume: false, session: nil)).kind
+                                     losesPlannedVolume: false, session: nil), dayKind: .upper).kind
         }
         XCTAssertEqual(Set(encoded),
                        ["session", "stretching", "not_built", "vector_missing", "generator_disabled"])
@@ -386,7 +386,7 @@ final class ContractTests: XCTestCase {
     /// §20.3: `/finish` отдаёт `{workout, week}`; без недели ключа `week` нет —
     /// общее правило FitAPI опускать отсутствующее, а не слать `null`.
     func test_finishResponseCarriesWorkoutAndOptionalWeek() throws {
-        let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: [])))
+        let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: []))
         let full = try JSONSerialization.jsonObject(with: try encoder.encode(
             FinishWorkoutResponseDTO(workout: workout(tree: nil), week: week))) as? [String: Any]
         XCTAssertEqual(Set(full?.keys ?? [:].keys), ["workout", "week"])
@@ -401,13 +401,79 @@ final class ContractTests: XCTestCase {
 
     /// Один тип на четыре недельных пути, `notice` необязателен.
     func test_weekPlanResponseCarriesOptionalNotice() throws {
-        let plan = WeekPlanDTO(WeekPlan(days: [:], statusLines: []))
+        let plan = WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: [])
         let silent = WeekPlanResponseDTO(plan: plan)
         XCTAssertNil(try decoder.decode(WeekPlanResponseDTO.self, from: try encoder.encode(silent)).notice)
 
         let loud = WeekPlanResponseDTO(plan: plan, notice: ReasonDTO(.planRebuilt(cause: .equipmentChanged)))
         let back = try decoder.decode(WeekPlanResponseDTO.self, from: try encoder.encode(loud))
         XCTAssertEqual(back, loud)
+    }
+
+    // MARK: - Дни недели и названия типов (§7.2, §20.3)
+
+    /// §7.2: одно название на значение, `lower` — «Низ тела» в любой неделе.
+    func test_sessionKindNamesAreTheTableOfSpec72() {
+        let names = Dictionary(uniqueKeysWithValues: SessionKind.allCases.map {
+            ($0.rawValue, ReasonStrings.sessionKindName($0))
+        })
+        XCTAssertEqual(names, [
+            "full_body": "Всё тело", "upper": "Верх тела", "lower": "Низ тела",
+            "push": "Жимовая", "pull": "Тяговая", "stretch": "Растяжка", "rest": "Отдых",
+        ])
+    }
+
+    private func plannedDay(_ id: String, _ dayNumber: Int, _ kind: SessionKind) -> PlannedDay {
+        PlannedDay(id: id, date: CalendarDay(dayNumber: dayNumber), kind: kind, accent: nil, vector: [:])
+    }
+
+    private func outcome(_ id: String, session: Bool = false) -> DayOutcome {
+        DayOutcome(dayID: id, kind: session ? .session : .notBuilt, cause: session ? nil : .done,
+                   losesPlannedVolume: false,
+                   session: session ? BuiltSession(dayID: id, exercises: [], estimatedSeconds: 600,
+                                                   effectiveVolume: [:], leadingMuscle: nil, scale: 1,
+                                                   reasons: []) : nil)
+    }
+
+    /// §20.3: дни — по дате, а не по `day_id`; у каждого дата, тип и название.
+    func test_weekDaysAreOrderedByDateAndCarryTheirType() {
+        // Идентификаторы нарочно в обратном порядке к датам.
+        let week = [(plannedDay("b", 3, .upper), "2026-10-14"),
+                    (plannedDay("a", 5, .fullBody), "2026-10-16"),
+                    (plannedDay("c", 1, .lower), "2026-10-12")]
+        let plan = WeekPlan(days: ["a": outcome("a"), "b": outcome("b", session: true), "c": outcome("c")],
+                            statusLines: [])
+        let dto = WeekPlanDTO(plan, week: week.map { (day: $0.0, isoDate: $0.1) })
+        XCTAssertEqual(dto.days.map(\.date), ["2026-10-12", "2026-10-14", "2026-10-16"])
+        XCTAssertEqual(dto.days.map(\.dayID), ["c", "b", "a"])
+        XCTAssertEqual(dto.days.map(\.sessionKind), ["lower", "upper", "full_body"])
+        XCTAssertEqual(dto.days.map(\.sessionKindName), ["Низ тела", "Верх тела", "Всё тело"])
+        XCTAssertEqual(dto.days.map(\.kind), ["not_built", "session", "not_built"])
+        XCTAssertEqual(dto.days[0].cause?.cause, .done)
+        // Сессия несёт тип своего дня, а не соседнего.
+        XCTAssertEqual(dto.days[1].session?.sessionKind, "upper")
+        XCTAssertEqual(dto.days[1].session?.sessionKindName, "Верх тела")
+        XCTAssertNil(dto.days[0].session)
+    }
+
+    /// `/preview`: в ответ попадают только дни с итогом в плане (срез одного дня).
+    func test_weekDaysWithoutOutcomeAreLeftOut() {
+        let plan = WeekPlan(days: ["b": outcome("b")], statusLines: [])
+        let dto = WeekPlanDTO(plan, week: [(day: plannedDay("a", 1, .lower), isoDate: "2026-10-12"),
+                                           (day: plannedDay("b", 3, .upper), isoDate: "2026-10-14")])
+        XCTAssertEqual(dto.days.map(\.dayID), ["b"])
+    }
+
+    /// Сессия `/today` несёт тип своего дня и его название.
+    func test_dayOutcomeSessionCarriesItsDayType() throws {
+        let day = DayOutcomeDTO(outcome("d", session: true), dayKind: .push)
+        XCTAssertEqual(day.session?.sessionKind, "push")
+        XCTAssertEqual(day.session?.sessionKindName, "Жимовая")
+        let json = try JSONSerialization.jsonObject(with: try encoder.encode(day)) as? [String: Any]
+        let session = json?["session"] as? [String: Any]
+        XCTAssertEqual(session?["session_kind"] as? String, "push")
+        XCTAssertEqual(session?["session_kind_name"] as? String, "Жимовая")
+        XCTAssertNil(json?["date"], "у дня карточки даты нет: она в TodayCard.date")
     }
 
     func test_todayCardSurvivesRoundTrip() throws {
@@ -417,7 +483,7 @@ final class ContractTests: XCTestCase {
                                             phase: .lateLuteal, cycleConfidence: 0.62,
                                             periodization: nil, effectivePhaseAdjustment: nil)),
             day: DayOutcomeDTO(DayOutcome(dayID: "d1", kind: .notBuilt, cause: .skipped,
-                                          losesPlannedVolume: true, session: nil)),
+                                          losesPlannedVolume: true, session: nil), dayKind: .upper),
             reasons: [ReasonDTO(.phasePeriodization(phase: .lateLuteal, cycleConfidence: 0.62))])
         XCTAssertEqual(try decoder.decode(TodayCardDTO.self, from: try encoder.encode(card)), card)
     }

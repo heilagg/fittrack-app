@@ -38,23 +38,33 @@ public struct PrescribedExerciseDTO: Sendable, Equatable, Codable {
 }
 
 /// Собранная тренировка (§7.3).
+///
+/// Тип дня едет значением и названием (§7.2, §20.3): сессия описывает себя
+/// целиком и читается одинаково из `/today` и из недели. В ядре у
+/// `BuiltSession` типа нет — он принадлежит дню, — поэтому его передаёт
+/// вызывающая сторона, у которой строка дня есть.
 public struct BuiltSessionDTO: Sendable, Equatable, Codable {
     public var dayID: String
     public var exercises: [PrescribedExerciseDTO]
     public var estimatedSeconds: Double
     public var leadingMuscle: String?
+    public var sessionKind: String
+    public var sessionKindName: String
     public var reasons: [ReasonDTO]
 
     enum CodingKeys: String, CodingKey {
         case dayID = "day_id", exercises, estimatedSeconds = "estimated_seconds",
-             leadingMuscle = "leading_muscle", reasons
+             leadingMuscle = "leading_muscle", sessionKind = "session_kind",
+             sessionKindName = "session_kind_name", reasons
     }
 
-    public init(_ s: BuiltSession) {
+    public init(_ s: BuiltSession, kind: SessionKind) {
         dayID = s.dayID
         exercises = s.exercises.map(PrescribedExerciseDTO.init)
         estimatedSeconds = s.estimatedSeconds
         leadingMuscle = s.leadingMuscle?.rawValue
+        sessionKind = kind.rawValue
+        sessionKindName = ReasonStrings.sessionKindName(kind)
         reasons = s.reasons.map { ReasonDTO($0) }
     }
 }
@@ -84,12 +94,13 @@ public struct DayOutcomeDTO: Sendable, Equatable, Codable {
              losesPlannedVolume = "loses_planned_volume", session
     }
 
-    public init(_ o: DayOutcome) {
+    /// `dayKind` — тип дня, которому принадлежит итог: его несёт сессия (§20.3).
+    public init(_ o: DayOutcome, dayKind: SessionKind) {
         dayID = o.dayID
         kind = ReasonDTO.code(for: o.kind)
         cause = o.cause.map { DayCauseDTO($0) }
         losesPlannedVolume = o.losesPlannedVolume
-        session = o.session.map(BuiltSessionDTO.init)
+        session = o.session.map { BuiltSessionDTO($0, kind: dayKind) }
     }
 
     /// День, которому не соответствует ни одна строка `planned_days` (§20.3).
@@ -121,20 +132,61 @@ public struct DayOutcomeDTO: Sendable, Equatable, Codable {
     }
 }
 
+/// День недели (§20.3, `WeekDay`): поля `DayOutcome` плюс дата и тип дня.
+///
+/// Дата нужна календарю: идентификатор дня — UUID и порядка по датам не несёт.
+/// `day_id` здесь обязателен, в отличие от `DayOutcomeDTO`: день недели — всегда
+/// строка `planned_days`. `TodayCard` этот тип не использует — у карточки дата
+/// своя, и вторая копия в дне разошлась бы с ней только ошибкой.
+public struct WeekDayDTO: Sendable, Equatable, Codable {
+    /// Локальная дата `planned_days.planned_date`, `YYYY-MM-DD`.
+    public var date: String
+    public var sessionKind: String
+    public var sessionKindName: String
+    public var dayID: String
+    public var kind: String
+    public var cause: DayCauseDTO?
+    public var losesPlannedVolume: Bool
+    public var session: BuiltSessionDTO?
+
+    enum CodingKeys: String, CodingKey {
+        case date, sessionKind = "session_kind", sessionKindName = "session_kind_name",
+             dayID = "day_id", kind, cause, losesPlannedVolume = "loses_planned_volume", session
+    }
+
+    /// `date` — уже в ISO: перевод дня шкалы FitCore в дату живёт в `Mapping/`
+    /// сервера (§20.7), и второй реализации календаря здесь не заводится.
+    public init(_ o: DayOutcome, date: String, dayKind: SessionKind) {
+        let day = DayOutcomeDTO(o, dayKind: dayKind)
+        self.date = date
+        sessionKind = dayKind.rawValue
+        sessionKindName = ReasonStrings.sessionKindName(dayKind)
+        dayID = o.dayID
+        kind = day.kind
+        cause = day.cause
+        losesPlannedVolume = day.losesPlannedVolume
+        session = day.session
+    }
+}
+
 /// План недели (§20.3, `GET /v1/week-plans/{week_start}`).
 public struct WeekPlanDTO: Sendable, Equatable, Codable {
-    public var days: [DayOutcomeDTO]
+    public var days: [WeekDayDTO]
     public var statusLines: [ReasonDTO]
 
     enum CodingKeys: String, CodingKey {
         case days, statusLines = "status_lines"
     }
 
-    public init(_ plan: WeekPlan) {
-        // Порядок — по `day_id`: словарь FitCore порядка не имеет, а ответ
-        // обязан быть воспроизводимым, иначе диф двух ответов шумит на ровном
-        // месте.
-        days = plan.days.keys.sorted().compactMap { plan.days[$0] }.map(DayOutcomeDTO.init)
+    /// `week` — строки недели с датами в ISO. В ответ попадают те, у которых
+    /// есть итог в `plan` (у `/preview` это срез одного дня), по `date`: ISO-даты
+    /// сортируются строкой так же, как календарём.
+    public init(_ plan: WeekPlan, week: [(day: PlannedDay, isoDate: String)]) {
+        days = week
+            .compactMap { entry in
+                plan.days[entry.day.id].map { WeekDayDTO($0, date: entry.isoDate, dayKind: entry.day.kind) }
+            }
+            .sorted { ($0.date, $0.dayID) < ($1.date, $1.dayID) }
         statusLines = plan.statusLines.map { ReasonDTO($0) }
     }
 }
