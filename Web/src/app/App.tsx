@@ -8,6 +8,7 @@ import { CycleEnableScreen } from '../features/cycle/CycleEnableScreen'
 import { LinkScreen } from '../features/link/LinkScreen'
 import { HomeGate } from '../features/onboarding/HomeGate'
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen'
+import { EquipmentScreen, PersonalScreen, RestrictionsScreen } from '../features/profile/EditScreens'
 import { ProfileScreen } from '../features/profile/ProfileScreen'
 import { ErrorBlock } from '../features/today/TodayScreen'
 import { WorkoutScreen } from '../features/workout/WorkoutScreen'
@@ -37,6 +38,9 @@ export function App() {
           <Route element={<WithNav />}>
             <Route path="/" element={<HomeGate api={api} />} />
             <Route path="/profile" element={<ProfileScreen api={api} />} />
+            <Route path="/profile/personal" element={<PersonalScreen api={api} />} />
+            <Route path="/profile/equipment" element={<EquipmentScreen api={api} />} />
+            <Route path="/profile/restrictions" element={<RestrictionsScreen />} />
             <Route path="/cycle" element={<CycleCalendarScreen api={api} />} />
             <Route path="/cycle/enable" element={<CycleEnableScreen api={api} />} />
           </Route>

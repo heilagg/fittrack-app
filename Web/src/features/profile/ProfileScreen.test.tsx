@@ -46,9 +46,10 @@ function mount(profile: Profile | null, store: FlagStore = memory()) {
 }
 
 describe('Профиль: вход в календарь цикла', () => {
-  it('режим фаз — ссылка на календарь', async () => {
+  it('режим фаз — ссылка на календарь и на настройки цикла', async () => {
     mount(female({ phase_mode: 'phases' }))
     expect(await screen.findByTestId('cycle-calendar-link')).toHaveAttribute('href', '/cycle')
+    expect(screen.getByTestId('cycle-settings-link')).toHaveAttribute('href', '/cycle/enable')
     expect(screen.queryByTestId('cycle-off-link')).toBeNull()
   })
 
@@ -94,3 +95,13 @@ describe('Профиль: вход в календарь цикла', () => {
     expect(screen.queryByRole('list', { name: 'Цикл' })).toBeNull()
   })
 })
+
+describe('Профиль: правки', () => {
+  it('ссылки на личные данные, инвентарь и ограничения — у всех, и у мужского профиля', async () => {
+    mount({ ...female({ phase_mode: 'phases' }), sex_at_birth: 'male' })
+    expect(await screen.findByTestId('personal-link')).toHaveAttribute('href', '/profile/personal')
+    expect(screen.getByTestId('equipment-link')).toHaveAttribute('href', '/profile/equipment')
+    expect(screen.getByTestId('restrictions-link')).toHaveAttribute('href', '/profile/restrictions')
+  })
+})
+

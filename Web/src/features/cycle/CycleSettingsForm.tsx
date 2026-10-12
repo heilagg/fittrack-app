@@ -11,6 +11,7 @@ import { upsertPeriodStart } from '../../direct/onboarding'
 import {
   cycleWrite,
   type ContraceptionAnswer,
+  type CycleAnswers,
   type Regularity,
   type TrackingAnswer,
 } from '../../onboarding/cycle'
@@ -37,18 +38,21 @@ export function CycleSettingsForm({
   api,
   onSaved,
   submitLabel = 'Далее',
+  initial = {},
 }: {
   api: ApiClient
+  /** Текущие ответы — при правке из Профиля (`cycleAnswersOf`). */
+  initial?: Partial<CycleAnswers>
   /** `periodStart` — записана ли дата начала: после неё нужен `/rebuild`, если неделя уже есть. */
   onSaved: (written: { periodStart: boolean }) => void | Promise<void>
   submitLabel?: string
 }) {
-  const [tracking, setTracking] = useState<TrackingAnswer | null>(null)
-  const [contraception, setContraception] = useState<ContraceptionAnswer | null>(null)
+  const [tracking, setTracking] = useState<TrackingAnswer | null>(initial.tracking ?? null)
+  const [contraception, setContraception] = useState<ContraceptionAnswer | null>(initial.contraception ?? null)
   const [periodStart, setPeriodStart] = useState('')
-  const [cycleLength, setCycleLength] = useState('')
-  const [periodLength, setPeriodLength] = useState('')
-  const [regularity, setRegularity] = useState<Regularity | ''>('')
+  const [cycleLength, setCycleLength] = useState(initial.cycleLength === undefined ? '' : String(initial.cycleLength))
+  const [periodLength, setPeriodLength] = useState(initial.periodLength === undefined ? '' : String(initial.periodLength))
+  const [regularity, setRegularity] = useState<Regularity | ''>(initial.regularity ?? '')
   const [problem, setProblem] = useState<string | null>(null)
   const { busy, error, run } = useAction()
 

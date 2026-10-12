@@ -14,26 +14,17 @@ import type { ApiClient } from '../../api/client'
 import { localDate, browserTimeZone } from '../../api/day'
 import { currentUserId } from '../../auth/supabase'
 import { insertEquipmentProfile } from '../../direct/equipment'
-import type { EquipmentRow } from '../../direct/equipmentRow'
 import {
   hasParq,
   insertRestrictions,
   upsertBodyWeight,
   upsertParq,
-  type Joint,
-  type Severity,
 } from '../../direct/onboarding'
 import { buildParqRow, hasRedFlag, PARQ_QUESTIONS } from '../../onboarding/parq'
-import {
-  MACHINE_SLUGS,
-  normalizeEquipment,
-  parseKgList,
-  PRESETS,
-  type PresetId,
-} from '../../onboarding/presets'
 import { resumeStep } from '../../onboarding/resume'
 import { DISCLAIMER_PENDING_LEGAL, ONBOARDING_SUMMARY, RED_FLAG_PENDING_LEGAL } from '../../onboarding/texts'
 import { CycleSettingsForm } from '../cycle/CycleSettingsForm'
+import { EquipmentForm, JOINTS, RestrictionsForm } from '../profile/forms'
 import { ErrorBlock } from '../today/TodayScreen'
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
@@ -461,238 +452,36 @@ function WeekdaysStep({ api, onDone }: { api: ApiClient; onDone: () => void }) {
 
 // MARK: - 7. Инвентарь
 
-const PRESET_IDS: PresetId[] = ['home_bodyweight', 'home_dumbbells', 'gym']
-
 function EquipmentStep({ onDone }: { onDone: () => Promise<void> }) {
-  const [form, setForm] = useState<EquipmentRow>(PRESETS.home_bodyweight)
-  const [preset, setPreset] = useState<PresetId>('home_bodyweight')
-  const [dumbbells, setDumbbells] = useState('')
-  const [plates, setPlates] = useState('')
-  const [kettlebells, setKettlebells] = useState('')
-  const [problem, setProblem] = useState<string | null>(null)
-  const { busy, error, run } = useAction()
-
-  function choose(id: PresetId) {
-    const row = PRESETS[id]
-    setPreset(id)
-    setForm(row)
-    setDumbbells(row.dumbbells_kg.join(', '))
-    setPlates(row.plates_kg.join(', '))
-    setKettlebells(row.kettlebells_kg.join(', '))
-  }
-  const set = <K extends keyof EquipmentRow>(key: K, value: EquipmentRow[K]) => setForm((f) => ({ ...f, [key]: value }))
-
-  function submit(event: FormEvent) {
-    event.preventDefault()
-    let row: EquipmentRow
-    try {
-      row = normalizeEquipment({
-        ...form,
-        dumbbells_kg: parseKgList(dumbbells),
-        plates_kg: parseKgList(plates),
-        kettlebells_kg: parseKgList(kettlebells),
-      })
-    } catch (e) {
-      return setProblem(e instanceof Error ? e.message : 'Проверьте веса')
-    }
-    setProblem(null)
-    void run(async () => {
-      await insertEquipmentProfile(await currentUserId(), row)
-      await onDone()
-    })
-  }
-
   return (
     <StepFrame n={7} title="Инвентарь">
-      <div role="group" aria-label="Пресеты" className="presets">
-        {PRESET_IDS.map((id) => (
-          <button key={id} type="button" data-preset={id} aria-pressed={preset === id} onClick={() => choose(id)}>
-            {PRESETS[id].name}
-          </button>
-        ))}
-      </div>
-      <form onSubmit={submit}>
-        <p>
-          <label className="field">
-            Гантели, кг (через пробел){' '}
-            <input value={dumbbells} onChange={(e) => setDumbbells(e.target.value)} />
-          </label>
-        </p>
-        <p>
-          <label className="field">
-            Блины, кг (через пробел) <input value={plates} onChange={(e) => setPlates(e.target.value)} />
-          </label>
-        </p>
-        <p>
-          <label className="field">
-            Гриф, кг{' '}
-            <input
-              inputMode="decimal"
-              value={form.barbell_kg ?? ''}
-              onChange={(e) => {
-                const v = e.target.value.trim()
-                setForm((f) => {
-                  const { barbell_kg: _drop, ...rest } = f
-                  void _drop
-                  return v === '' ? rest : { ...rest, barbell_kg: Number(v.replace(',', '.')) }
-                })
-              }}
-            />
-          </label>
-        </p>
-        <p>
-          <label className="field">
-            Шаг стека тренажёров, кг{' '}
-            <input
-              inputMode="decimal"
-              value={form.machine_step_kg ?? ''}
-              onChange={(e) => {
-                const v = e.target.value.trim()
-                setForm((f) => {
-                  const { machine_step_kg: _drop, ...rest } = f
-                  void _drop
-                  return v === '' ? rest : { ...rest, machine_step_kg: Number(v.replace(',', '.')) }
-                })
-              }}
-            />
-          </label>
-        </p>
-        <p className="option-grid">
-          <label className="option">
-            <input type="checkbox" checked={form.has_kettlebells} onChange={(e) => set('has_kettlebells', e.target.checked)} />{' '}
-            Есть гири
-          </label>{' '}
-          {form.has_kettlebells && (
-            <label className="field">
-              Гири, кг <input value={kettlebells} onChange={(e) => setKettlebells(e.target.value)} />
-            </label>
-          )}
-        </p>
-        <p className="option-grid">
-          <label className="option">
-            <input type="checkbox" checked={form.bands} onChange={(e) => set('bands', e.target.checked)} /> Резинки
-          </label>{' '}
-          <label className="option">
-            <input type="checkbox" checked={form.pullup_bar} onChange={(e) => set('pullup_bar', e.target.checked)} />{' '}
-            Турник
-          </label>{' '}
-          <label className="option">
-            <input type="checkbox" checked={form.step_platform} onChange={(e) => set('step_platform', e.target.checked)} />{' '}
-            Степ-платформа
-          </label>{' '}
-          <label className="option">
-            <input type="checkbox" checked={form.plyo_box} onChange={(e) => set('plyo_box', e.target.checked)} /> Тумба
-          </label>{' '}
-          <label className="option">
-            <input type="checkbox" checked={form.cable_machine} onChange={(e) => set('cable_machine', e.target.checked)} />{' '}
-            Блочная рама
-          </label>
-        </p>
-        <p>
-          <label className="field">
-            Скамья{' '}
-            <select
-              value={form.bench ?? ''}
-              onChange={(e) => {
-                const v = e.target.value
-                setForm((f) => {
-                  const { bench: _drop, ...rest } = f
-                  void _drop
-                  return v === 'flat' || v === 'adjustable' ? { ...rest, bench: v } : rest
-                })
-              }}
-            >
-              <option value="">Нет</option>
-              <option value="flat">Горизонтальная</option>
-              <option value="adjustable">Регулируемая</option>
-            </select>
-          </label>
-        </p>
-        <fieldset>
-          <legend>Тренажёры</legend>
-          <div className="option-grid">
-          {MACHINE_SLUGS.map((slug) => (
-            <label key={slug} className="option">
-              <input
-                type="checkbox"
-                checked={form.machines.includes(slug)}
-                onChange={(e) =>
-                  set('machines', e.target.checked ? [...form.machines, slug] : form.machines.filter((m) => m !== slug))
-                }
-              />{' '}
-              {slug}{' '}
-            </label>
-          ))}
-          </div>
-        </fieldset>
-        <button type="submit" className="button-primary" disabled={busy}>
-          Сохранить инвентарь
-        </button>
-      </form>
-      {problem !== null && <p role="alert">{problem}</p>}
-      {error !== null && <ErrorBlock error={error} />}
+      <EquipmentForm
+        submitLabel="Сохранить инвентарь"
+        onSubmit={async (row) => {
+          await insertEquipmentProfile(await currentUserId(), row)
+          await onDone()
+        }}
+      />
     </StepFrame>
   )
 }
 
 // MARK: - 8. Ограничения и травмы (§14.4)
 
-const JOINTS: { joint: Joint; label: string }[] = [
-  { joint: 'knee', label: 'Колено' },
-  { joint: 'lower_back', label: 'Поясница' },
-  { joint: 'shoulder', label: 'Плечо' },
-  { joint: 'wrist', label: 'Запястье' },
-  { joint: 'neck', label: 'Шея' },
-  { joint: 'hip', label: 'Тазобедренный сустав' },
-  { joint: 'ankle', label: 'Голеностоп' },
-]
-
 function RestrictionsStep({ onDone }: { onDone: () => void }) {
-  const [levels, setLevels] = useState<Partial<Record<Joint, Severity>>>({})
-  const { busy, error, run } = useAction()
   return (
     <StepFrame n={8} title="Ограничения и травмы">
-      <form
-        onSubmit={(e: FormEvent) => {
-          e.preventDefault()
-          void run(async () => {
-            const items = JOINTS.flatMap(({ joint }) => {
-              const severity = levels[joint]
-              return severity ? [{ joint, severity }] : []
-            })
-            await insertRestrictions(await currentUserId(), items)
-            onDone()
+      <RestrictionsForm
+        submitLabel="Далее"
+        onSubmit={async (levels) => {
+          const items = JOINTS.flatMap(({ joint }) => {
+            const severity = levels[joint]
+            return severity ? [{ joint, severity }] : []
           })
+          await insertRestrictions(await currentUserId(), items)
+          onDone()
         }}
-      >
-        {JOINTS.map(({ joint, label }) => (
-          <p key={joint}>
-            <label className="field">
-              {label}{' '}
-              <select
-                data-joint={joint}
-                value={levels[joint] ?? ''}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setLevels((cur) => {
-                    const { [joint]: _drop, ...rest } = cur
-                    void _drop
-                    return v === 'avoid' || v === 'careful' ? { ...rest, [joint]: v } : rest
-                  })
-                }}
-              >
-                <option value="">Нет ограничений</option>
-                <option value="avoid">Избегать</option>
-                <option value="careful">Осторожно</option>
-              </select>
-            </label>
-          </p>
-        ))}
-        <button type="submit" className="button-primary" disabled={busy}>
-          Далее
-        </button>
-      </form>
-      {error !== null && <ErrorBlock error={error} />}
+      />
     </StepFrame>
   )
 }

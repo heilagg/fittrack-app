@@ -1,5 +1,6 @@
-// Профиль (SPEC §13.1), срез 6: пока только вход в календарь цикла. Правки
-// личных данных, инвентаря, ограничений и цикла — следующим PR.
+// Профиль (SPEC §13.1), срез 6: правка личных данных, инвентаря по умолчанию,
+// ограничений и цикла; вход в календарь цикла. Выбор профиля инвентаря на
+// «Начать», экспорт и удаление аккаунта — вне среза.
 //
 // Что показать вместо календаря, решает `cycleVisibility` (§11.6, §19.2 п.27):
 // календарь, строка «Цикл выключен» с переходом к включению или ничего
@@ -49,14 +50,38 @@ export function ProfileScreen({ api, store = browserStore }: { api: ApiClient; s
           </div>
         </section>
       )}
+      <ul className="rows card" aria-label="Данные">
+        <li>
+          <Link to="/profile/personal" data-testid="personal-link">
+            Личные данные
+          </Link>
+        </li>
+        <li>
+          <Link to="/profile/equipment" data-testid="equipment-link">
+            Инвентарь
+          </Link>
+        </li>
+        <li>
+          <Link to="/profile/restrictions" data-testid="restrictions-link">
+            Ограничения и травмы
+          </Link>
+        </li>
+      </ul>
       {visibility.kind !== 'none' && (
         <ul className="rows card" aria-label="Цикл">
           {visibility.kind === 'calendar' ? (
-            <li>
-              <Link to="/cycle" data-testid="cycle-calendar-link">
-                Календарь цикла
-              </Link>
-            </li>
+            <>
+              <li>
+                <Link to="/cycle" data-testid="cycle-calendar-link">
+                  Календарь цикла
+                </Link>
+              </li>
+              <li>
+                <Link to="/cycle/enable" data-testid="cycle-settings-link">
+                  Настройки цикла
+                </Link>
+              </li>
+            </>
           ) : (
             <li>
               <Link to="/cycle/enable" data-testid="cycle-off-link">
