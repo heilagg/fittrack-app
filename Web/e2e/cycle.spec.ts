@@ -94,6 +94,8 @@ test.describe('календарь цикла', () => {
     await panel.getByRole('button', { name: 'Начались месячные' }).click()
     await rebuild
     await expect(await day(page, target)).toHaveAttribute('data-period', 'marked')
+    // Записано именно начало: конец после прежнего начала тоже залил бы день.
+    await expect(panel.getByTestId('mark-editable')).toHaveAttribute('data-kind', 'period_start')
   })
 
   test('правка последнего события: перенос даты переносит отметку', async ({ page }) => {
