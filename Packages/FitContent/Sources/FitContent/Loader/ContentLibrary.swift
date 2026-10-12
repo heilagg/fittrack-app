@@ -106,7 +106,17 @@ public enum Content {
     /// Загрузка из каталога: `<root>/exercises/*.json`, `<root>/vectors/*.json`,
     /// `<root>/stretches/*.json`.
     public static func load(from root: URL) throws -> ContentLibrary {
-        let exercises: [ExerciseSchema] = try decodeAll(in: root, subdirectory: "exercises")
+        var exercises: [ExerciseSchema] = try decodeAll(in: root, subdirectory: "exercises")
+        // Картинки (§6.5): ключ найденным слагам подставляется здесь, разметка
+        // упражнений его не несёт. Файла нет — картинок нет, все на заглушке.
+        let mapURL = root.appendingPathComponent("illustrations.json")
+        if let data = FileManager.default.contents(atPath: mapURL.path) {
+            do {
+                exercises = try JSONDecoder().decode(IllustrationMap.self, from: data).applied(to: exercises)
+            } catch let error as DecodingError {
+                throw ContentError.malformedFile(path: "illustrations.json", reason: Self.explain(error))
+            }
+        }
         var seen: [String: String] = [:]
         for exercise in exercises {
             if seen[exercise.slug] != nil {
