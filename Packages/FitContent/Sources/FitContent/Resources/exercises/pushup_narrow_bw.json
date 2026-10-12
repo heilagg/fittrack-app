@@ -1,6 +1,6 @@
 {
   "slug": "pushup_narrow_bw",
-  "name": "Отжимание узким хватом",
+  "name": "Узкие отжимания",
   "pattern": "push_h",
   "muscle_contributions": {
     "triceps": 0.45,

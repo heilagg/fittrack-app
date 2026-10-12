@@ -1,6 +1,6 @@
 {
   "slug": "rdl_single_leg_bw",
-  "name": "Наклон на одной ноге с собственным весом",
+  "name": "Румынская тяга на одной ноге",
   "pattern": "hinge",
   "muscle_contributions": {
     "hamstrings": 0.45,

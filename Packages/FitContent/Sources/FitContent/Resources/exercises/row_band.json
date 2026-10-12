@@ -1,6 +1,6 @@
 {
   "slug": "row_band",
-  "name": "Тяга резинки к поясу",
+  "name": "Горизонтальная тяга резинки к поясу",
   "pattern": "pull_h",
   "muscle_contributions": {
     "lats": 0.40,

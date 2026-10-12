@@ -1,6 +1,6 @@
 {
   "slug": "step_up_dumbbell",
-  "name": "Зашагивание на возвышение с гантелями",
+  "name": "Зашагивания на степ-платформу с гантелями",
   "pattern": "lunge",
   "muscle_contributions": {
     "quads": 0.38,

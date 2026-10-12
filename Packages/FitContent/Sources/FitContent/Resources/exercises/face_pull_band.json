@@ -1,6 +1,6 @@
 {
   "slug": "face_pull_band",
-  "name": "Тяга резинки к лицу",
+  "name": "Фейс-пул с резинкой",
   "pattern": "isolation",
   "muscle_contributions": {
     "rear_delts": 0.50,

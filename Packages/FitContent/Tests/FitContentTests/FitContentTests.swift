@@ -41,7 +41,7 @@ final class FitContentTests: XCTestCase {
         """
         {
           "slug": "\(slug)",
-          "name": "Ягодичный мостик со штангой",
+          "name": "Ягодичный мост со штангой (хип-траст)",
           "pattern": "hinge",
           "muscle_contributions": {
             "glute_max": 0.60, "hamstrings": 0.20, "quads": 0.10, "erectors": 0.10

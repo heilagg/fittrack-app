@@ -1,6 +1,6 @@
 {
   "slug": "triceps_pushdown_cable",
-  "name": "Разгибание рук в блоке",
+  "name": "Разгибание рук на верхнем блоке",
   "pattern": "isolation",
   "muscle_contributions": {
     "triceps": 0.92,

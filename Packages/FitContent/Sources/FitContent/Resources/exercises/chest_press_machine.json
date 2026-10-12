@@ -1,6 +1,6 @@
 {
   "slug": "chest_press_machine",
-  "name": "Жим в тренажёре на грудь",
+  "name": "Жим от груди в тренажёре",
   "pattern": "push_h",
   "muscle_contributions": {
     "pecs": 0.52,
