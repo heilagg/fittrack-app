@@ -1,0 +1,9 @@
+{
+  "cycle" : {
+    "declared_regularity" : "regular",
+    "phase_mode" : "phases",
+    "typical_cycle_length_days" : 28,
+    "typical_period_length_days" : 5
+  },
+  "cycle_tracking" : "manual"
+}

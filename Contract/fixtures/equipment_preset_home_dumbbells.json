@@ -1,0 +1,28 @@
+{
+  "bands" : false,
+  "cable_machine" : false,
+  "dumbbells_kg" : [
+    5,
+    7.5,
+    10,
+    12.5,
+    15,
+    17.5,
+    20
+  ],
+  "has_kettlebells" : false,
+  "is_default" : true,
+  "kettlebells_kg" : [
+
+  ],
+  "machines" : [
+
+  ],
+  "name" : "Дома с гантелями",
+  "plates_kg" : [
+
+  ],
+  "plyo_box" : false,
+  "pullup_bar" : false,
+  "step_platform" : false
+}

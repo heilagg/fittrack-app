@@ -1,0 +1,7 @@
+{
+  "cycle" : {
+    "no_phase_reason" : "declined",
+    "phase_mode" : "no_phases"
+  },
+  "cycle_tracking" : "off"
+}
