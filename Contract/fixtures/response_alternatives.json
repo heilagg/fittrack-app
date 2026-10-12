@@ -1,0 +1,35 @@
+[
+  {
+    "reasons" : [
+      {
+        "code" : "substitution_keeps_leading_muscle",
+        "message" : "Тот же акцент на ягодичные",
+        "params" : {
+          "muscle" : "glute_max"
+        }
+      },
+      {
+        "code" : "substitution_relieves_joint",
+        "message" : "Меньше нагрузки на колено",
+        "params" : {
+          "from" : "high",
+          "joint" : "knee",
+          "to" : "low"
+        }
+      }
+    ],
+    "slug" : "hip_thrust_barbell"
+  },
+  {
+    "reasons" : [
+      {
+        "code" : "substitution_keeps_leading_muscle",
+        "message" : "Тот же акцент на ягодичные",
+        "params" : {
+          "muscle" : "glute_max"
+        }
+      }
+    ],
+    "slug" : "glute_bridge_bw"
+  }
+]

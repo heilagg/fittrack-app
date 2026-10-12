@@ -429,6 +429,52 @@ final class ContractFixturesTests: XCTestCase {
             weekStart: "2026-10-12", day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
     }
 
+    // MARK: - Флаг боли и замена (срез 6, §8.4, §13.4)
+
+    /// Подход с флагом боли: вес и повторы как на экране, без `feedback`.
+    func test_requestLogSetPain() throws {
+        try check("request_log_set_pain.json", LogSetRequest(
+            id: "77777777-7777-4777-8777-777777777777", setIndex: 2,
+            prescribedKg: 40, actualKg: 40, actualReps: 6, painFlag: true,
+            completedAt: "2026-10-12T09:40:00Z",
+            day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
+
+    /// Три альтернативы с причинами пригодности (§13.4): ведущая мышца и сустав.
+    func test_responseAlternatives() throws {
+        try check("response_alternatives.json", [
+            ExerciseAlternativeDTO(ExerciseAlternative(slug: "hip_thrust_barbell", reasons: [
+                .substitutionKeepsLeadingMuscle(muscle: .gluteMax),
+                .substitutionRelievesJoint(joint: .knee, from: .high, to: .low),
+            ])),
+            ExerciseAlternativeDTO(ExerciseAlternative(slug: "glute_bridge_bw", reasons: [
+                .substitutionKeepsLeadingMuscle(muscle: .gluteMax),
+            ])),
+        ])
+    }
+
+    func test_requestSubstitutePain() throws {
+        try check("request_substitute_pain.json", SubstituteExerciseRequest(
+            toSlug: "hip_thrust_barbell", reason: .pain,
+            day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
+
+    /// Ответ замены: та же строка с новым слагом, `substituted_from` и
+    /// `substitution_reason`; подходы прежнего упражнения остаются в `sets`.
+    func test_responseSubstitute() throws {
+        try check("response_substitute.json", WorkoutExerciseDTO(
+            id: "33333333-3333-4333-8333-333333333333",
+            prescribed: PrescribedExercise(
+                slug: "hip_thrust_barbell", orderIndex: 0, targetSets: 3, targetRepMin: 8,
+                targetRepMax: 12, targetRIR: 2, prescribedKg: 50, weightReadiness: 1.0),
+            isCalibration: false, substitutedFrom: "squat_barbell", substitutionReason: .pain,
+            sets: [
+                SetDTO(id: "77777777-7777-4777-8777-777777777777", exerciseSlug: "squat_barbell",
+                       setIndex: 1, prescribedKg: 40, prescribedReps: 10, actualKg: 40, actualReps: 6,
+                       painFlag: true, painJoints: [.knee], completedAt: "2026-10-12T09:40:00Z"),
+            ]))
+    }
+
     func test_requestRebuildCycleEvent() throws {
         try check("request_rebuild_cycle_event.json", RebuildWeekPlanRequest(
             cause: .cycleEventAdded, day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
