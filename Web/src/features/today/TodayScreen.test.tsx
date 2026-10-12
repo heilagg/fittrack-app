@@ -214,16 +214,18 @@ describe('календарь недели и тип дня', () => {
 
   it('неделя запрашивается с понедельника даты карточки, дни — по своим датам', async () => {
     const getWeekPlan = vi.fn(async () =>
-      week([weekDay('2026-10-12'), weekDay('2026-10-14'), weekDay('2026-10-16', {
+      week([weekDay('2026-10-19'), weekDay('2026-10-21'), weekDay('2026-10-23', {
         kind: 'not_built',
         cause: { code: 'done', params: {}, message: 'День выполнен' },
       })]),
     )
-    mount({ getToday: async () => ({ ...card, date: '2026-10-14' }), getWeekPlan })
+    // Карточка — на неделю позже часов браузера (`today()` в mount — 12-е):
+    // неделя обязана считаться от даты карточки.
+    mount({ getToday: async () => ({ ...card, date: '2026-10-21' }), getWeekPlan })
     await waitFor(() => expect(states()).toEqual(['planned', 'none', 'planned*', 'none', 'done', 'none', 'none']))
-    expect(getWeekPlan).toHaveBeenCalledWith('2026-10-12')
-    expect(screen.getByRole('listitem', { name: /14 октября, сегодня, запланирована тренировка/ })).toBeTruthy()
-    expect(screen.getByRole('listitem', { name: /16 октября, тренировка выполнена/ })).toBeTruthy()
+    expect(getWeekPlan).toHaveBeenCalledWith('2026-10-19')
+    expect(screen.getByRole('listitem', { name: /21 октября, сегодня, запланирована тренировка/ })).toBeTruthy()
+    expect(screen.getByRole('listitem', { name: /23 октября, тренировка выполнена/ })).toBeTruthy()
   })
 
   it('«План обновлён» из ответа недели показывается', async () => {
