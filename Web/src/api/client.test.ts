@@ -124,6 +124,44 @@ describe('ApiClient', () => {
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jwt')
   })
 
+  it('GET …/alternatives: purpose, date и tz в query, экранированные id в пути', async () => {
+    const fetchMock = vi.fn(async () => json([]))
+    await client(fetchMock as unknown as typeof fetch).getAlternatives('w/1', 'e 2', 'pain')
+    const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/workouts/w%2F1/exercises/e%202/alternatives')
+    expect(parsed.searchParams.get('purpose')).toBe('pain')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(parsed.searchParams.get('tz')).toBeTruthy()
+  })
+
+  it('POST …/substitute: to_slug, reason, date и tz в теле', async () => {
+    const exercise = {
+      id: 'e1', slug: 'hip_thrust_barbell', order_index: 0, target_sets: 3, target_rep_min: 8,
+      target_rep_max: 12, target_rir: 2, weight_readiness: 1, is_calibration: false, sets: [],
+    }
+    const fetchMock = vi.fn(async () => json(exercise))
+    expect(await client(fetchMock as unknown as typeof fetch).substitute('w1', 'e1', 'hip_thrust_barbell', 'pain')).toEqual(exercise)
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/v1/workouts/w1/exercises/e1/substitute')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body)) as Record<string, string>
+    expect(body.to_slug).toBe('hip_thrust_barbell')
+    expect(body.reason).toBe('pain')
+    expect(body.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(body.tz).toBeTruthy()
+  })
+
+  it('GET …/preview: day отдельно от date и tz', async () => {
+    const fetchMock = vi.fn(async () => json({ plan: { days: [], status_lines: [] } }))
+    await client(fetchMock as unknown as typeof fetch).getPreview('2026-10-12', '2026-10-15')
+    const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/week-plans/2026-10-12/preview')
+    expect(parsed.searchParams.get('day')).toBe('2026-10-15')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
   it('ответ с кодом ошибки становится ApiError с code и details', async () => {
     const fetchMock = vi.fn(async () =>
       json({ error: { code: 'profile_incomplete', message: 'Профиль не заполнен', details: { missing: 'goal' } } }, 409),

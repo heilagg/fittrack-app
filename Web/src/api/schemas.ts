@@ -359,6 +359,22 @@ export const startWorkoutRequestSchema = z.object({
 })
 export type StartWorkoutRequest = z.infer<typeof startWorkoutRequestSchema>
 
+/** Ответ `GET …/alternatives` (§13.4, §20.3): кандидаты с причинами пригодности. */
+export const alternativesSchema = z.array(z.object({ slug: z.string(), reasons: z.array(reasonSchema) }))
+export type ExerciseAlternative = z.infer<typeof alternativesSchema>[number]
+
+/** `purpose` у `/alternatives`: замена в один тап или ветка флага боли (§8.4 п.2). */
+export type AlternativesPurpose = 'user_choice' | 'pain'
+
+/** Тело `POST …/substitute` (§20.3); ответ — `WorkoutExercise` той же строки. */
+export const substituteRequestSchema = z.object({
+  to_slug: z.string(),
+  reason: z.enum(['equipment', 'pain', 'user_choice', 'occupied']),
+  date: z.string(),
+  tz: z.string(),
+})
+export type SubstituteRequest = z.infer<typeof substituteRequestSchema>
+
 // MARK: - Профиль (§20.3)
 
 export const cycleProfileSchema = z.object({

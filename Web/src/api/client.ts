@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import {
+  alternativesSchema,
   cycleCalendarSchema,
   errorEnvelopeSchema,
   finishWorkoutRequestSchema,
@@ -18,10 +19,14 @@ import {
   profileSchema,
   rebuildWeekPlanRequestSchema,
   startWorkoutRequestSchema,
+  substituteRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
+  workoutExerciseSchema,
   workoutSchema,
+  type AlternativesPurpose,
   type CycleCalendar,
+  type ExerciseAlternative,
   type ErrorCode,
   type FinishWorkoutResponse,
   type ExerciseContent,
@@ -32,9 +37,11 @@ import {
   type Profile,
   type RebuildWeekPlanRequest,
   type StartWorkoutRequest,
+  type SubstituteRequest,
   type TodayCard,
   type WeekPlanResponse,
   type Workout,
+  type WorkoutExercise,
 } from './schemas'
 import { currentDay, mondayOf, type DayContext } from './day'
 
@@ -231,6 +238,44 @@ export class ApiClient {
       authorized: true,
       body: finishWorkoutRequestSchema.parse({ date, tz }),
     })
+  }
+
+  /**
+   * Альтернативы замены (§13.4). `purpose = pain` — ветка флага боли (§8.4
+   * п.2): суставы сервер берёт из последнего подхода с флагом, клиент их не
+   * присылает.
+   */
+  getAlternatives(workoutId: string, exerciseId: string, purpose: AlternativesPurpose): Promise<ExerciseAlternative[]> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz, purpose })
+    const path = `/v1/workouts/${encodeURIComponent(workoutId)}/exercises/${encodeURIComponent(exerciseId)}/alternatives`
+    return this.request('GET', `${path}?${query}`, alternativesSchema, { authorized: true })
+  }
+
+  /** Замена упражнения той же строки; повтор с тем же `to_slug` — 200 и то же тело (§20.3). */
+  substitute(
+    workoutId: string,
+    exerciseId: string,
+    toSlug: string,
+    reason: SubstituteRequest['reason'],
+  ): Promise<WorkoutExercise> {
+    const { date, tz } = this.today()
+    const path = `/v1/workouts/${encodeURIComponent(workoutId)}/exercises/${encodeURIComponent(exerciseId)}/substitute`
+    return this.request('POST', path, workoutExerciseSchema, {
+      authorized: true,
+      body: substituteRequestSchema.parse({ to_slug: toSlug, reason, date, tz }),
+    })
+  }
+
+  /**
+   * План недели, срезанный по дате `day` (§20.3): проекция, путь ничего не
+   * пишет. `date`/`tz` — «сегодня» клиента, `day` — день внутри недели.
+   */
+  getPreview(weekStart: string, day: string): Promise<WeekPlanResponse> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz, day })
+    return this.request('GET', `/v1/week-plans/${encodeURIComponent(weekStart)}/preview?${query}`,
+      weekPlanResponseSchema, { authorized: true })
   }
 
   getWorkout(id: string): Promise<Workout> {
