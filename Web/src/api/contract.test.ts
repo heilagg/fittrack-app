@@ -268,7 +268,9 @@ describe('завершение (срез 4)', () => {
   })
 
   it('в ответе без workout схема падает', () => {
-    expect(() => finishWorkoutResponseSchema.parse({ week: {} })).toThrow()
+    // Неделя валидна: падать должно именно из-за отсутствия workout.
+    const { week } = load('response_finish_workout.json') as { week: unknown }
+    expect(() => finishWorkoutResponseSchema.parse({ week })).toThrow()
   })
 
   it('клиент: finishWorkout шлёт POST по пути тренировки с парой date и tz', async () => {
