@@ -568,4 +568,18 @@ final class ContractTests: XCTestCase {
                                    marks: [CalendarDay(dayNumber: 2): [mark]], iso: { "\($0.dayNumber)" })
         XCTAssertEqual(dto.days.map(\.marks), [[], [mark]])
     }
+    func test_cycleCalendar_overdueAndNextPeriodPassThrough() {
+        let next = NextPeriod(expected: CalendarDay(dayNumber: 10), rangeStart: CalendarDay(dayNumber: 8),
+                              rangeEnd: CalendarDay(dayNumber: 12), cycleConfidence: 0.6)
+        let dto = CycleCalendarDTO(CycleCalendar(nextPeriod: next, overdue: true, days: []),
+                                   from: CalendarDay(dayNumber: 1), to: CalendarDay(dayNumber: 2),
+                                   cycle: CycleStateDTO(CycleState(phaseMode: .phases, noPhaseReason: nil,
+                                                                   hasAnchor: true, phase: nil, cycleConfidence: 0.6,
+                                                                   periodization: nil, effectivePhaseAdjustment: nil)),
+                                   marks: [:], iso: { "\($0.dayNumber)" })
+        XCTAssertTrue(dto.overdue)
+        XCTAssertEqual(dto.nextPeriod?.expected, "10")
+        XCTAssertEqual(dto.nextPeriod?.rangeStart, "8")
+        XCTAssertEqual(dto.nextPeriod?.rangeEnd, "12")
+    }
 }
