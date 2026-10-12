@@ -438,7 +438,7 @@ final class ContractTests: XCTestCase {
     /// §20.3: дни — по дате, а не по `day_id`; у каждого дата, тип и название.
     func test_weekDaysAreOrderedByDateAndCarryTheirType() {
         // Идентификаторы нарочно в обратном порядке к датам.
-        let week = [(plannedDay("b", 3, .upper), "2026-10-14"),
+        let week = [(plannedDay("b", 3, .pull), "2026-10-14"),
                     (plannedDay("a", 5, .fullBody), "2026-10-16"),
                     (plannedDay("c", 1, .lower), "2026-10-12")]
         let plan = WeekPlan(days: ["a": outcome("a"), "b": outcome("b", session: true), "c": outcome("c")],
@@ -446,13 +446,13 @@ final class ContractTests: XCTestCase {
         let dto = WeekPlanDTO(plan, week: week.map { (day: $0.0, isoDate: $0.1) })
         XCTAssertEqual(dto.days.map(\.date), ["2026-10-12", "2026-10-14", "2026-10-16"])
         XCTAssertEqual(dto.days.map(\.dayID), ["c", "b", "a"])
-        XCTAssertEqual(dto.days.map(\.sessionKind), ["lower", "upper", "full_body"])
-        XCTAssertEqual(dto.days.map(\.sessionKindName), ["Низ тела", "Верх тела", "Всё тело"])
+        XCTAssertEqual(dto.days.map(\.sessionKind), ["lower", "pull", "full_body"])
+        XCTAssertEqual(dto.days.map(\.sessionKindName), ["Низ тела", "Тяговая", "Всё тело"])
         XCTAssertEqual(dto.days.map(\.kind), ["not_built", "session", "not_built"])
         XCTAssertEqual(dto.days[0].cause?.cause, .done)
         // Сессия несёт тип своего дня, а не соседнего.
-        XCTAssertEqual(dto.days[1].session?.sessionKind, "upper")
-        XCTAssertEqual(dto.days[1].session?.sessionKindName, "Верх тела")
+        XCTAssertEqual(dto.days[1].session?.sessionKind, "pull")
+        XCTAssertEqual(dto.days[1].session?.sessionKindName, "Тяговая")
         XCTAssertNil(dto.days[0].session)
     }
 
