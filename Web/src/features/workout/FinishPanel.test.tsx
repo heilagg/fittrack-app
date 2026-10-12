@@ -100,6 +100,33 @@ const flush = () => act(async () => {})
 const ready = () => waitFor(() => expect(finishButton()).toBeTruthy())
 const finishButton = () => screen.getByRole('button', { name: 'Завершить тренировку' })
 
+describe('положение в тренировке', () => {
+  const second = { ...running.exercises[0]!, id: 'we-2', slug: 'pushup_bw', order_index: 1 }
+  const firstDone = { ...closed.exercises[0]!, target_sets: 1 }
+  const segments = () => [...document.querySelectorAll('.progress > li')].map((li) => li.getAttribute('data-state'))
+
+  it('«Упражнение N из M» и сегменты — по первому открытому упражнению', async () => {
+    mount({ getWorkout: vi.fn(async () => ({ ...running, exercises: [second, firstDone] })) })
+    await ready()
+    expect(screen.getByTestId('exercise-position').textContent).toBe('Упражнение 2 из 2')
+    expect(segments()).toEqual(['done', 'current'])
+  })
+
+  it('всё выполнено: номера нет, все сегменты закрыты', async () => {
+    mount({ getWorkout: vi.fn(async () => ({ ...running, exercises: [firstDone] })) })
+    await ready()
+    expect(screen.getByTestId('exercise-position').textContent).toBe('')
+    expect(segments()).toEqual(['done'])
+  })
+
+  it('завершённая тренировка: верхней строки и полосы нет', async () => {
+    mount({ getWorkout: vi.fn(async () => closed) })
+    await waitFor(() => expect(screen.getByTestId('summary')).toBeTruthy())
+    expect(screen.queryByTestId('exercise-position')).toBeNull()
+    expect(segments()).toEqual([])
+  })
+})
+
 describe('завершение тренировки', () => {
   it('«Завершить» зовёт /finish один раз и показывает сводку со строкой «План обновлён»', async () => {
     const { api } = mount({})

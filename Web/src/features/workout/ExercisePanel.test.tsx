@@ -145,6 +145,19 @@ describe('экран упражнения', () => {
     expect(weight()).toBe('42.5 кг') // ответ сервера согласован с показанным
   })
 
+  it('подход в пути отмечает свою кнопку фидбэка, подтверждённый — снимает отметку', async () => {
+    let resolve!: (r: LogSetResponse) => void
+    const logSet = vi.fn<LogSet>(() => new Promise((r) => (resolve = r)))
+    mount(logSet)
+    const selected = () =>
+      [...document.querySelectorAll('[data-selected="true"]')].map((b) => b.getAttribute('data-feedback'))
+    expect(selected()).toEqual([])
+    tap('hard')
+    expect(selected()).toEqual(['hard'])
+    await act(async () => resolve(nextTree))
+    await waitFor(() => expect(selected()).toEqual([]))
+  })
+
   it('«легко» ниже верха диапазона вес не поднимает (повторы входят предикатом)', async () => {
     const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
     mount(logSet)
