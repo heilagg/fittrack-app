@@ -48,3 +48,9 @@ export function isoWeekday(date: string): number {
   const [y, m, d] = date.split('-').map(Number) as [number, number, number]
   return ((new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7) + 1
 }
+
+/** Семь дат недели с понедельника `weekStart`, `YYYY-MM-DD`. */
+export function weekDates(weekStart: string): string[] {
+  const [y, m, d] = weekStart.split('-').map(Number) as [number, number, number]
+  return Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10))
+}

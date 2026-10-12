@@ -537,3 +537,60 @@ input[type='checkbox'] {
   align-items: center;
   gap: var(--space-xs);
 }
+
+/* MARK: - Календарь недели */
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--space-xs);
+}
+
+.week > li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.week-weekday {
+  color: var(--color-text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  text-transform: capitalize;
+}
+
+.week-day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-day-circle);
+  height: var(--size-day-circle);
+  border: var(--size-border) solid transparent;
+  border-radius: var(--radius-circle);
+  color: var(--color-text-muted);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.week > li[data-status='planned'] .week-day {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+
+.week > li[data-today='true'] .week-day {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* Точка есть у каждого дня, чтобы колонки не прыгали; видна только у выполненного. */
+.week-dot {
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-circle);
+}
+
+.week > li[data-status='done'] .week-dot {
+  background: var(--color-accent);
+}

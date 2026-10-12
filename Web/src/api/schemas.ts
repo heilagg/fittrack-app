@@ -130,11 +130,17 @@ export const prescribedExerciseSchema = z.object({
 })
 export type PrescribedExercise = z.infer<typeof prescribedExerciseSchema>
 
+/** Тип дня — закрытый словарь §3.1; название к нему отдаёт сервер (§7.2). */
+export const sessionKinds = ['full_body', 'upper', 'lower', 'push', 'pull', 'rest', 'stretch'] as const
+export const sessionKindSchema = z.enum(sessionKinds)
+
 export const builtSessionSchema = z.object({
   day_id: z.string(),
   exercises: z.array(prescribedExerciseSchema),
   estimated_seconds: z.number(),
   leading_muscle: z.string().optional(),
+  session_kind: sessionKindSchema,
+  session_kind_name: z.string(),
   reasons: z.array(reasonSchema),
 })
 export type BuiltSession = z.infer<typeof builtSessionSchema>
@@ -171,8 +177,20 @@ export const todayCardSchema = z.object({
 })
 export type TodayCard = z.infer<typeof todayCardSchema>
 
+/**
+ * День недели (§20.3, `WeekDay`): поля дня плюс дата и тип. `day_id`
+ * обязателен — день недели всегда строка `planned_days`. Дни приходят по дате.
+ */
+export const weekDaySchema = dayOutcomeSchema.extend({
+  date: z.string(),
+  session_kind: sessionKindSchema,
+  session_kind_name: z.string(),
+  day_id: z.string(),
+})
+export type WeekDay = z.infer<typeof weekDaySchema>
+
 export const weekPlanResponseSchema = z.object({
-  plan: z.object({ days: z.array(dayOutcomeSchema), status_lines: z.array(reasonSchema) }),
+  plan: z.object({ days: z.array(weekDaySchema), status_lines: z.array(reasonSchema) }),
   notice: reasonSchema.optional(),
 })
 export type WeekPlanResponse = z.infer<typeof weekPlanResponseSchema>
@@ -234,7 +252,7 @@ export type WorkoutExercise = z.infer<typeof workoutExerciseSchema>
 export const workoutSchema = z.object({
   id: z.string(),
   planned_day_id: z.string().optional(),
-  session_kind: z.enum(['full_body', 'upper', 'lower', 'push', 'pull', 'rest', 'stretch']),
+  session_kind: sessionKindSchema,
   accent_muscle: z.string().optional(),
   started_at: z.string(),
   finished_at: z.string().optional(),

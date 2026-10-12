@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { ApiClient, ApiError } from '../../api/client'
-import type { TodayCard } from '../../api/schemas'
+import type { Reason, TodayCard, WeekDay, WeekPlanResponse } from '../../api/schemas'
 import { TodayScreen } from './TodayScreen'
 
 afterEach(cleanup)
@@ -19,6 +19,8 @@ const card: TodayCard = {
     session: {
       day_id: 'day-1',
       estimated_seconds: 2400,
+      session_kind: 'lower',
+      session_kind_name: 'Низ тела',
       reasons: [],
       exercises: [
         {
@@ -44,6 +46,7 @@ function mount(overrides: Partial<ApiClient>) {
   const api = {
     getToday: async () => card,
     getExercises: async () => [],
+    getWeekPlan: async () => null,
     today: () => ({ date: '2026-10-12', tz: 'Europe/Moscow' }),
     ...overrides,
   } as unknown as ApiClient
@@ -182,5 +185,66 @@ describe('неделя не сгенерирована', () => {
     mount({ getToday: (async () => rest) as ApiClient['getToday'] })
     await screen.findByTestId('day-not-built')
     expect(screen.queryByRole('button', { name: 'Собрать неделю' })).toBeNull()
+  })
+})
+
+describe('календарь недели и тип дня', () => {
+  const weekDay = (date: string, extra: Partial<WeekDay> = {}): WeekDay => ({
+    date,
+    day_id: `d-${date}`,
+    session_kind: 'upper',
+    session_kind_name: 'Верх тела',
+    kind: 'session',
+    loses_planned_volume: false,
+    ...extra,
+  })
+  const week = (days: WeekDay[], notice?: Reason): WeekPlanResponse => ({
+    plan: { days, status_lines: [] },
+    ...(notice ? { notice } : {}),
+  })
+  const states = () =>
+    [...document.querySelectorAll('[data-testid="week-calendar"] > li')].map(
+      (li) => `${li.getAttribute('data-status')}${li.getAttribute('data-today') === 'true' ? '*' : ''}`,
+    )
+
+  it('чип — название типа дня, которое отдал сервер', async () => {
+    mount({})
+    expect((await screen.findByTestId('session-kind')).textContent).toBe('Низ тела')
+  })
+
+  it('неделя запрашивается с понедельника даты карточки, дни — по своим датам', async () => {
+    const getWeekPlan = vi.fn(async () =>
+      week([weekDay('2026-10-12'), weekDay('2026-10-14'), weekDay('2026-10-16', {
+        kind: 'not_built',
+        cause: { code: 'done', params: {}, message: 'День выполнен' },
+      })]),
+    )
+    mount({ getToday: async () => ({ ...card, date: '2026-10-14' }), getWeekPlan })
+    await waitFor(() => expect(states()).toEqual(['planned', 'none', 'planned*', 'none', 'done', 'none', 'none']))
+    expect(getWeekPlan).toHaveBeenCalledWith('2026-10-12')
+    expect(screen.getByRole('listitem', { name: /14 октября, сегодня, запланирована тренировка/ })).toBeTruthy()
+    expect(screen.getByRole('listitem', { name: /16 октября, тренировка выполнена/ })).toBeTruthy()
+  })
+
+  it('«План обновлён» из ответа недели показывается', async () => {
+    const notice = { code: 'plan_changed', params: {}, message: 'План обновлён' } as Reason
+    mount({ getWeekPlan: async () => week([weekDay('2026-10-12')], notice) })
+    expect((await screen.findByTestId('week-notice')).textContent).toBe('План обновлён')
+  })
+
+  it('недели нет — семь дат, сегодня залито, тренировок нет; ошибки нет', async () => {
+    mount({ getWeekPlan: async () => null })
+    await waitFor(() => expect(states()).toEqual(['none*', 'none', 'none', 'none', 'none', 'none', 'none']))
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('ошибка недели видна, а карточка дня остаётся', async () => {
+    mount({
+      getWeekPlan: async () => {
+        throw new ApiError(503, 'jwks_unavailable', 'Сервис недоступен, повторите')
+      },
+    })
+    expect((await screen.findByRole('alert')).textContent).toBe('Сервис недоступен, повторите')
+    expect(screen.getByRole('button', { name: 'Начать тренировку' })).toBeTruthy()
   })
 })

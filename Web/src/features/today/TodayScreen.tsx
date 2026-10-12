@@ -13,11 +13,22 @@ import { useNavigate } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
 import { ApiError } from '../../api/client'
 import type { DayOutcome, ExerciseContent } from '../../api/schemas'
+import { mondayOf } from '../../api/day'
 import { useExerciseNames } from '../../content/useExercises'
+import { calendarDays } from '../../today/calendar'
 import { formatDayHeading, formatMinutes } from '../../ui/format'
+import { WeekCalendar } from './WeekCalendar'
 
 export function TodayScreen({ api }: { api: ApiClient }) {
   const today = useQuery({ queryKey: ['today'], queryFn: () => api.getToday() })
+  // Неделя для календаря — от даты карточки, а не от часов браузера: «сегодня»
+  // у карточки и у календаря обязано быть одним днём.
+  const weekStart = today.data ? mondayOf(today.data.date) : null
+  const week = useQuery({
+    queryKey: ['week', weekStart],
+    queryFn: () => api.getWeekPlan(weekStart!),
+    enabled: weekStart !== null,
+  })
   const names = useExerciseNames(api)
   const navigate = useNavigate()
   const [startError, setStartError] = useState<unknown>(null)
@@ -52,7 +63,7 @@ export function TodayScreen({ api }: { api: ApiClient }) {
     setStartError(null)
     try {
       await api.generateWeek()
-      await today.refetch()
+      await Promise.all([today.refetch(), week.refetch()])
     } catch (e) {
       setStartError(e)
     } finally {
@@ -74,6 +85,15 @@ export function TodayScreen({ api }: { api: ApiClient }) {
         </p>
         <h1>Сегодня</h1>
       </header>
+      <WeekCalendar days={calendarDays(mondayOf(card.date), card.date, week.data?.plan.days ?? [])} />
+      {/* Чтение недели сверяет план со снимком (§20.6): «План обновлён» из
+          этого ответа показывается здесь, иначе он потерялся бы молча (§7.1). */}
+      {week.data?.notice && (
+        <p className="notice" data-testid="week-notice">
+          {week.data.notice.message}
+        </p>
+      )}
+      {week.isError && <ErrorBlock error={week.error} />}
       <DayBlock day={card.day} names={names.data} />
       {card.day.kind === 'session' && card.day.day_id !== undefined && (
         <button type="button" className="button-primary" disabled={starting} onClick={() => start(card.day.day_id!)}>
@@ -118,7 +138,9 @@ function DayBlock({ day, names }: { day: DayOutcome; names: Map<string, Exercise
       return (
         <section aria-label="Тренировка" className="card">
           <div className="card-header">
-            <h2 className="chip">Тренировка</h2>
+            <h2 className="chip" data-testid="session-kind">
+              {session.session_kind_name}
+            </h2>
             <span className="caption" data-testid="session-duration">
               {formatMinutes(session.estimated_seconds)}
             </span>
