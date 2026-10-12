@@ -122,8 +122,14 @@ struct Test20mWeekDaysByDate {
         let logger = Live.quietLogger("20m.today")
 
         try await Live.withServer("20m.today") { app in
-            // Один день — сегодняшний: сетка §7.2 даёт ему «всё тело».
-            try await Live.seed(app, user, logger: logger, weekdays: [self.todayISOWeekday])
+            // Три дня со вчерашним и завтрашним, когда они в этой неделе: сетка
+            // §7.2 даёт среднему уровню верх тела / низ тела / всё тело, и у
+            // сегодняшнего тип свой, а не первого или последнего дня недели.
+            let t = self.todayISOWeekday
+            let weekdays = t == 1 ? [1, 2, 3] : t == 7 ? [5, 6, 7] : [t - 1, t, t + 1]
+            let expected: (String, String) = [("upper", "Верх тела"), ("lower", "Низ тела"),
+                                              ("full_body", "Всё тело")][weekdays.firstIndex(of: t)!]
+            try await Live.seed(app, user, logger: logger, weekdays: weekdays)
             try await self.generate(app, as: user)
 
             var card: TodayCardDTO?
@@ -135,8 +141,8 @@ struct Test20mWeekDaysByDate {
                 rawDay = json?["day"] as? [String: Any]
             }
             let session = try #require(card?.day.session)
-            #expect(session.sessionKind == "full_body")
-            #expect(session.sessionKindName == "Всё тело")
+            #expect(session.sessionKind == expected.0)
+            #expect(session.sessionKindName == expected.1)
             #expect(rawDay?["date"] == nil, "TodayCard не меняется: дата — в card.date (§20.3)")
         }
     }
