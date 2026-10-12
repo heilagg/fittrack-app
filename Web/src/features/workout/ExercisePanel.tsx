@@ -25,6 +25,7 @@ import type { ExerciseContent, SetRow, Workout, WorkoutExercise } from '../../ap
 import { currentSets } from '../../workout/progress'
 import { restDuration } from '../../workout/rest'
 import { applyBranch, branchFor, currentStep, type Branch, type Feedback, type Step } from '../../workout/tree'
+import { ExerciseFrames } from './Illustration'
 import { RestTimer } from './RestTimer'
 
 /** Часы за функцией: обработчик событий читает время в момент тапа. */
@@ -183,6 +184,7 @@ export function ExercisePanel({
       <h2 data-testid="current-exercise" className="exercise-title">
         {content?.name ?? exercise.slug}
       </h2>
+      <ExerciseFrames content={content} />
       {content && content.cues.length > 0 && (
         <ul aria-label="Подсказки" className="cues caption">
           {content.cues.map((cue, i) => (

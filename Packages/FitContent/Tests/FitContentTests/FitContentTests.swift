@@ -308,4 +308,57 @@ final class FitContentTests: XCTestCase {
         XCTAssertFalse(library.vectors.vectors.isEmpty,
                        "в бандл не доехал ни один целевой вектор")
     }
+
+    // MARK: - Картинки §6.5
+
+    func test_mappedSlugGetsCatalogKeyUnmappedKeepsItsOwn() throws {
+        try write(hipThrust(slug: "mapped"), to: "exercises/a.json")
+        try write(hipThrust(slug: "unmapped"), to: "exercises/b.json")
+        try write(hipThrust(slug: "close_one"), to: "exercises/c.json")
+        try write("""
+            {"exercises": {"mapped": {"id": "X", "match": "exact"},
+                           "close_one": {"id": "Y", "match": "close", "reversed": true}}}
+            """, to: "illustrations.json")
+        let library = try Content.load(from: root)
+        XCTAssertEqual(library.bySlug["mapped"]?.illustration, "catalog/exact/mapped")
+        XCTAssertEqual(library.bySlug["close_one"]?.illustration, "catalog/close/close_one")
+        XCTAssertEqual(library.bySlug["unmapped"]?.illustration, "unmapped", "ключ из разметки остаётся")
+    }
+
+    func test_noMapFileLeavesKeysAsMarkedUp() throws {
+        try write(hipThrust(slug: "only"), to: "exercises/a.json")
+        XCTAssertEqual(try Content.load(from: root).bySlug["only"]?.illustration, "only")
+    }
+
+    func test_mapSlugMissingFromLibraryFailsLoading() throws {
+        try write(hipThrust(slug: "real"), to: "exercises/a.json")
+        try write(#"{"exercises": {"typo": {"id": "X", "match": "exact"}}}"#, to: "illustrations.json")
+        XCTAssertThrowsError(try Content.load(from: root)) { error in
+            XCTAssertTrue("\(error)".contains("typo"), "\(error)")
+        }
+    }
+
+    func test_matchOutsideVocabularyFailsLoading() throws {
+        try write(hipThrust(slug: "real"), to: "exercises/a.json")
+        try write(#"{"exercises": {"real": {"id": "X", "match": "maybe"}}}"#, to: "illustrations.json")
+        XCTAssertThrowsError(try Content.load(from: root)) { error in
+            XCTAssertTrue("\(error)".contains("illustrations.json"), "\(error)")
+        }
+    }
+
+    func test_reversedDefaultsToFalse() throws {
+        let map = try JSONDecoder().decode(IllustrationMap.self,
+                                           from: Data(#"{"exercises": {"a": {"id": "X", "match": "close"}}}"#.utf8))
+        XCTAssertEqual(map.exercises["a"], IllustrationMap.Entry(id: "X", match: .close, reversed: false))
+    }
+
+    /// Бандл: 64 упражнения с картинкой, 11 на заглушке (§6.5).
+    func test_bundledLibraryHasSixtyFourPicturesAndElevenPlaceholders() throws {
+        let library = try Content.loadBundled()
+        let keys = library.exercises.map(\.illustration)
+        XCTAssertEqual(keys.filter { $0.hasPrefix("catalog/") }.count, 64)
+        XCTAssertEqual(keys.filter { $0.hasPrefix("placeholder/") }.count, 11)
+        XCTAssertEqual(library.bySlug["farmer_carry_dumbbell"]?.illustration, "catalog/close/farmer_carry_dumbbell")
+        XCTAssertEqual(library.bySlug["bird_dog_bw"]?.illustration, "placeholder/full_body/bird_dog_bw")
+    }
 }

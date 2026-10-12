@@ -47,7 +47,7 @@ const names = [
   { slug: 'squat_barbell', name: 'Приседания' },
   { slug: 'lunge_db', name: 'Выпады' },
   { slug: 'hip_thrust_barbell', name: 'Ягодичный мост' },
-].map((n) => ({ ...n, cues: [], common_errors: [], illustration: 'x', default_rest_seconds: 90 }))
+].map((n) => ({ ...n, cues: [], common_errors: [], illustration: n.slug === 'hip_thrust_barbell' ? 'catalog/exact/hip_thrust_barbell' : 'x', default_rest_seconds: 90 }))
 
 const alternatives: ExerciseAlternative[] = [
   {
@@ -101,6 +101,7 @@ describe('флаг боли (§8.4)', () => {
   it('подход уходит сразу: pain_flag, вес и повторы с экрана, без фидбэка', async () => {
     const { logSet } = mount()
     expect(await current()).toHaveTextContent('Приседания')
+    expect(screen.getByTestId('illustration-placeholder')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Меньше повторов' }))
     fireEvent.click(screen.getByTestId('pain-button'))
     await waitFor(() => expect(logSet).toHaveBeenCalledTimes(1))
@@ -119,6 +120,7 @@ describe('флаг боли (§8.4)', () => {
     await waitFor(() => expect(getAlternatives).toHaveBeenCalledWith('w-1', 'we-1', 'pain'))
     expect(await within(panel).findByText('Ягодичный мост')).toBeInTheDocument()
     expect(within(panel).getByText(/Меньше нагрузки на колено/)).toBeInTheDocument()
+    expect(within(panel).getByTestId('thumbnail')).toHaveAttribute('src', '/illustrations/hip_thrust_barbell/start.jpg')
   })
 
   it('выбор замены: reason=pain, новое упражнение с подходом 1 из 3', async () => {
