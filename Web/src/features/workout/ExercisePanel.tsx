@@ -239,6 +239,7 @@ export function ExercisePanel({
         <RestTimer
           key={restEndAt}
           endAt={restEndAt}
+          nextWeightKg={terminated || allDone ? undefined : weight}
           onExtend={(seconds) => setRestEndAt((end) => (end ?? clock.now()) + seconds * 1000)}
           onSkip={() => setRestEndAt(null)}
         />
