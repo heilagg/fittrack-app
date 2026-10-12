@@ -10,6 +10,8 @@ import { describe, expect, it } from 'vitest'
 import type { ZodType } from 'zod'
 import {
   errorEnvelopeSchema,
+  finishWorkoutRequestSchema,
+  finishWorkoutResponseSchema,
   exerciseContentListSchema,
   generateWeekPlanRequestSchema,
   logSetRequestSchema,
@@ -49,6 +51,10 @@ const schemaFor: Record<string, ZodType> = {
   'error_date_skew.json': errorEnvelopeSchema,
   'request_patch_profile.json': patchProfileRequestSchema,
   'request_generate_week_plan.json': generateWeekPlanRequestSchema,
+  'request_finish_workout.json': finishWorkoutRequestSchema,
+  'response_finish_workout.json': finishWorkoutResponseSchema,
+  'response_finish_workout_no_notice.json': finishWorkoutResponseSchema,
+  'response_finish_workout_no_week.json': finishWorkoutResponseSchema,
 }
 
 describe('эталонные JSON границы /v1', () => {
@@ -238,5 +244,50 @@ describe('тела запросов клиента совпадают с эта�
     expect(Object.keys(body).sort()).toEqual(Object.keys(fixture).sort())
     expect(body.week_start).toBe(fixture.week_start)
     expect(body.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('завершение (срез 4)', () => {
+  it('ответ несёт итог тренировки с finished_at и неделю с notice «План обновлён»', () => {
+    const body = finishWorkoutResponseSchema.parse(load('response_finish_workout.json'))
+    expect(body.workout.finished_at).toBeDefined()
+    expect(body.week?.notice?.code).toBe('plan_rebuilt')
+    expect(body.week?.notice?.message).toContain('План обновлён')
+  })
+
+  it('повтор: неделя есть, notice отсутствует', () => {
+    const body = finishWorkoutResponseSchema.parse(load('response_finish_workout_no_notice.json'))
+    expect(body.week).toBeDefined()
+    expect(body.week?.notice).toBeUndefined()
+  })
+
+  it('без недели ключа week нет', () => {
+    const body = finishWorkoutResponseSchema.parse(load('response_finish_workout_no_week.json'))
+    expect(body.week).toBeUndefined()
+    expect('week' in body).toBe(false)
+  })
+
+  it('в ответе без workout схема падает', () => {
+    // Неделя валидна: падать должно именно из-за отсутствия workout.
+    const { week } = load('response_finish_workout.json') as { week: unknown }
+    expect(() => finishWorkoutResponseSchema.parse({ week })).toThrow()
+  })
+
+  it('клиент: finishWorkout шлёт POST по пути тренировки с парой date и tz', async () => {
+    const calls: { url: string; method?: string; body: Record<string, unknown> }[] = []
+    const api = new ApiClient({
+      getToken: async () => 't',
+      fetch: async (url, init) => {
+        calls.push({ url: String(url), method: init?.method, body: JSON.parse(String(init?.body)) })
+        return new Response(JSON.stringify(load('response_finish_workout.json')), { status: 200 })
+      },
+    })
+    const result = await api.finishWorkout('w-1')
+    expect(calls[0]!.url).toBe('/v1/workouts/w-1/finish')
+    expect(calls[0]!.method).toBe('POST')
+    expect(Object.keys(calls[0]!.body).sort()).toEqual(
+      Object.keys(load('request_finish_workout.json') as object).sort(),
+    )
+    expect(result.week?.notice?.code).toBe('plan_rebuilt')
   })
 })

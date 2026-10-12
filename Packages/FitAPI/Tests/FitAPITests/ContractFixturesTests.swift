@@ -221,6 +221,68 @@ final class ContractFixturesTests: XCTestCase {
             ]))
     }
 
+    // MARK: - Завершение (срез 4)
+
+    private func weekPlanDTO() throws -> WeekPlanDTO {
+        var day = try JSONDecoder().decode(DayOutcomeDTO.self, from: Data("""
+            {"day_id":"11111111-1111-4111-8111-111111111111","kind":"session",
+             "loses_planned_volume":false}
+            """.utf8))
+        day.session = session
+        return try JSONDecoder().decode(WeekPlanDTO.self, from: Data(
+            ("{\"days\":[" + String(decoding: try encode(day), as: UTF8.self)
+             + "],\"status_lines\":[]}").utf8))
+    }
+
+    private var finishedWorkout: WorkoutDTO {
+        WorkoutDTO(
+            id: "22222222-2222-4222-8222-222222222222",
+            plannedDayID: "11111111-1111-4111-8111-111111111111",
+            sessionKind: .upper, startedAt: "2026-10-12T09:30:00Z",
+            finishedAt: "2026-10-12T10:15:00Z", readiness: 0.95,
+            exercises: [
+                WorkoutExerciseDTO(
+                    id: "33333333-3333-4333-8333-333333333333",
+                    prescribed: PrescribedExercise(
+                        slug: "pushup_bw", orderIndex: 0, targetSets: 3, targetRepMin: 8,
+                        targetRepMax: 15, targetRIR: 2, prescribedKg: nil, weightReadiness: 0.95),
+                    isCalibration: false,
+                    sets: [
+                        SetDTO(id: "55555555-5555-4555-8555-555555555555",
+                               exerciseSlug: "pushup_bw", setIndex: 1, prescribedReps: 15,
+                               actualReps: 12, feedback: .ok, restSeconds: 90,
+                               completedAt: "2026-10-12T09:36:00Z"),
+                    ]),
+            ])
+    }
+
+    func test_requestFinishWorkout() throws {
+        try check("request_finish_workout.json", FinishWorkoutRequest(
+            day: DayContext(date: "2026-10-12", tz: "Europe/Moscow")))
+    }
+
+    /// Первое завершение: неделя перестроилась, и в ней есть `notice` (§7.1).
+    func test_responseFinishWorkoutWithNotice() throws {
+        try check("response_finish_workout.json", FinishWorkoutResponseDTO(
+            workout: finishedWorkout,
+            week: WeekPlanResponseDTO(
+                plan: try weekPlanDTO(),
+                notice: ReasonDTO(.planRebuilt(cause: .workoutCompleted)))))
+    }
+
+    /// Повтор `/finish` или неделя без перестройки: `week` есть, `notice` нет.
+    func test_responseFinishWorkoutNoNotice() throws {
+        try check("response_finish_workout_no_notice.json", FinishWorkoutResponseDTO(
+            workout: finishedWorkout,
+            week: WeekPlanResponseDTO(plan: try weekPlanDTO(), notice: nil)))
+    }
+
+    /// Недели нет: ключа `week` в теле нет вовсе.
+    func test_responseFinishWorkoutNoWeek() throws {
+        try check("response_finish_workout_no_week.json", FinishWorkoutResponseDTO(
+            workout: finishedWorkout, week: nil))
+    }
+
     // MARK: - Ошибки
 
     func test_errorProfileIncomplete() throws {

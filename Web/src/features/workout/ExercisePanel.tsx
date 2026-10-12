@@ -13,7 +13,7 @@
 // Вес правится только деревом. Ручная правка веса — отдельное решение
 // (шаг «+»/«−» берётся из лестницы инвентаря, которой у клиента нет).
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { ExerciseContent, SetRow, Workout, WorkoutExercise } from '../../api/schemas'
@@ -48,25 +48,36 @@ export function ExercisePanel({
   workoutId,
   exercise,
   content,
+  onBusyChange,
 }: {
   api: ApiClient
   workoutId: string
   exercise: WorkoutExercise
   content: ExerciseContent | undefined
+  /** Подход ушёл или должен уйти, и сервер его ещё не подтвердил. */
+  onBusyChange?: (busy: boolean) => void
 }) {
   const queryClient = useQueryClient()
   const tree = exercise.decision_tree
   const [reps, setReps] = useState(exercise.target_rep_max)
-  const [pending, setPending] = useState<Pending | null>(null)
+  const [sent, setSent] = useState<Pending | null>(null)
   const [failure, setFailure] = useState<unknown>(null)
   const [sending, setSending] = useState(false)
   const [restEndAt, setRestEndAt] = useState<number | null>(null)
 
+  // Подход «в пути» — пока его нет среди подтверждённых. Сбрасывать его
+  // сразу после ответа нельзя: кеш react-query оповещает подписчиков позже, и
+  // вес на мгновение откатывался бы к прежнему дереву.
+  const pending = sent && !exercise.sets.some((s) => s.id === sent.body.id) ? sent : null
   const confirmed = exercise.sets.length
   const inFlight = pending ? 1 : 0
   const allDone = confirmed + inFlight >= exercise.target_sets
   const base: Step = tree ? currentStep(tree) : { kind: 'ask-server' }
   const view: Step = pending ? pending.next : base
+  useEffect(() => {
+    onBusyChange?.(pending !== null)
+    return () => onBusyChange?.(false)
+  }, [pending, onBusyChange])
   const terminated = view.kind === 'node' && view.terminates
 
   async function send(body: Pending['body']) {
@@ -100,7 +111,6 @@ export function ExercisePanel({
           ),
         },
       )
-      setPending(null)
       setReps(exercise.target_rep_max)
     } catch (e) {
       setFailure(e)
@@ -124,7 +134,7 @@ export function ExercisePanel({
       skipped: false,
     }
     // Мгновенно: следующий вес — из дерева, до ответа сервера.
-    setPending({ body, next: applyBranch(tree, base.nodeId, branch) })
+    setSent({ body, next: applyBranch(tree, base.nodeId, branch) })
     const rest = restDuration(content?.default_rest_seconds ?? 90, exercise.weight_readiness, feedback)
     setRestEndAt(clock.now() + rest * 1000)
     void send(body)

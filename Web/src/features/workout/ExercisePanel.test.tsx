@@ -308,6 +308,9 @@ describe('таймер отдыха после подхода', () => {
     tap('ok')
     await flush()
     expect(screen.getByTestId('rest-clock')).toBeTruthy()
-    expect((document.querySelector('[data-feedback="ok"]') as HTMLButtonElement).disabled).toBe(false)
+    // Подтверждение доходит до панели через кеш, а он оповещает позже ответа.
+    await waitFor(() =>
+      expect((document.querySelector('[data-feedback="ok"]') as HTMLButtonElement).disabled).toBe(false),
+    )
   })
 })
