@@ -1,6 +1,6 @@
 {
   "slug": "lunge_lateral_bw",
-  "name": "Боковой выпад с собственным весом",
+  "name": "Боковой выпад",
   "pattern": "lunge",
   "muscle_contributions": {
     "adductors": 0.35,
