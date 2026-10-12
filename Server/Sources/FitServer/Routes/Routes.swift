@@ -2,8 +2,9 @@
 //
 //  ── Что смонтировано ───────────────────────────────────────────────────────
 //
-//  Смонтированы все ШЕСТНАДЦАТЬ путей §20.3: два контентных, два профильных,
-//  пять недельных (включая `/preview`), `/today` и шесть тренировочных
+//  Смонтированы все СЕМНАДЦАТЬ путей §20.3: два контентных, два профильных,
+//  пять недельных (включая `/preview`), `/today`, календарь цикла
+//  (`/cycle/calendar`, §11.6) и шесть тренировочных
 //  (`POST /v1/workouts`, `GET /v1/workouts/{id}`, `…/sets`, `…/alternatives`,
 //  `/finish`, `…/substitute`). Число считается по таблице «Тела успешных
 //  ответов» §20.3, где строка на путь; раньше здесь и в doc-комментарии модуля
@@ -47,6 +48,7 @@ public enum Routes {
         ContentRoutes.register(on: v1, store: content)
         ProfileRoutes.register(on: v1, database: database)
         TodayRoutes.register(on: v1, database: database, library: library)
+        CycleRoutes.register(on: v1, database: database)
         WeekPlanRoutes.register(on: v1, database: database, library: library)
         WorkoutRoutes.register(on: v1, database: database, library: library)
     }
