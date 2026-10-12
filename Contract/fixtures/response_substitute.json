@@ -1,0 +1,31 @@
+{
+  "id" : "33333333-3333-4333-8333-333333333333",
+  "is_calibration" : false,
+  "order_index" : 0,
+  "prescribed_kg" : 50,
+  "sets" : [
+    {
+      "actual_kg" : 40,
+      "actual_reps" : 6,
+      "completed_at" : "2026-10-12T09:40:00Z",
+      "exercise_slug" : "squat_barbell",
+      "id" : "77777777-7777-4777-8777-777777777777",
+      "pain_flag" : true,
+      "pain_joints" : [
+        "knee"
+      ],
+      "prescribed_kg" : 40,
+      "prescribed_reps" : 10,
+      "set_index" : 1,
+      "skipped" : false
+    }
+  ],
+  "slug" : "hip_thrust_barbell",
+  "substituted_from" : "squat_barbell",
+  "substitution_reason" : "pain",
+  "target_rep_max" : 12,
+  "target_rep_min" : 8,
+  "target_rir" : 2,
+  "target_sets" : 3,
+  "weight_readiness" : 1
+}

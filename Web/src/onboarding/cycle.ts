@@ -66,3 +66,41 @@ export function cycleWrite(a: CycleAnswers): CycleWrite {
     }
   }
 }
+
+/**
+ * Обратное отображение: какие ответы шага 9 дают сохранённый профиль — чтобы
+ * правка цикла из Профиля начиналась с текущих ответов (срез 6). Дата начала
+ * не восстанавливается: события правятся в календаре (§11.6).
+ */
+export function cycleAnswersOf(profile: {
+  cycle_tracking: string
+  cycle?: {
+    phase_mode: string
+    no_phase_reason?: string | undefined
+    typical_cycle_length_days?: number | undefined
+    typical_period_length_days?: number | undefined
+    declared_regularity?: string | undefined
+  } | undefined
+}): Partial<CycleAnswers> {
+  const cycle = profile.cycle
+  const reason = cycle?.no_phase_reason
+  if (profile.cycle_tracking === 'off') {
+    if (reason === 'declined') return { tracking: 'not_now' }
+    if (reason === 'user_choice') return { tracking: 'no' }
+    return {}
+  }
+  if (reason === 'contraception') return { tracking: 'yes', contraception: 'yes' }
+  if (reason === 'declined') return { tracking: 'yes', contraception: 'declined' }
+  if (cycle?.phase_mode === 'phases' || reason === 'low_confidence') {
+    return {
+      tracking: 'yes',
+      contraception: 'no',
+      ...(cycle?.typical_cycle_length_days !== undefined ? { cycleLength: cycle.typical_cycle_length_days } : {}),
+      ...(cycle?.typical_period_length_days !== undefined ? { periodLength: cycle.typical_period_length_days } : {}),
+      ...(cycle?.declared_regularity === 'regular' || cycle?.declared_regularity === 'variable' || cycle?.declared_regularity === 'irregular'
+        ? { regularity: cycle.declared_regularity }
+        : {}),
+    }
+  }
+  return {}
+}

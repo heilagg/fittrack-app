@@ -12,11 +12,15 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
 import { ApiError } from '../../api/client'
-import type { DayOutcome, ExerciseContent } from '../../api/schemas'
+import type { DayOutcome, ExerciseContent, WeekDay } from '../../api/schemas'
 import { mondayOf } from '../../api/day'
 import { useExerciseNames } from '../../content/useExercises'
 import { calendarDays } from '../../today/calendar'
 import { formatDayHeading, formatMinutes } from '../../ui/format'
+import { cycleVisibility } from '../../cycle/visibility'
+import { OverdueQuestion } from '../cycle/OverdueQuestion'
+import { PhaseCard } from '../cycle/PhaseCard'
+import { CheckinCard } from './CheckinCard'
 import { WeekCalendar } from './WeekCalendar'
 
 export function TodayScreen({ api }: { api: ApiClient }) {
@@ -30,8 +34,26 @@ export function TodayScreen({ api }: { api: ApiClient }) {
     enabled: weekStart !== null,
   })
   const names = useExerciseNames(api)
+  // Фаза сегодня и «Месячные уже начались?» — только там, где виден календарь
+  // цикла (§11.6, §19.2 п.27). Профиль уже прочитан `HomeGate` под тем же ключом.
+  const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.getProfileIfStarted() })
+  const cycleShown = profile.data !== undefined && cycleVisibility(profile.data).kind === 'calendar'
+  const cycle = useQuery({
+    queryKey: ['cycle-calendar', today.data?.date, today.data?.date],
+    queryFn: () => api.getCycleCalendar(today.data!.date, today.data!.date),
+    enabled: cycleShown && today.data !== undefined,
+  })
   const navigate = useNavigate()
   const [startError, setStartError] = useState<unknown>(null)
+  // Тап по дню недели (срез 6): чужой день — его состав из `/preview`; сегодня
+  // или ничего — карточка дня.
+  const [picked, setPicked] = useState<string | null>(null)
+  const previewDay = picked !== null && today.data && picked !== today.data.date ? picked : null
+  const preview = useQuery({
+    queryKey: ['preview', weekStart, previewDay],
+    queryFn: () => api.getPreview(weekStart!, previewDay!),
+    enabled: previewDay !== null && weekStart !== null,
+  })
   const [starting, setStarting] = useState(false)
 
   // «Начать» (SPEC §20.5): сервер сам решает, привязан ли аккаунт, — правило не
@@ -85,7 +107,11 @@ export function TodayScreen({ api }: { api: ApiClient }) {
         </p>
         <h1>Сегодня</h1>
       </header>
-      <WeekCalendar days={calendarDays(mondayOf(card.date), card.date, week.data?.plan.days ?? [])} />
+      <WeekCalendar
+        days={calendarDays(mondayOf(card.date), card.date, week.data?.plan.days ?? [])}
+        selected={previewDay ?? undefined}
+        onSelect={setPicked}
+      />
       {/* Чтение недели сверяет план со снимком (§20.6): «План обновлён» из
           этого ответа показывается здесь, иначе он потерялся бы молча (§7.1). */}
       {week.data?.notice && (
@@ -94,8 +120,25 @@ export function TodayScreen({ api }: { api: ApiClient }) {
         </p>
       )}
       {week.isError && <ErrorBlock error={week.error} />}
-      <DayBlock day={card.day} names={names.data} />
-      {card.day.kind === 'session' && card.day.day_id !== undefined && (
+      {previewDay !== null && (
+        <DayPreview
+          date={previewDay}
+          loading={preview.isPending}
+          error={preview.isError ? preview.error : null}
+          day={preview.data?.plan.days.find((d) => d.date === previewDay)}
+          names={names.data}
+          onBack={() => setPicked(null)}
+        />
+      )}
+      {previewDay === null && <CheckinCard date={card.date} />}
+      {previewDay === null && cycleShown && cycle.data && (
+        <>
+          <OverdueQuestion api={api} calendar={cycle.data} today={card.date} />
+          <PhaseCard calendar={cycle.data} today={card.date} />
+        </>
+      )}
+      {previewDay === null && <DayBlock day={card.day} names={names.data} />}
+      {previewDay === null && card.day.kind === 'session' && card.day.day_id !== undefined && (
         <button type="button" className="button-primary" disabled={starting} onClick={() => start(card.day.day_id!)}>
           Начать тренировку
         </button>
@@ -103,7 +146,8 @@ export function TodayScreen({ api }: { api: ApiClient }) {
       {/* День уже начат: `POST /v1/workouts` идемпотентен по дню (§20.3) и отдаёт
           ту же тренировку, так что «продолжить» — тот же вызов, без отдельного
           пути «дай тренировку по дню», которого в §20.3 нет. */}
-      {card.day.kind === 'not_built' &&
+      {previewDay === null &&
+        card.day.kind === 'not_built' &&
         card.day.cause?.code === 'started' &&
         card.day.day_id !== undefined && (
           <button type="button" className="button-primary" disabled={starting} onClick={() => start(card.day.day_id!)}>
@@ -113,7 +157,7 @@ export function TodayScreen({ api }: { api: ApiClient }) {
       {/* Недели нет (ключ `cause` отсутствует): онбординг, прерванный после
           инвентаря, оставляет профиль полным, а неделю генерирует его
           последний экран. Явная кнопка вместо тихой генерации на чтении. */}
-      {card.day.kind === 'not_built' && card.day.cause === undefined && (
+      {previewDay === null && card.day.kind === 'not_built' && card.day.cause === undefined && (
         <button type="button" className="button-primary" disabled={starting} onClick={() => void buildWeek()}>
           Собрать неделю
         </button>
@@ -127,6 +171,40 @@ export function TodayScreen({ api }: { api: ApiClient }) {
         </ul>
       )}
     </main>
+  )
+}
+
+/**
+ * Состав другого дня недели (срез 6): проекция `/preview` на дату (§20.3),
+ * ничего не пишет. Правка дня (`PATCH …/days`) в срез не входит.
+ */
+function DayPreview({
+  date,
+  loading,
+  error,
+  day,
+  names,
+  onBack,
+}: {
+  date: string
+  loading: boolean
+  error: unknown
+  day: WeekDay | undefined
+  names: Map<string, ExerciseContent> | undefined
+  onBack: () => void
+}) {
+  return (
+    <section aria-label="День недели" data-testid="day-preview" data-date={date}>
+      <p className="eyebrow">{formatDayHeading(date)}</p>
+      {loading && <p role="status">Загрузка…</p>}
+      {error !== null && <ErrorBlock error={error} />}
+      {!loading && error === null && (day ? <DayBlock day={day} names={names} /> : (
+        <p className="card" data-testid="preview-rest">Тренировки в этот день нет</p>
+      ))}
+      <button type="button" className="button-text" onClick={onBack}>
+        К сегодняшнему дню
+      </button>
+    </section>
   )
 }
 

@@ -84,6 +84,84 @@ describe('ApiClient', () => {
     })
   })
 
+  it('POST …/rebuild: понедельник той же даты, причина cycle_event_added, date и tz в теле', async () => {
+    const fetchMock = vi.fn(async () => json({ plan: { days: [], status_lines: [] } }))
+    const c = client(fetchMock as unknown as typeof fetch, 'jwt', new Date('2026-10-14T09:00:00Z'))
+    await c.rebuildWeek('cycle_event_added')
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/v1/week-plans/2026-10-12/rebuild')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body)) as { cause: string; date: string; tz: string }
+    expect(body.cause).toBe('cycle_event_added')
+    expect(body.date).toBe('2026-10-14')
+    expect(body.tz).toBeTruthy()
+  })
+
+  it('POST …/rebuild: недели нет — null, прочая ошибка не глотается', async () => {
+    const notFound = vi.fn(async () => json({ error: { code: 'not_found', message: 'Нет', details: {} } }, 404))
+    expect(await client(notFound as unknown as typeof fetch).rebuildWeek('cycle_event_added')).toBeNull()
+    const skew = vi.fn(async () => json({ error: { code: 'date_skew', message: 'Часы', details: {} } }, 422))
+    await expect(client(skew as unknown as typeof fetch).rebuildWeek('cycle_event_added')).rejects.toMatchObject({
+      code: 'date_skew',
+    })
+  })
+
+  it('GET /v1/cycle/calendar: from, to, date и tz в query, токен', async () => {
+    const body = {
+      from: '2026-10-01', to: '2026-10-31',
+      cycle: { phase_mode: 'phases', has_anchor: false },
+      overdue: false, days: [], phases: [],
+    }
+    const fetchMock = vi.fn(async () => json(body))
+    expect(await client(fetchMock as unknown as typeof fetch).getCycleCalendar('2026-10-01', '2026-10-31')).toEqual(body)
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/cycle/calendar')
+    expect(parsed.searchParams.get('from')).toBe('2026-10-01')
+    expect(parsed.searchParams.get('to')).toBe('2026-10-31')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(parsed.searchParams.get('tz')).toBeTruthy()
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer jwt')
+  })
+
+  it('GET …/alternatives: purpose, date и tz в query, экранированные id в пути', async () => {
+    const fetchMock = vi.fn(async () => json([]))
+    await client(fetchMock as unknown as typeof fetch).getAlternatives('w/1', 'e 2', 'pain')
+    const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/workouts/w%2F1/exercises/e%202/alternatives')
+    expect(parsed.searchParams.get('purpose')).toBe('pain')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(parsed.searchParams.get('tz')).toBeTruthy()
+  })
+
+  it('POST …/substitute: to_slug, reason, date и tz в теле', async () => {
+    const exercise = {
+      id: 'e1', slug: 'hip_thrust_barbell', order_index: 0, target_sets: 3, target_rep_min: 8,
+      target_rep_max: 12, target_rir: 2, weight_readiness: 1, is_calibration: false, sets: [],
+    }
+    const fetchMock = vi.fn(async () => json(exercise))
+    expect(await client(fetchMock as unknown as typeof fetch).substitute('w1', 'e1', 'hip_thrust_barbell', 'pain')).toEqual(exercise)
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/v1/workouts/w1/exercises/e1/substitute')
+    expect(init.method).toBe('POST')
+    const body = JSON.parse(String(init.body)) as Record<string, string>
+    expect(body.to_slug).toBe('hip_thrust_barbell')
+    expect(body.reason).toBe('pain')
+    expect(body.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(body.tz).toBeTruthy()
+  })
+
+  it('GET …/preview: day отдельно от date и tz', async () => {
+    const fetchMock = vi.fn(async () => json({ plan: { days: [], status_lines: [] } }))
+    await client(fetchMock as unknown as typeof fetch).getPreview('2026-10-12', '2026-10-15')
+    const [url] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    const parsed = new URL(url, 'http://x')
+    expect(parsed.pathname).toBe('/v1/week-plans/2026-10-12/preview')
+    expect(parsed.searchParams.get('day')).toBe('2026-10-15')
+    expect(parsed.searchParams.get('date')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
   it('ответ с кодом ошибки становится ApiError с code и details', async () => {
     const fetchMock = vi.fn(async () =>
       json({ error: { code: 'profile_incomplete', message: 'Профиль не заполнен', details: { missing: 'goal' } } }, 409),

@@ -6,6 +6,11 @@ import { ApiClient, ApiError } from '../../api/client'
 import type { Reason, TodayCard, WeekDay, WeekPlanResponse } from '../../api/schemas'
 import { TodayScreen } from './TodayScreen'
 
+// «Сегодня» тянет за собой запись событий цикла (`direct/cycle`), а с ней
+// supabase-js, который без переменных среды теста не создаётся. Тесту экрана
+// прямые записи не нужны.
+vi.mock('../../auth/supabase', () => ({ currentUserId: async () => 'user-1' }))
+
 afterEach(cleanup)
 
 const card: TodayCard = {
@@ -224,8 +229,8 @@ describe('календарь недели и тип дня', () => {
     mount({ getToday: async () => ({ ...card, date: '2026-10-21' }), getWeekPlan })
     await waitFor(() => expect(states()).toEqual(['planned', 'none', 'planned*', 'none', 'done', 'none', 'none']))
     expect(getWeekPlan).toHaveBeenCalledWith('2026-10-19')
-    expect(screen.getByRole('listitem', { name: /21 октября, сегодня, запланирована тренировка/ })).toBeTruthy()
-    expect(screen.getByRole('listitem', { name: /23 октября, тренировка выполнена/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /21 октября, сегодня, запланирована тренировка/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /23 октября, тренировка выполнена/ })).toBeTruthy()
   })
 
   it('«План обновлён» из ответа недели показывается', async () => {
@@ -250,3 +255,95 @@ describe('календарь недели и тип дня', () => {
     expect(screen.getByRole('button', { name: 'Начать тренировку' })).toBeTruthy()
   })
 })
+
+describe('фаза цикла на «Сегодня»', () => {
+  const calendar = {
+    from: '2026-10-12',
+    to: '2026-10-12',
+    cycle: { phase_mode: 'phases', has_anchor: true, phase: 'follicular', cycle_confidence: 1 },
+    overdue: false,
+    days: [{ date: '2026-10-12', marks: [], phase: 'follicular', cycle_confidence: 1, ovulation_estimate: false }],
+    phases: [{ phase: 'follicular', name: 'После месячных', feeling: 'Сил больше', why: 'Эстроген', note: 'Общая' }],
+  }
+  const profile = (cycle: object, tracking = 'manual') => ({
+    sex_at_birth: 'female', session_minutes: 60, cycle_tracking: tracking, is_complete: true, cycle,
+  })
+
+  it('режим фаз — карточка фазы с текстом сервера, окно — один сегодняшний день', async () => {
+    const getCycleCalendar = vi.fn(async () => calendar)
+    mount({
+      getProfileIfStarted: (async () => profile({ phase_mode: 'phases' })) as unknown as ApiClient['getProfileIfStarted'],
+      getCycleCalendar: getCycleCalendar as unknown as ApiClient['getCycleCalendar'],
+    })
+    expect((await screen.findByTestId('phase-feeling')).textContent).toBe('Сил больше')
+    expect(getCycleCalendar).toHaveBeenCalledWith('2026-10-12', '2026-10-12')
+  })
+
+  it('цикл выключен — календарь не запрашивается, карточки нет', async () => {
+    const getCycleCalendar = vi.fn(async () => calendar)
+    mount({
+      getProfileIfStarted: (async () =>
+        profile({ phase_mode: 'no_phases', no_phase_reason: 'contraception' })) as unknown as ApiClient['getProfileIfStarted'],
+      getCycleCalendar: getCycleCalendar as unknown as ApiClient['getCycleCalendar'],
+    })
+    await screen.findByTestId('session-kind')
+    expect(screen.queryByTestId('phase-card')).toBeNull()
+    expect(getCycleCalendar).not.toHaveBeenCalled()
+  })
+})
+
+describe('тап по дню недели (срез 6)', () => {
+  const week: WeekPlanResponse = {
+    plan: {
+      days: [
+        { date: '2026-10-12', session_kind: 'lower', session_kind_name: 'Низ тела', day_id: 'day-1', kind: 'session', loses_planned_volume: false },
+        { date: '2026-10-14', session_kind: 'upper', session_kind_name: 'Верх тела', day_id: 'day-2', kind: 'session', loses_planned_volume: false },
+      ],
+      status_lines: [],
+    },
+  }
+  const preview: WeekPlanResponse = {
+    plan: {
+      days: [{
+        ...week.plan.days[1]!,
+        session: { ...card.day.session!, day_id: 'day-2', session_kind: 'upper', session_kind_name: 'Верх тела' },
+      }],
+      status_lines: [],
+    },
+  }
+
+  it('чужой день — состав из /preview с датой дня; «К сегодняшнему дню» возвращает карточку', async () => {
+    const getPreview = vi.fn(async () => preview)
+    mount({
+      getWeekPlan: (async () => week) as unknown as ApiClient['getWeekPlan'],
+      getPreview: getPreview as unknown as ApiClient['getPreview'],
+    })
+    fireEvent.click(await screen.findByRole('button', { name: /14 октября/ }))
+    expect((await screen.findByTestId('day-preview')).getAttribute('data-date')).toBe('2026-10-14')
+    await waitFor(() => expect(getPreview).toHaveBeenCalledWith('2026-10-12', '2026-10-14'))
+    expect((await screen.findByTestId('session-kind')).textContent).toBe('Верх тела')
+    expect(screen.queryByRole('button', { name: 'Начать тренировку' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'К сегодняшнему дню' }))
+    expect((await screen.findByTestId('session-kind')).textContent).toBe('Низ тела')
+    expect(screen.getByRole('button', { name: 'Начать тренировку' })).toBeTruthy()
+  })
+
+  it('день без тренировки — так и сказано', async () => {
+    mount({
+      getWeekPlan: (async () => week) as unknown as ApiClient['getWeekPlan'],
+      getPreview: (async () => ({ plan: { days: [], status_lines: [] } })) as unknown as ApiClient['getPreview'],
+    })
+    fireEvent.click(await screen.findByRole('button', { name: /13 октября/ }))
+    expect(await screen.findByTestId('preview-rest')).toBeTruthy()
+  })
+
+  it('тап по сегодняшнему дню /preview не зовёт', async () => {
+    const getPreview = vi.fn(async () => preview)
+    mount({ getPreview: getPreview as unknown as ApiClient['getPreview'] })
+    fireEvent.click(await screen.findByRole('button', { name: /12 октября/ }))
+    await screen.findByTestId('session-kind')
+    expect(getPreview).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('day-preview')).toBeNull()
+  })
+})
+

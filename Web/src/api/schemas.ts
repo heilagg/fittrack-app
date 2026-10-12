@@ -197,6 +197,7 @@ export const cycleCalendarDaySchema = z.object({
   cycle_confidence: z.number().optional(),
   ovulation_estimate: z.boolean(),
 })
+export type CycleCalendarDay = z.infer<typeof cycleCalendarDaySchema>
 
 export const cycleCalendarSchema = z.object({
   from: z.string(),
@@ -358,6 +359,22 @@ export const startWorkoutRequestSchema = z.object({
 })
 export type StartWorkoutRequest = z.infer<typeof startWorkoutRequestSchema>
 
+/** Ответ `GET …/alternatives` (§13.4, §20.3): кандидаты с причинами пригодности. */
+export const alternativesSchema = z.array(z.object({ slug: z.string(), reasons: z.array(reasonSchema) }))
+export type ExerciseAlternative = z.infer<typeof alternativesSchema>[number]
+
+/** `purpose` у `/alternatives`: замена в один тап или ветка флага боли (§8.4 п.2). */
+export type AlternativesPurpose = 'user_choice' | 'pain'
+
+/** Тело `POST …/substitute` (§20.3); ответ — `WorkoutExercise` той же строки. */
+export const substituteRequestSchema = z.object({
+  to_slug: z.string(),
+  reason: z.enum(['equipment', 'pain', 'user_choice', 'occupied']),
+  date: z.string(),
+  tz: z.string(),
+})
+export type SubstituteRequest = z.infer<typeof substituteRequestSchema>
+
 // MARK: - Профиль (§20.3)
 
 export const cycleProfileSchema = z.object({
@@ -460,3 +477,15 @@ export const generateWeekPlanRequestSchema = z.object({
   tz: z.string(),
 })
 export type GenerateWeekPlanRequest = z.infer<typeof generateWeekPlanRequestSchema>
+
+/**
+ * Тело `POST /v1/week-plans/{week_start}/rebuild` (§20.3). Причин две: клиент
+ * называет только то, что сервер не наблюдает сам, — прямые записи
+ * инвентаря и событий цикла (§20.6).
+ */
+export const rebuildWeekPlanRequestSchema = z.object({
+  cause: z.enum(['equipment_changed', 'cycle_event_added']),
+  date: z.string(),
+  tz: z.string(),
+})
+export type RebuildWeekPlanRequest = z.infer<typeof rebuildWeekPlanRequestSchema>

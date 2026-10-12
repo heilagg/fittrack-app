@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ZodType } from 'zod'
 import {
+  alternativesSchema,
   cycleCalendarSchema,
   errorEnvelopeSchema,
   finishWorkoutRequestSchema,
@@ -19,9 +20,12 @@ import {
   logSetResponseSchema,
   patchProfileRequestSchema,
   profileSchema,
+  rebuildWeekPlanRequestSchema,
   startWorkoutRequestSchema,
+  substituteRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
+  workoutExerciseSchema,
   workoutSchema,
 } from './schemas'
 import { ApiClient } from './client'
@@ -64,6 +68,11 @@ const schemaFor: Record<string, ZodType> = {
   'response_finish_workout_no_week.json': finishWorkoutResponseSchema,
   'cycle_calendar.json': cycleCalendarSchema,
   'cycle_calendar_no_phases.json': cycleCalendarSchema,
+  'request_rebuild_cycle_event.json': rebuildWeekPlanRequestSchema,
+  'request_log_set_pain.json': logSetRequestSchema,
+  'response_alternatives.json': alternativesSchema,
+  'request_substitute_pain.json': substituteRequestSchema,
+  'response_substitute.json': workoutExerciseSchema,
 }
 
 describe('эталонные JSON границы /v1', () => {

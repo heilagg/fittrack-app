@@ -6,6 +6,8 @@
 
 import { z } from 'zod'
 import {
+  alternativesSchema,
+  cycleCalendarSchema,
   errorEnvelopeSchema,
   finishWorkoutRequestSchema,
   finishWorkoutResponseSchema,
@@ -15,10 +17,16 @@ import {
   logSetResponseSchema,
   patchProfileRequestSchema,
   profileSchema,
+  rebuildWeekPlanRequestSchema,
   startWorkoutRequestSchema,
+  substituteRequestSchema,
   todayCardSchema,
   weekPlanResponseSchema,
+  workoutExerciseSchema,
   workoutSchema,
+  type AlternativesPurpose,
+  type CycleCalendar,
+  type ExerciseAlternative,
   type ErrorCode,
   type FinishWorkoutResponse,
   type ExerciseContent,
@@ -27,10 +35,13 @@ import {
   type LogSetResponse,
   type PatchProfileRequest,
   type Profile,
+  type RebuildWeekPlanRequest,
   type StartWorkoutRequest,
+  type SubstituteRequest,
   type TodayCard,
   type WeekPlanResponse,
   type Workout,
+  type WorkoutExercise,
 } from './schemas'
 import { currentDay, mondayOf, type DayContext } from './day'
 
@@ -143,6 +154,32 @@ export class ApiClient {
     }
   }
 
+  /**
+   * Пересборка текущей недели после прямой записи (§20.3, §20.6). `notice` в
+   * ответе — «План обновлён» (§7.1), его обязаны показать. Недели ещё нет
+   * (`not_found`) — пересобирать нечего, `null`.
+   */
+  async rebuildWeek(cause: RebuildWeekPlanRequest['cause']): Promise<WeekPlanResponse | null> {
+    const { date, tz } = this.today()
+    const path = `/v1/week-plans/${encodeURIComponent(mondayOf(date))}/rebuild`
+    try {
+      return await this.request('POST', path, weekPlanResponseSchema, {
+        authorized: true,
+        body: rebuildWeekPlanRequestSchema.parse({ cause, date, tz }),
+      })
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'not_found') return null
+      throw e
+    }
+  }
+
+  /** Календарь цикла за `from…to` включительно, не больше 93 дней (§11.6, §20.3). */
+  getCycleCalendar(from: string, to: string): Promise<CycleCalendar> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz, from, to })
+    return this.request('GET', `/v1/cycle/calendar?${query}`, cycleCalendarSchema, { authorized: true })
+  }
+
   /** Идемпотентна по неделе: те же параметры — 200 и та же неделя. */
   generateWeek(weekStart?: string): Promise<WeekPlanResponse> {
     const { date, tz } = this.today()
@@ -201,6 +238,44 @@ export class ApiClient {
       authorized: true,
       body: finishWorkoutRequestSchema.parse({ date, tz }),
     })
+  }
+
+  /**
+   * Альтернативы замены (§13.4). `purpose = pain` — ветка флага боли (§8.4
+   * п.2): суставы сервер берёт из последнего подхода с флагом, клиент их не
+   * присылает.
+   */
+  getAlternatives(workoutId: string, exerciseId: string, purpose: AlternativesPurpose): Promise<ExerciseAlternative[]> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz, purpose })
+    const path = `/v1/workouts/${encodeURIComponent(workoutId)}/exercises/${encodeURIComponent(exerciseId)}/alternatives`
+    return this.request('GET', `${path}?${query}`, alternativesSchema, { authorized: true })
+  }
+
+  /** Замена упражнения той же строки; повтор с тем же `to_slug` — 200 и то же тело (§20.3). */
+  substitute(
+    workoutId: string,
+    exerciseId: string,
+    toSlug: string,
+    reason: SubstituteRequest['reason'],
+  ): Promise<WorkoutExercise> {
+    const { date, tz } = this.today()
+    const path = `/v1/workouts/${encodeURIComponent(workoutId)}/exercises/${encodeURIComponent(exerciseId)}/substitute`
+    return this.request('POST', path, workoutExerciseSchema, {
+      authorized: true,
+      body: substituteRequestSchema.parse({ to_slug: toSlug, reason, date, tz }),
+    })
+  }
+
+  /**
+   * План недели, срезанный по дате `day` (§20.3): проекция, путь ничего не
+   * пишет. `date`/`tz` — «сегодня» клиента, `day` — день внутри недели.
+   */
+  getPreview(weekStart: string, day: string): Promise<WeekPlanResponse> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz, day })
+    return this.request('GET', `/v1/week-plans/${encodeURIComponent(weekStart)}/preview?${query}`,
+      weekPlanResponseSchema, { authorized: true })
   }
 
   getWorkout(id: string): Promise<Workout> {

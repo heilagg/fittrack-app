@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { workoutSchema, type WorkoutExercise } from '../api/schemas'
-import { isExerciseOpen, progressSegments } from './progress'
+import { currentSets, isExerciseOpen, progressSegments, stoppedByPain } from './progress'
 
 const fixture = workoutSchema.parse(
   JSON.parse(readFileSync(join(__dirname, '../../../Contract/fixtures/workout_in_progress.json'), 'utf-8')),
@@ -33,6 +33,30 @@ describe('isExerciseOpen', () => {
 
   it('без дерева решает только число подходов', () => {
     expect(isExerciseOpen({ ...exercise(1), decision_tree: undefined } as WorkoutExercise)).toBe(true)
+  })
+})
+
+describe('текущий слаг и флаг боли (§8.4, «На вебе»)', () => {
+  it('подход с флагом боли закрывает упражнение, даже если подходы остались', () => {
+    const e = exercise(1)
+    e.sets[0] = { ...e.sets[0]!, pain_flag: true }
+    expect(stoppedByPain(e)).toBe(true)
+    expect(isExerciseOpen(e)).toBe(false)
+  })
+
+  it('после замены подходы прежнего слага не считаются и не закрывают новое упражнение', () => {
+    const e = exercise(3)
+    e.sets = e.sets.map((s) => ({ ...s, exercise_slug: 'squat_barbell', pain_flag: true }))
+    expect(currentSets(e)).toHaveLength(0)
+    expect(stoppedByPain(e)).toBe(false)
+    expect(isExerciseOpen(e)).toBe(true)
+  })
+
+  it('подходы нового слага считаются как обычно', () => {
+    const e = exercise(2)
+    e.sets.push({ ...set, id: 'old', exercise_slug: 'squat_barbell' })
+    expect(currentSets(e)).toHaveLength(2)
+    expect(isExerciseOpen(e)).toBe(true)
   })
 })
 

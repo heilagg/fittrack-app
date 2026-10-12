@@ -12,11 +12,17 @@
 //
 // Вес правится только деревом. Ручная правка веса — отдельное решение
 // (шаг «+»/«−» берётся из лестницы инвентаря, которой у клиента нет).
+//
+// Срез 6: флаг боли (§8.4) — отдельная кнопка, не в ряду фидбэка (§13.2).
+// Подход уходит сразу, с весом и повторами на экране и без фидбэка; дальше
+// экран тренировки показывает альтернативы. «Заменить» открывает замену в один
+// тап (§13.4). Подходы считаются по текущему слагу (`workout/progress`).
 
 import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { ExerciseContent, SetRow, Workout, WorkoutExercise } from '../../api/schemas'
+import { currentSets } from '../../workout/progress'
 import { restDuration } from '../../workout/rest'
 import { applyBranch, branchFor, currentStep, type Branch, type Feedback, type Step } from '../../workout/tree'
 import { RestTimer } from './RestTimer'
@@ -49,6 +55,8 @@ export function ExercisePanel({
   exercise,
   content,
   onBusyChange,
+  onPain,
+  onSubstitute,
 }: {
   api: ApiClient
   workoutId: string
@@ -56,6 +64,10 @@ export function ExercisePanel({
   content: ExerciseContent | undefined
   /** Подход ушёл или должен уйти, и сервер его ещё не подтвердил. */
   onBusyChange?: (busy: boolean) => void
+  /** Подход с флагом боли подтверждён: дальше — альтернативы (§8.4 п.2). */
+  onPain?: () => void
+  /** Замена в один тап (§13.4). */
+  onSubstitute?: () => void
 }) {
   const queryClient = useQueryClient()
   const tree = exercise.decision_tree
@@ -68,8 +80,9 @@ export function ExercisePanel({
   // Подход «в пути» — пока его нет среди подтверждённых. Сбрасывать его
   // сразу после ответа нельзя: кеш react-query оповещает подписчиков позже, и
   // вес на мгновение откатывался бы к прежнему дереву.
-  const pending = sent && !exercise.sets.some((s) => s.id === sent.body.id) ? sent : null
-  const confirmed = exercise.sets.length
+  const done = currentSets(exercise)
+  const pending = sent && !done.some((s) => s.id === sent.body.id) ? sent : null
+  const confirmed = done.length
   const inFlight = pending ? 1 : 0
   const allDone = confirmed + inFlight >= exercise.target_sets
   const base: Step = tree ? currentStep(tree) : { kind: 'ask-server' }
@@ -94,7 +107,7 @@ export function ExercisePanel({
         actual_kg: body.actual_kg,
         actual_reps: body.actual_reps,
         feedback: body.feedback,
-        pain_flag: false,
+        pain_flag: body.pain_flag,
         pain_joints: [],
         completed_at: body.completed_at,
         skipped: false,
@@ -112,6 +125,7 @@ export function ExercisePanel({
         },
       )
       setReps(exercise.target_rep_max)
+      if (body.pain_flag) onPain?.()
     } catch (e) {
       setFailure(e)
     } finally {
@@ -137,6 +151,27 @@ export function ExercisePanel({
     setSent({ body, next: applyBranch(tree, base.nodeId, branch) })
     const rest = restDuration(content?.default_rest_seconds ?? 90, exercise.weight_readiness, feedback)
     setRestEndAt(clock.now() + rest * 1000)
+    void send(body)
+  }
+
+  /**
+   * Флаг боли (§8.4 п.1): подход уходит сразу, вес и повторы — как на экране,
+   * без фидбэка; таймера отдыха нет — упражнение прекращено.
+   */
+  function pain() {
+    if (pending || sending || base.kind !== 'node') return
+    const weight = base.weightKg
+    const body: Pending['body'] = {
+      id: crypto.randomUUID(),
+      set_index: confirmed + 1,
+      ...(weight !== undefined ? { prescribed_kg: weight, actual_kg: weight } : {}),
+      actual_reps: reps,
+      pain_flag: true,
+      completed_at: new Date().toISOString(),
+      skipped: false,
+    }
+    setSent({ body, next: base })
+    setRestEndAt(null)
     void send(body)
   }
 
@@ -167,9 +202,21 @@ export function ExercisePanel({
       ) : (
         <>
           <div className="card set-card">
-            <p data-testid="set-counter" className="chip">
-              Подход {nextSetNumber} из {exercise.target_sets}
-            </p>
+            <div className="card-header">
+              <p data-testid="set-counter" className="chip">
+                Подход {nextSetNumber} из {exercise.target_sets}
+              </p>
+              {/* Флаг боли — отдельно и мелко, никогда в ряду с «Тяжело» (§13.2). */}
+              <button
+                type="button"
+                className="pain-button"
+                data-testid="pain-button"
+                disabled={pending !== null || sending || base.kind !== 'node'}
+                onClick={pain}
+              >
+                Боль
+              </button>
+            </div>
             <p data-testid="weight" className="hero">
               {view.kind === 'ask-server' ? (
                 <span className="hero-text">Ждём сервер…</span>
@@ -224,6 +271,18 @@ export function ExercisePanel({
             ))}
           </div>
         </>
+      )}
+
+      {!terminated && !allDone && onSubstitute && (
+        <button
+          type="button"
+          className="button-text"
+          data-testid="substitute-button"
+          disabled={pending !== null || sending}
+          onClick={onSubstitute}
+        >
+          Заменить упражнение
+        </button>
       )}
 
       {failure !== null && pending && (

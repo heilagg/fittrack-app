@@ -26,18 +26,38 @@ function label(day: CalendarDay): string {
     .join(', ')
 }
 
-export function WeekCalendar({ days }: { days: CalendarDay[] }) {
+/**
+ * Тап по дню показывает его состав (`/preview`, срез 6); сегодня — карточка
+ * дня. `selected` — день, чей состав сейчас на экране.
+ */
+export function WeekCalendar({
+  days,
+  selected,
+  onSelect,
+}: {
+  days: CalendarDay[]
+  selected?: string
+  onSelect?: (date: string) => void
+}) {
   return (
     <ol className="week" aria-label="Неделя" data-testid="week-calendar">
       {days.map((day) => (
-        <li key={day.date} data-date={day.date} data-today={day.today} data-status={day.status} aria-label={label(day)}>
-          <span className="week-weekday" aria-hidden="true">
-            {shortWeekday(day.date)}
-          </span>
-          <span className="week-day" aria-hidden="true">
-            {Number(day.date.slice(8))}
-          </span>
-          <span className="week-dot" aria-hidden="true" />
+        <li key={day.date} data-date={day.date} data-today={day.today} data-status={day.status}>
+          <button
+            type="button"
+            className="week-button"
+            aria-label={label(day)}
+            aria-current={selected === day.date ? 'date' : undefined}
+            onClick={() => onSelect?.(day.date)}
+          >
+            <span className="week-weekday" aria-hidden="true">
+              {shortWeekday(day.date)}
+            </span>
+            <span className="week-day" aria-hidden="true">
+              {Number(day.date.slice(8))}
+            </span>
+            <span className="week-dot" aria-hidden="true" />
+          </button>
         </li>
       ))}
     </ol>

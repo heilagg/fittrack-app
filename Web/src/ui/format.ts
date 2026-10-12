@@ -11,6 +11,14 @@ export function formatDayHeading(isoDate: string): string {
   )
 }
 
+/** «12 октября» — дата без дня недели, для прогноза и диапазона. */
+export function formatShortDate(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number) as [number, number, number]
+  return new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(y, m - 1, d)),
+  )
+}
+
 /** «40 мин» для оценки длительности в секундах; меньше минуты — «1 мин». */
 export function formatMinutes(seconds: number): string {
   return `${Math.max(1, Math.round(seconds / 60))} мин`
