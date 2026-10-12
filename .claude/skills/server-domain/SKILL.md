@@ -560,6 +560,34 @@ Server она не работает в четырёх местах, и кажд�
    заменяется существующим тестом §3.2: тот проверяет PostgREST, а сервер ходит
    другим путём — это сказано в §20.4 прямым текстом.
 
+   **Запуск живого прогона — одной командой из корня репозитория:**
+
+   ```bash
+   Server/scripts/live-tests.sh            # весь набор
+   Server/scripts/live-tests.sh --filter 20e   # аргументы уходят в swift test
+   ```
+
+   Скрипт поднимает `supabase start` (если не запущен), применяет миграции,
+   заново задаёт пароль роли `fitserver` и берёт свежие ключи publishable и
+   `service_role` из `supabase status -o env` (оба меняются при каждом
+   `supabase start`, пароль слетает после `supabase db reset`). Пробный
+   анонимный signup даёт `FITTRACK_LIVE_TOKEN`; если он падает с
+   `Database error creating anonymous user` (Postgres упёрся в 100
+   соединений), Supabase перезапускается один раз и подготовка повторяется.
+   Для `LiveJWKSChecks` поднимается пустой JWKS на свободном порту. Ключи и
+   токен не печатаются.
+
+   **Обязательный режим `FITTRACK_REQUIRE_LIVE=1`** (скрипт ставит его
+   всегда). Живые наборы выключаются `.enabled(if:)`, и без переменных
+   `swift test` молча зелёный: одна забытая переменная неотличима от успеха.
+   В этом режиме невыключаемый `LiveRequiredGuard` падает и называет каждую
+   недостающую из шести: `FITTRACK_LIVE_ISSUER`, `FITTRACK_ANON_KEY`,
+   `FITTRACK_DB_PASSWORD`, `FITTRACK_SERVICE_ROLE_KEY`, `FITTRACK_LIVE_TOKEN`,
+   `FITTRACK_EMPTY_JWKS_ISSUER`; пустое значение считается незаданным. Список
+   лежит в `Live.gateVariables` (`LiveHarness.swift`): новая переменная,
+   выключающая живой тест, добавляется туда же, иначе режим её не увидит.
+   Прогон перед слиянием — только через скрипт или с этим режимом.
+
 ## 5. Всё остальное — по implement-feature
 
 Ветка от чистого `master`, стиль коммита (императив, английский заголовок, тело с
@@ -612,8 +640,9 @@ Server она не работает в четырёх местах, и кажд�
       базы с применёнными миграциями и RLS (§4 пп. 3, 4). Linux перепроверен
       в `swift:6.2` после `/substitute`: тестовая обвязка не собиралась без
       `FoundationNetworking`, починено; набор Server (swift-testing) под Linux
-      зелёный. Живые тесты гоняются на macOS против `supabase start`; под Linux
-      они пропускаются без переменных среды.
+      зелёный. Живые тесты гоняются на macOS против `supabase start`
+      (`Server/scripts/live-tests.sh`, §4 п. 4); под Linux они пропускаются
+      без переменных среды.
 
       **Известное ограничение: тесты FitCore и FitAPI под Linux не гоняются.**
       Оба набора на XCTest и под Linux (`swift:6.2`) зависают в случайном

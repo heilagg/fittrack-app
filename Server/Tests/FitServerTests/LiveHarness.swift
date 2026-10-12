@@ -6,6 +6,9 @@
 //
 //  ── Запуск ─────────────────────────────────────────────────────────────────
 //
+//  Одной командой — `Server/scripts/live-tests.sh` (окружение, все переменные
+//  и `FITTRACK_REQUIRE_LIVE=1`, см. `LiveRequiredGuard`). Руками:
+//
 //    supabase start && supabase migration up --local
 //    psql ... -c "alter role fitserver with password 'fitserver'"
 //
@@ -71,6 +74,42 @@ enum Live {
     static let dbPort = Int(ProcessInfo.processInfo.environment["FITTRACK_DB_PORT"] ?? "54322") ?? 54322
 
     static var enabled: Bool { issuer != nil && anonKey != nil && dbPassword != nil }
+
+    // MARK: - Обязательный прогон
+
+    /// `FITTRACK_REQUIRE_LIVE=1`: живые тесты обязаны пройти, а не пропуститься.
+    ///
+    /// Без переменных набор молча зелёный (шапка файла) — это правильно для
+    /// `swift test` без Docker и опасно для прогона перед слиянием: одна
+    /// забытая переменная выглядит так же, как успех. В этом режиме
+    /// `LiveRequiredGuard` падает и называет каждую недостающую.
+    /// `Server/scripts/live-tests.sh` ставит его всегда.
+    static let required = requiredMode(in: ProcessInfo.processInfo.environment)
+
+    /// Режим включает ровно `1`: опечатка в имени или значении не должна
+    /// тихо выключать гейт, поэтому разбор вынесен и проверен отдельно.
+    static func requiredMode(in environment: [String: String]) -> Bool {
+        environment["FITTRACK_REQUIRE_LIVE"] == "1"
+    }
+
+    /// Все переменные, без которых хоть один живой тест пропускается: три
+    /// гейта `enabled` (и 20k), ключ `service_role` для `signUpLinked` и две
+    /// переменные `LiveJWKSChecks`.
+    static let gateVariables = [
+        "FITTRACK_LIVE_ISSUER",
+        "FITTRACK_ANON_KEY",
+        "FITTRACK_DB_PASSWORD",
+        "FITTRACK_SERVICE_ROLE_KEY",
+        "FITTRACK_LIVE_TOKEN",
+        "FITTRACK_EMPTY_JWKS_ISSUER",
+    ]
+
+    /// Какие из `gateVariables` в окружении не заданы. Пустая строка считается
+    /// незаданной: `export FITTRACK_ANON_KEY=` после неудачного `supabase
+    /// status` — та же ошибка, что пропущенная переменная.
+    static func missingGateVariables(in environment: [String: String]) -> [String] {
+        gateVariables.filter { environment[$0, default: ""].isEmpty }
+    }
 
     enum Failure: Error, CustomStringConvertible {
         case signUp(Int, String)
