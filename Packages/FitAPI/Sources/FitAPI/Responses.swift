@@ -510,3 +510,114 @@ public struct LogSetResponseDTO: Sendable, Equatable, Codable {
         self.decisionTree = decisionTree
     }
 }
+
+// MARK: - Календарь цикла (§11.6, §20.3)
+
+/// Строка `cycle_events` на дне сетки. `id` нужен клиенту для правки и
+/// удаления последнего события (§11.6); FitCore событий с `id` не знает, их
+/// приносит сервер.
+public struct CycleMarkDTO: Sendable, Equatable, Codable {
+    public var id: String
+    public var kind: String
+    public var source: String
+
+    public init(id: String, kind: String, source: String) {
+        self.id = id
+        self.kind = kind
+        self.source = source
+    }
+}
+
+/// Ожидаемое начало следующих месячных и диапазон (§11.6).
+public struct NextPeriodDTO: Sendable, Equatable, Codable {
+    public var expected: String
+    public var rangeStart: String
+    public var rangeEnd: String
+    public var cycleConfidence: Double
+
+    enum CodingKeys: String, CodingKey {
+        case expected, rangeStart = "range_start", rangeEnd = "range_end",
+             cycleConfidence = "cycle_confidence"
+    }
+
+    public init(_ next: NextPeriod, iso: (CalendarDay) -> String) {
+        expected = iso(next.expected)
+        rangeStart = iso(next.rangeStart)
+        rangeEnd = iso(next.rangeEnd)
+        cycleConfidence = next.cycleConfidence
+    }
+}
+
+/// День сетки. `phase` — уже свёрнутая в четыре (§11.6); ниже порога 0.3 её
+/// нет, и `cycle_confidence` едет только вместе с ней (§14.6).
+public struct CycleCalendarDayDTO: Sendable, Equatable, Codable {
+    public var date: String
+    public var marks: [CycleMarkDTO]
+    /// `marked` | `estimated` | `forecast`; нет ключа — вне месячных.
+    public var period: String?
+    public var phase: String?
+    public var cycleConfidence: Double?
+    public var ovulationEstimate: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case date, marks, period, phase, cycleConfidence = "cycle_confidence",
+             ovulationEstimate = "ovulation_estimate"
+    }
+
+    public init(_ entry: CycleCalendarEntry, marks: [CycleMarkDTO], iso: (CalendarDay) -> String) {
+        date = iso(entry.date)
+        self.marks = marks
+        period = entry.period?.rawValue
+        phase = entry.phase?.rawValue
+        cycleConfidence = entry.cycleConfidence
+        ovulationEstimate = entry.ovulationEstimate
+    }
+}
+
+/// Текст фазы на экране календаря (§11.6). ЖДЁТ ЮРИСТА — см. `PhaseTexts.swift`.
+public struct PhaseTextDTO: Sendable, Equatable, Codable {
+    public var phase: String
+    public var name: String
+    public var feeling: String
+    public var why: String
+    public var note: String
+
+    public init(_ phase: DisplayPhase) {
+        let text = ReasonStrings.phaseText(phase)
+        self.phase = phase.rawValue
+        name = text.name
+        feeling = text.feeling
+        why = text.why
+        note = ReasonStrings.phaseTextNote
+    }
+}
+
+/// Тело `GET /v1/cycle/calendar` (§20.3).
+public struct CycleCalendarDTO: Sendable, Equatable, Codable {
+    public var from: String
+    public var to: String
+    /// То же состояние, что у карточки дня, на `date` запроса.
+    public var cycle: CycleStateDTO
+    public var nextPeriod: NextPeriodDTO?
+    public var overdue: Bool
+    public var days: [CycleCalendarDayDTO]
+    /// Тексты всех четырёх фаз, в порядке цикла.
+    public var phases: [PhaseTextDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case from, to, cycle, nextPeriod = "next_period", overdue, days, phases
+    }
+
+    /// `marks` — строки `cycle_events` по дате; дни без строк получают пустой
+    /// список. `iso` — та же функция дат, что у остальных путей (§20.7).
+    public init(_ calendar: CycleCalendar, from: CalendarDay, to: CalendarDay, cycle: CycleStateDTO,
+                marks: [CalendarDay: [CycleMarkDTO]], iso: (CalendarDay) -> String) {
+        self.from = iso(from)
+        self.to = iso(to)
+        self.cycle = cycle
+        nextPeriod = calendar.nextPeriod.map { NextPeriodDTO($0, iso: iso) }
+        overdue = calendar.overdue
+        days = calendar.days.map { CycleCalendarDayDTO($0, marks: marks[$0.date] ?? [], iso: iso) }
+        phases = DisplayPhase.allCases.map(PhaseTextDTO.init)
+    }
+}
