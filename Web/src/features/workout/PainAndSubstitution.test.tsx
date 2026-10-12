@@ -66,6 +66,7 @@ function mount(overrides: Partial<ApiClient> = {}) {
       substituted_from: 'squat_barbell',
       substitution_reason: 'pain',
       prescribed_kg: 50,
+      target_rep_max: 12,
       decision_tree: { ...tree, nodes: { n0: { ...tree.nodes.n0, weight_kg: 50 } } },
       sets: [{
         id: 'p1', exercise_slug: 'squat_barbell', set_index: 1, prescribed_kg: 40, prescribed_reps: 10,
@@ -164,6 +165,9 @@ describe('замена в один тап (§13.4)', () => {
   it('«Заменить упражнение» — альтернативы user_choice, причина выбирается', async () => {
     const { getAlternatives, substitute } = mount()
     await current()
+    // Повторы, введённые для прежнего упражнения, к новому не переезжают.
+    fireEvent.click(screen.getByRole('button', { name: 'Меньше повторов' }))
+    expect(screen.getByTestId('reps')).toHaveTextContent('9')
     fireEvent.click(screen.getByTestId('substitute-button'))
     const panel = await screen.findByTestId('alternatives')
     expect(panel).toHaveAttribute('data-purpose', 'user_choice')
@@ -171,6 +175,8 @@ describe('замена в один тап (§13.4)', () => {
     fireEvent.click(within(panel).getByLabelText('Занят снаряд'))
     fireEvent.click(await within(panel).findByRole('button', { name: 'Выбрать' }))
     await waitFor(() => expect(substitute).toHaveBeenCalledWith('w-1', 'we-1', 'hip_thrust_barbell', 'occupied'))
+    expect(await current()).toHaveTextContent('Ягодичный мост')
+    expect(screen.getByTestId('reps')).toHaveTextContent('12')
   })
 
   it('«Отмена» возвращает к тому же упражнению без записи', async () => {
