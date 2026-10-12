@@ -160,25 +160,27 @@ struct Test20nCycleCalendar {
             try await self.seed(app, user, tracking: .manual,
                                 cycle: CycleProfileDTO(declaredRegularity: .regular, phaseMode: .phases),
                                 logger: logger)
-            // Три ровных цикла по 28, текущий начался 10 дней назад.
-            try await self.insertStarts(user, offsets: [-94, -66, -38, -10], logger: logger)
+            // Три ровных цикла по 28, текущий начался 11 дней назад: сегодня
+            // последний фолликулярный день, завтра овуляторный — состояние,
+            // посчитанное не на ту дату, разойдётся с карточкой.
+            try await self.insertStarts(user, offsets: [-95, -67, -39, -11], logger: logger)
 
             let card = try await self.card(app, user)
             let grid = try await self.calendar(app, user, from: -12, to: 25)
             #expect(grid.cycle == card.cycle, "состояние цикла — то же, что у карточки")
             let todayEntry = try #require(grid.days.first { $0.date == self.iso(0) })
-            #expect(card.cycle.phase != nil, "уверенность выше порога — фаза названа")
+            #expect(card.cycle.phase == "follicular", "уверенность выше порога — фаза названа")
             #expect(todayEntry.phase == self.folded(card.cycle.phase))
             #expect(todayEntry.cycleConfidence == card.cycle.cycleConfidence)
 
             let next = try #require(grid.nextPeriod)
-            #expect(next.expected == self.iso(18))
-            #expect(next.rangeStart == self.iso(16) && next.rangeEnd == self.iso(20))
-            #expect(grid.days.filter(\.ovulationEstimate).map(\.date) == [self.iso(4)],
+            #expect(next.expected == self.iso(17))
+            #expect(next.rangeStart == self.iso(15) && next.rangeEnd == self.iso(19))
+            #expect(grid.days.filter(\.ovulationEstimate).map(\.date) == [self.iso(3)],
                     "оценка овуляции — за 14 дней до ожидаемого начала")
-            #expect(grid.days.first { $0.date == self.iso(-10) }?.period == "marked")
-            #expect(grid.days.first { $0.date == self.iso(18) }?.period == "forecast")
-            #expect(grid.days.first { $0.date == self.iso(18) }?.phase == nil)
+            #expect(grid.days.first { $0.date == self.iso(-11) }?.period == "marked")
+            #expect(grid.days.first { $0.date == self.iso(17) }?.period == "forecast")
+            #expect(grid.days.first { $0.date == self.iso(17) }?.phase == nil)
             #expect(grid.days.count == 38)
             #expect(grid.phases.count == 4)
             #expect(!grid.overdue)
