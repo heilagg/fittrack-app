@@ -103,7 +103,9 @@ test('онбординг, Сегодня, привязка, тренировка
   await page.getByRole('button', { name: 'Нормально' }).click()
   await expect(page.getByTestId('rest-clock')).toBeVisible()
   await shot(page, '15-workout-set-pending')
-  await expect(page.getByTestId('set-counter')).toContainText('Подход 2 из', { timeout: 15_000 })
+  // Подтверждён: кнопки фидбэка снова доступны. Перехват снимается после
+  // ответа — иначе задержанный запрос уже некому отпустить.
+  await expect(page.getByRole('button', { name: 'Нормально' })).toBeEnabled({ timeout: 15_000 })
   await page.unroute('**/exercises/*/sets')
   await shot(page, '16-workout-rest')
 
@@ -119,12 +121,29 @@ test('онбординг, Сегодня, привязка, тренировка
   await page.getByRole('button', { name: 'Повторить' }).click()
   await expect(page.getByTestId('log-failure')).toHaveCount(0)
 
+  // Постановочный кадр: у калибровочной тренировки весов нет, и строка
+  // «Следующий подход: N кг» законно не появляется. Вес подставляется в ответ
+  // /sets в браузере, чтобы показать её вид.
+  await page.route('**/exercises/*/sets', async (route) => {
+    const response = await route.fetch()
+    const body = (await response.json()) as { decision_tree: { nodes: Record<string, { weight_kg?: number }> } }
+    for (const node of Object.values(body.decision_tree.nodes)) node.weight_kg = 14
+    await route.fulfill({ response, json: body })
+  })
+  const normal = page.getByRole('button', { name: 'Нормально' })
+  await expect(normal).toBeEnabled({ timeout: 15_000 })
+  await normal.click()
+  await expect(normal).toBeEnabled({ timeout: 15_000 })
+  await expect(page.getByTestId('next-set')).toBeVisible()
+  await shot(page, '18-workout-rest-next-set-staged')
+  await page.unroute('**/exercises/*/sets')
+
   await page.getByRole('button', { name: 'Завершить тренировку' }).click()
   await expect(page.getByTestId('summary')).toBeVisible()
-  await shot(page, '18-workout-summary')
+  await shot(page, '19-workout-summary')
 
   await page.route('**/v1/today*', (route) => route.abort('failed'))
   await page.goto('/')
   await expect(page.getByRole('alert')).toBeVisible()
-  await shot(page, '19-error-network')
+  await shot(page, '20-error-network')
 })
