@@ -24,6 +24,7 @@ import { addRestrictions, latestBodyWeight, readActiveRestrictions, resolveRestr
 import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION } from '../../onboarding/labels'
 import { personalPatch } from '../../profile/personal'
 import { levelsOf, restrictionChanges } from '../../profile/restrictions'
+import { BirthYearField } from '../onboarding/BirthYearField'
 import { ErrorBlock } from '../today/TodayScreen'
 import { EquipmentForm, RestrictionsForm } from './forms'
 
@@ -123,11 +124,7 @@ function PersonalForm({ api, profile, weight }: { api: ApiClient; profile: Profi
   return (
     <>
       <form onSubmit={submit}>
-        <p>
-          <label className="field">
-            Год рождения <input inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} />
-          </label>
-        </p>
+        <BirthYearField value={birthYear} onChange={setBirthYear} />
         <p>
           <label className="field">
             Рост, см <input inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} />

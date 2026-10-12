@@ -25,6 +25,7 @@ import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION } from '../../onboarding/labels
 import { resumeStep } from '../../onboarding/resume'
 import { DISCLAIMER_PENDING_LEGAL, ONBOARDING_SUMMARY, RED_FLAG_PENDING_LEGAL } from '../../onboarding/texts'
 import { CycleSettingsForm } from '../cycle/CycleSettingsForm'
+import { BirthYearField } from './BirthYearField'
 import { EquipmentForm, JOINTS, RestrictionsForm } from '../profile/forms'
 import { ErrorBlock } from '../today/TodayScreen'
 
@@ -292,12 +293,7 @@ function BasicsStep({ api, onDone }: { api: ApiClient; onDone: (sex: string) => 
             </select>
           </label>
         </p>
-        <p>
-          <label className="field">
-            Год рождения{' '}
-            <input inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} />
-          </label>
-        </p>
+        <BirthYearField value={birthYear} onChange={setBirthYear} />
         <p>
           <label className="field">
             Рост, см <input inputMode="decimal" value={height} onChange={(e) => setHeight(e.target.value)} />
