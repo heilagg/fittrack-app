@@ -42,6 +42,7 @@ describe('личные данные', () => {
     const patchProfile = vi.fn(async () => profile)
     mount(<PersonalScreen api={{ getProfileIfStarted: async () => profile, patchProfile } as unknown as ApiClient} />)
     expect(await screen.findByLabelText('Год рождения')).toHaveValue('1994')
+    expect(screen.getByLabelText('Год рождения')).toHaveAccessibleDescription('четыре цифры')
     expect(screen.getByLabelText('Как давно вы занимаетесь в зале?')).toHaveValue('intermediate')
     expect(screen.getByLabelText('Вес, кг')).toHaveValue('64.5')
     fireEvent.change(screen.getByLabelText('Цель'), { target: { value: 'strength' } })

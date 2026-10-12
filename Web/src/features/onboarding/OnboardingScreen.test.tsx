@@ -149,6 +149,7 @@ describe('шаги после PAR-Q', () => {
     const api = mount({ session_minutes: 45, cycle_tracking: 'off', is_complete: false })
     await step(3)
     fireEvent.change(screen.getByLabelText('Пол при рождении'), { target: { value: 'male' } })
+    expect(screen.getByLabelText('Год рождения').getAttribute('placeholder')).toBe('ГГГГ, например 2005')
     fireEvent.change(screen.getByLabelText('Год рождения'), { target: { value: '1990' } })
     fireEvent.change(screen.getByLabelText('Рост, см'), { target: { value: '180' } })
     fireEvent.change(screen.getByLabelText('Вес, кг'), { target: { value: '82,5' } })
