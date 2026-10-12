@@ -1,0 +1,94 @@
+/* Сгенерировано из Tools/design-tokens/tokens.json (npm run tokens в Web/).
+   Руками не править: тест tokens.test.ts падает, если файл устарел. */
+
+:root {
+  --color-bg: #0D0E11;
+  --color-surface: #17191F;
+  --color-nav: #12141A;
+  --color-border: #262A32;
+  --color-text: #F2F4F7;
+  --color-text-muted: #9AA3AF;
+  --color-accent: #D2FF4D;
+  --color-on-accent: #0D0E11;
+  --color-accent-chip-bg: #28310F;
+  --color-progress-inactive: #262A32;
+
+  --font-family-base: 'Space Grotesk', sans-serif;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --type-screen-title-family: 'Space Grotesk', sans-serif;
+  --type-screen-title-size: 36px;
+  --type-screen-title-weight: 700;
+  --type-screen-title-tracking: 0px;
+  --type-screen-title-leading: 1.1;
+  --type-exercise-title-family: 'Space Grotesk', sans-serif;
+  --type-exercise-title-size: 30px;
+  --type-exercise-title-weight: 700;
+  --type-exercise-title-tracking: 0px;
+  --type-exercise-title-leading: 1.15;
+  --type-body-family: 'Space Grotesk', sans-serif;
+  --type-body-size: 16px;
+  --type-body-weight: 600;
+  --type-body-tracking: 0px;
+  --type-body-leading: 1.4;
+  --type-caption-family: 'Space Grotesk', sans-serif;
+  --type-caption-size: 14px;
+  --type-caption-weight: 500;
+  --type-caption-tracking: 0px;
+  --type-caption-leading: 1.4;
+  --type-chip-family: 'Space Grotesk', sans-serif;
+  --type-chip-size: 13px;
+  --type-chip-weight: 700;
+  --type-chip-tracking: 0px;
+  --type-chip-leading: 1.2;
+  --type-weight-hero-family: 'Space Grotesk', sans-serif;
+  --type-weight-hero-size: 80px;
+  --type-weight-hero-weight: 700;
+  --type-weight-hero-tracking: -3px;
+  --type-weight-hero-leading: 1;
+  --type-reps-family: 'Space Grotesk', sans-serif;
+  --type-reps-size: 46px;
+  --type-reps-weight: 700;
+  --type-reps-tracking: 0px;
+  --type-reps-leading: 1;
+  --type-unit-family: 'Space Grotesk', sans-serif;
+  --type-unit-size: 24px;
+  --type-unit-weight: 600;
+  --type-unit-tracking: 0px;
+  --type-unit-leading: 1;
+
+  --radius-card: 22px;
+  --radius-primary-button: 18px;
+  --radius-control: 16px;
+  --radius-chip: 999px;
+  --radius-circle: 999px;
+
+  --space-page-gutter: 20px;
+  --space-card: 20px;
+  --space-card-hero: 22px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-xxl: 32px;
+
+  --size-primary-button-height: 58px;
+  --size-feedback-button-height: 56px;
+  --size-bottom-nav-height: 72px;
+  --size-touch-target-min: 44px;
+  --size-round-button: 56px;
+  --size-day-circle: 44px;
+  --size-check: 20px;
+  --size-column-max: 480px;
+  --size-border: 1px;
+  --size-focus-ring: 2px;
+  --size-focus-ring-offset: 2px;
+  --size-progress-segment: 4px;
+
+  --opacity-disabled: 0.4;
+
+  --motion-fast: 120ms;
+}

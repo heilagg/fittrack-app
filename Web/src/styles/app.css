@@ -1,0 +1,539 @@
+/* Стили экранов. Цвета и размеры — только var(--…) из tokens.css
+   (web-domain §8); литерал цвета или размера здесь роняет tokens.test.ts.
+   Тема одна — тёмная. */
+
+:root {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--type-body-family);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+  letter-spacing: var(--type-body-tracking);
+  line-height: var(--type-body-leading);
+}
+
+/* Колонка: мобильный макет основной, на широком экране — по центру. */
+#root {
+  max-width: var(--size-column-max);
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-page-gutter) var(--space-xxl);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1,
+.screen-title {
+  font-size: var(--type-screen-title-size);
+  font-weight: var(--type-screen-title-weight);
+  letter-spacing: var(--type-screen-title-tracking);
+  line-height: var(--type-screen-title-leading);
+}
+
+h2,
+.exercise-title {
+  font-size: var(--type-exercise-title-size);
+  font-weight: var(--type-exercise-title-weight);
+  letter-spacing: var(--type-exercise-title-tracking);
+  line-height: var(--type-exercise-title-leading);
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: var(--color-accent);
+  text-underline-offset: var(--space-xs);
+}
+
+.caption,
+.eyebrow,
+[role='status'] {
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  letter-spacing: var(--type-caption-tracking);
+  line-height: var(--type-caption-leading);
+  color: var(--color-text-muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: var(--size-border);
+  height: var(--size-border);
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Фокус — кольцо акцентного цвета, только с клавиатуры. */
+:focus-visible {
+  outline: var(--size-focus-ring) solid var(--color-accent);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+/* MARK: - Кнопки */
+
+button {
+  font: inherit;
+  color: var(--color-text);
+  min-height: var(--size-touch-target-min);
+  min-width: var(--size-touch-target-min);
+  padding: 0 var(--space-lg);
+  border: var(--size-border) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+
+.button-primary {
+  width: 100%;
+  min-height: var(--size-primary-button-height);
+  border: 0;
+  border-radius: var(--radius-primary-button);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.button-text {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+.link-back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target-min);
+}
+
+[aria-pressed='true'],
+[data-selected='true'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* Выбранный фидбэк остаётся залитым, пока подход в пути и кнопки заблокированы. */
+[data-selected='true']:disabled {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button {
+    transition:
+      background-color var(--motion-fast),
+      border-color var(--motion-fast),
+      color var(--motion-fast);
+  }
+}
+
+/* MARK: - Карточки, чипы, строки */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-card);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: var(--space-xs) var(--space-md);
+  border-radius: var(--radius-chip);
+  background: var(--color-accent-chip-bg);
+  color: var(--color-accent);
+  font-size: var(--type-chip-size);
+  font-weight: var(--type-chip-weight);
+  letter-spacing: var(--type-chip-tracking);
+  line-height: var(--type-chip-leading);
+}
+
+.rows > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-md);
+  padding: var(--space-md) 0;
+  border-top: var(--size-border) solid var(--color-border);
+}
+
+.rows > li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.rows > li:last-child {
+  padding-bottom: 0;
+}
+
+.rows--stacked > li {
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.row-value {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.row-weight {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-bold);
+}
+
+/* MARK: - Состояния: ошибка, загрузка, заметка */
+
+[role='alert'] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border: var(--size-border) solid var(--color-text-muted);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+#root > [role='status'],
+#root > [role='alert'] {
+  margin-top: var(--space-xl);
+}
+
+.notice {
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-control);
+  background: var(--color-accent-chip-bg);
+  color: var(--color-accent);
+}
+
+/* MARK: - Сегодня */
+
+.screen-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.eyebrow::first-letter {
+  text-transform: uppercase;
+}
+
+/* MARK: - Тренировка */
+
+.top-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  min-height: var(--size-touch-target-min);
+}
+
+/* Кнопка «Завершить» стоит в верхней строке, ошибка завершения — под ней. */
+.finish {
+  display: contents;
+}
+
+.finish > [role='alert'] {
+  flex-basis: 100%;
+}
+
+.progress {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.progress > li {
+  flex: 1;
+  height: var(--size-progress-segment);
+  border-radius: var(--radius-chip);
+  background: var(--color-progress-inactive);
+}
+
+.progress > li[data-state='done'],
+.progress > li[data-state='current'] {
+  background: var(--color-accent);
+}
+
+.exercise {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.cues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.set-card {
+  padding: var(--space-card-hero);
+  align-items: center;
+  text-align: center;
+}
+
+.set-card .chip {
+  align-self: center;
+}
+
+.hero {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-sm);
+}
+
+.hero-number {
+  color: var(--color-accent);
+  font-size: var(--type-weight-hero-size);
+  font-weight: var(--type-weight-hero-weight);
+  letter-spacing: var(--type-weight-hero-tracking);
+  line-height: var(--type-weight-hero-leading);
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-unit {
+  color: var(--color-text-muted);
+  font-size: var(--type-unit-size);
+  font-weight: var(--type-unit-weight);
+  letter-spacing: var(--type-unit-tracking);
+  line-height: var(--type-unit-leading);
+}
+
+.hero-text {
+  color: var(--color-text-muted);
+  font-size: var(--type-unit-size);
+  font-weight: var(--type-unit-weight);
+  line-height: var(--type-unit-leading);
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  width: 100%;
+}
+
+.round-button {
+  width: var(--size-round-button);
+  height: var(--size-round-button);
+  padding: 0;
+  border: var(--size-border) solid var(--color-accent);
+  border-radius: var(--radius-circle);
+  background: transparent;
+  color: var(--color-accent);
+  font-size: var(--type-unit-size);
+  font-weight: var(--font-weight-bold);
+}
+
+.reps-value,
+.rest-clock {
+  font-size: var(--type-reps-size);
+  font-weight: var(--type-reps-weight);
+  letter-spacing: var(--type-reps-tracking);
+  line-height: var(--type-reps-leading);
+  font-variant-numeric: tabular-nums;
+}
+
+.feedback-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.feedback-grid > button {
+  min-height: var(--size-feedback-button-height);
+  border-radius: var(--radius-control);
+}
+
+.button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.rest {
+  align-items: center;
+  text-align: center;
+}
+
+.rest .button-row {
+  width: 100%;
+}
+
+/* MARK: - Формы: онбординг, привязка */
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+form > p,
+form > ol {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  padding: 0;
+  margin-bottom: var(--space-sm);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--color-text-muted);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+}
+
+input,
+select {
+  width: 100%;
+  min-height: var(--size-touch-target-min);
+  padding: 0 var(--space-md);
+  border: var(--size-border) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+}
+
+input[type='radio'],
+input[type='checkbox'] {
+  flex-shrink: 0;
+  width: var(--size-check);
+  height: var(--size-check);
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-accent);
+}
+
+/* Вариант ответа: вся строка — цель нажатия. */
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-sm) var(--space-lg);
+  border: var(--size-border) solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.option:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-chip-bg);
+}
+
+.option:has(input:focus-visible) {
+  outline: var(--size-focus-ring) solid var(--color-accent);
+  outline-offset: var(--size-focus-ring-offset);
+}
+
+.option > input:focus-visible {
+  outline: none;
+}
+
+.option-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+}
+
+.option-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.presets > button {
+  border-radius: var(--radius-chip);
+}
+
+.parq > li {
+  padding: var(--space-card);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.rest-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
