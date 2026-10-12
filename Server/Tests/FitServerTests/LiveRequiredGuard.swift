@@ -24,6 +24,12 @@ struct LiveRequiredGuard {
             """)
     }
 
+    @Test func requiredModeIsSwitchedByOne() {
+        #expect(Live.requiredMode(in: ["FITTRACK_REQUIRE_LIVE": "1"]))
+        #expect(!Live.requiredMode(in: [:]))
+        #expect(!Live.requiredMode(in: ["FITTRACK_REQUIRE_LIVE": "0"]))
+    }
+
     @Test func fullEnvironmentMissesNothing() {
         let full = Dictionary(uniqueKeysWithValues: Live.gateVariables.map { ($0, "x") })
         #expect(Live.missingGateVariables(in: full).isEmpty)

@@ -84,7 +84,13 @@ enum Live {
     /// забытая переменная выглядит так же, как успех. В этом режиме
     /// `LiveRequiredGuard` падает и называет каждую недостающую.
     /// `Server/scripts/live-tests.sh` ставит его всегда.
-    static let required = ProcessInfo.processInfo.environment["FITTRACK_REQUIRE_LIVE"] == "1"
+    static let required = requiredMode(in: ProcessInfo.processInfo.environment)
+
+    /// Режим включает ровно `1`: опечатка в имени или значении не должна
+    /// тихо выключать гейт, поэтому разбор вынесен и проверен отдельно.
+    static func requiredMode(in environment: [String: String]) -> Bool {
+        environment["FITTRACK_REQUIRE_LIVE"] == "1"
+    }
 
     /// Все переменные, без которых хоть один живой тест пропускается: три
     /// гейта `enabled` (и 20k), ключ `service_role` для `signUpLinked` и две
