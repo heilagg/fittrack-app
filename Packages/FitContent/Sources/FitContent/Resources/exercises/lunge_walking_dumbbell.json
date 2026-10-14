@@ -1,0 +1,43 @@
+{
+  "slug": "lunge_walking_dumbbell",
+  "name": "Выпад в ходьбе с гантелями",
+  "pattern": "lunge",
+  "muscle_contributions": {
+    "quads": 0.38,
+    "glute_max": 0.36,
+    "hamstrings": 0.12,
+    "adductors": 0.08,
+    "calves": 0.06
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.1,
+  "alternatives": ["lunge_reverse_dumbbell", "lunge_forward_dumbbell", "split_squat_bulgarian_dumbbell"],
+  "progression_family": "walking_lunge",
+  "setup_seconds": 20,
+  "cues": [
+    "Шаг длинный, переднее колено над стопой",
+    "Корпус вертикально, гантели висят свободно",
+    "Подниматься через переднюю пятку и сразу шагать дальше"
+  ],
+  "common_errors": [
+    "Заднее колено бьётся об пол",
+    "Колено передней ноги заваливается внутрь"
+  ],
+  "technique": [
+    "Встать прямо с гантелями в опущенных руках",
+    "Сделать широкий шаг вперёд и опуститься, пока заднее колено почти не коснётся пола",
+    "Оттолкнуться передней ногой и шагнуть задней ногой вперёд в следующий выпад",
+    "Пройти заданное число шагов, чередуя ноги"
+  ],
+  "sources": [{"catalog": "wger", "id": "206"}],
+  "illustration": "placeholder/lower/lunge_walking_dumbbell"
+}

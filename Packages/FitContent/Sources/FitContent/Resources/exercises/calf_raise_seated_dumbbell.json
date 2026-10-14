@@ -1,0 +1,39 @@
+{
+  "slug": "calf_raise_seated_dumbbell",
+  "name": "Подъём на носки сидя с гантелями",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "calves": 1.00
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["calf_raise_bw", "calf_raise_machine"],
+  "progression_family": "calf_raise_seated",
+  "setup_seconds": 20,
+  "cues": [
+    "Носки на возвышении или блине, пятки свободны",
+    "Гантели лежат на бёдрах у колен",
+    "Пауза наверху и полная амплитуда внизу"
+  ],
+  "common_errors": [
+    "Раскачивание корпусом вместо работы икр",
+    "Неполная амплитуда"
+  ],
+  "technique": [
+    "Сесть на край скамьи, носки поставить на блин или брусок, пятки на весу",
+    "Положить гантели на бёдра у коленей и придерживать руками",
+    "Подняться на носки как можно выше и задержаться",
+    "Медленно опустить пятки до растяжения икр"
+  ],
+  "sources": [{"catalog": "wger", "id": "1620"}, {"catalog": "exercisedb", "id": "1379"}],
+  "illustration": "placeholder/lower/calf_raise_seated_dumbbell"
+}

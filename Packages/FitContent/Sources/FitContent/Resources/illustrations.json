@@ -62,6 +62,10 @@
       "id": "Dead_Bug",
       "match": "exact"
     },
+    "deadlift_barbell": {
+      "id": "Barbell_Deadlift",
+      "match": "exact"
+    },
     "deadlift_romanian_barbell": {
       "id": "Romanian_Deadlift",
       "match": "exact",
@@ -87,9 +91,17 @@
       "id": "Butt_Lift_Bridge",
       "match": "exact"
     },
+    "glute_bridge_single_leg_bw": {
+      "id": "Single_Leg_Glute_Bridge",
+      "match": "exact"
+    },
     "glute_kickback_band": {
       "id": "Glute_Kickback",
       "match": "close"
+    },
+    "glute_kickback_cable": {
+      "id": "One-Legged_Cable_Kickback",
+      "match": "exact"
     },
     "hammer_curl_dumbbell": {
       "id": "Hammer_Curls",
@@ -97,6 +109,14 @@
     },
     "hip_abduction_machine": {
       "id": "Thigh_Abductor",
+      "match": "exact"
+    },
+    "hip_adduction_cable": {
+      "id": "Cable_Hip_Adduction",
+      "match": "exact"
+    },
+    "hip_adduction_machine": {
+      "id": "Thigh_Adductor",
       "match": "exact"
     },
     "hip_thrust_barbell": {
@@ -137,6 +157,10 @@
     },
     "leg_raise_hanging": {
       "id": "Hanging_Leg_Raise",
+      "match": "exact"
+    },
+    "lunge_forward_dumbbell": {
+      "id": "Dumbbell_Lunges",
       "match": "exact"
     },
     "lunge_reverse_bw": {
@@ -242,6 +266,11 @@
     "squat_jump_bw": {
       "id": "Freehand_Jump_Squat",
       "match": "exact"
+    },
+    "squat_smith": {
+      "id": "Smith_Machine_Squat",
+      "match": "exact",
+      "reversed": true
     },
     "step_up_dumbbell": {
       "id": "Dumbbell_Step_Ups",

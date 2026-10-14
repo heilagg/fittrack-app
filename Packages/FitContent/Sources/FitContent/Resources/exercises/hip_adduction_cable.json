@@ -1,0 +1,41 @@
+{
+  "slug": "hip_adduction_cable",
+  "name": "Приведение ноги на нижнем блоке",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "adductors": 0.88,
+    "glute_med": 0.07,
+    "obliques": 0.05
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "none", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["hip_adduction_machine"],
+  "progression_family": "hip_adduction_cable",
+  "setup_seconds": 30,
+  "cues": [
+    "Манжета на щиколотке ближней к блоку ноги",
+    "Корпус вертикально, держаться за раму",
+    "Нога ведётся через центр перед опорной"
+  ],
+  "common_errors": [
+    "Наклон корпуса в сторону вместо работы ногой",
+    "Рывок и бросание веса назад"
+  ],
+  "technique": [
+    "Закрепить манжету на нижнем блоке и надеть её на щиколотку ближней ноги",
+    "Встать боком к блоку, отойти до натяжения, держаться за раму",
+    "Провести рабочую ногу через центр перед опорной ногой",
+    "Медленно вернуть ногу в сторону и после подхода сменить ногу"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Cable_Hip_Adduction"}, {"catalog": "wger", "id": "1724"}, {"catalog": "exercisedb", "id": "0168"}],
+  "illustration": "placeholder/lower/hip_adduction_cable"
+}
