@@ -127,6 +127,10 @@
       "id": "Barbell_Hip_Thrust",
       "match": "close"
     },
+    "lat_pulldown_close_grip_machine": {
+      "id": "Close-Grip_Front_Lat_Pulldown",
+      "match": "exact"
+    },
     "lat_pulldown_machine": {
       "id": "Wide-Grip_Lat_Pulldown",
       "match": "exact"
@@ -191,6 +195,10 @@
       "id": "Plank",
       "match": "exact"
     },
+    "pullup_band": {
+      "id": "Band_Assisted_Pull-Up",
+      "match": "exact"
+    },
     "pullup_bw": {
       "id": "Pullups",
       "match": "exact"
@@ -219,12 +227,20 @@
       "id": "Bent_Over_Barbell_Row",
       "match": "exact"
     },
+    "row_dumbbell_incline_prone": {
+      "id": "Dumbbell_Incline_Row",
+      "match": "exact"
+    },
     "row_dumbbell_one_arm": {
       "id": "One-Arm_Dumbbell_Row",
       "match": "exact"
     },
     "row_inverted_bw": {
       "id": "Inverted_Row",
+      "match": "exact"
+    },
+    "row_seated_cable_machine": {
+      "id": "Seated_Cable_Rows",
       "match": "exact"
     },
     "row_seated_machine": {
@@ -234,6 +250,10 @@
     "russian_twist_dumbbell": {
       "id": "Russian_Twist",
       "match": "close"
+    },
+    "scapular_pullup_bw": {
+      "id": "Scapular_Pull-Up",
+      "match": "exact"
     },
     "shoulder_press_machine": {
       "id": "Machine_Shoulder_Military_Press",
@@ -274,6 +294,14 @@
     },
     "step_up_dumbbell": {
       "id": "Dumbbell_Step_Ups",
+      "match": "exact"
+    },
+    "straight_arm_pulldown_cable": {
+      "id": "Straight-Arm_Pulldown",
+      "match": "exact"
+    },
+    "superman_bw": {
+      "id": "Superman",
       "match": "exact"
     },
     "triceps_extension_overhead_dumbbell": {

@@ -1,0 +1,42 @@
+{
+  "slug": "lat_pulldown_close_grip_machine",
+  "name": "Тяга верхнего блока к груди узким хватом",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.50,
+    "biceps": 0.25,
+    "traps_mid": 0.15,
+    "rear_delts": 0.10
+  },
+  "equipment": ["machine:lat_pulldown"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["lat_pulldown_machine", "chinup_bw", "pullup_band"],
+  "progression_family": "lat_pulldown_close",
+  "setup_seconds": 30,
+  "cues": [
+    "Хват уже плеч",
+    "Локти вниз вдоль корпуса",
+    "Корпус почти вертикально, без раскачки"
+  ],
+  "common_errors": [
+    "Тяга за счёт отклонения корпуса назад",
+    "Рукоять уходит к животу, а не к верху груди"
+  ],
+  "technique": [
+    "Сесть в тренажёр и зафиксировать бёдра под валиками",
+    "Взять рукоять хватом уже плеч",
+    "Опустить лопатки и тянуть рукоять к верху груди, локти вдоль корпуса",
+    "Медленно вернуть рукоять до прямых рук"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Close-Grip_Front_Lat_Pulldown"}, {"catalog": "wger", "id": "158"}],
+  "illustration": "placeholder/upper/lat_pulldown_close_grip_machine"
+}

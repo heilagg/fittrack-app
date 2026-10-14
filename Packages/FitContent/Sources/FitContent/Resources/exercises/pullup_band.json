@@ -1,0 +1,42 @@
+{
+  "slug": "pullup_band",
+  "name": "Подтягивание с резинкой",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.52,
+    "biceps": 0.22,
+    "traps_mid": 0.14,
+    "rear_delts": 0.12
+  },
+  "equipment": ["pullup_bar", "bands"],
+  "load_type": "band",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 1.0,
+  "alternatives": ["pullup_bw", "lat_pulldown_machine", "pullup_assisted_machine"],
+  "progression_family": "pullup_band",
+  "setup_seconds": 30,
+  "cues": [
+    "Резинка петлёй на перекладине, колено или стопа в петле",
+    "Опустить лопатки до сгибания рук",
+    "Вниз медленно, резинка не должна выстреливать"
+  ],
+  "common_errors": [
+    "Раскачка и рывок ногами",
+    "Неполная амплитуда внизу"
+  ],
+  "technique": [
+    "Закрепить резинку петлёй на середине перекладины",
+    "Взяться за перекладину хватом чуть шире плеч и поставить колено или стопу в петлю",
+    "Опустить лопатки и подтянуться грудью к перекладине",
+    "Медленно опуститься до прямых рук"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Band_Assisted_Pull-Up"}, {"catalog": "exercisedb", "id": "0970"}],
+  "illustration": "placeholder/upper/pullup_band"
+}
