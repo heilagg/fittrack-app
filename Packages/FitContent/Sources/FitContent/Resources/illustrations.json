@@ -58,6 +58,10 @@
       "id": "Chin-Up",
       "match": "exact"
     },
+    "crunch_bw": {
+      "id": "Crunches",
+      "match": "exact"
+    },
     "crunch_machine": {
       "id": "Ab_Crunch_Machine",
       "match": "exact"
