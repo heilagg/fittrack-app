@@ -1,0 +1,41 @@
+{
+  "slug": "bench_press_incline_barbell",
+  "name": "Жим штанги на наклонной скамье",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.42,
+    "front_delts": 0.33,
+    "triceps": 0.25
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.1,
+  "alternatives": ["bench_press_incline_dumbbell", "bench_press_barbell", "overhead_press_barbell"],
+  "progression_family": "incline_press_barbell",
+  "setup_seconds": 90,
+  "cues": [
+    "Угол скамьи около тридцати градусов",
+    "Гриф опускается к верху груди",
+    "Лопатки сведены, стопы упираются в пол"
+  ],
+  "common_errors": [
+    "Слишком крутой угол: жим уходит в плечи",
+    "Отбив штанги от груди"
+  ],
+  "technique": [
+    "Поставить спинку скамьи под углом около тридцати градусов и лечь под гриф",
+    "Взять гриф хватом чуть шире плеч, свести лопатки и снять штангу",
+    "Опустить штангу к верху груди на вдохе",
+    "Выжать штангу вверх до прямых рук"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Barbell_Incline_Bench_Press_-_Medium_Grip"}, {"catalog": "wger", "id": "538"}, {"catalog": "exercisedb", "id": "0047"}],
+  "illustration": "placeholder/upper/bench_press_incline_barbell"
+}

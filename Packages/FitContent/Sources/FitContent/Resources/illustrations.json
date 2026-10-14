@@ -14,12 +14,20 @@
       "id": "Dumbbell_Bench_Press",
       "match": "exact"
     },
+    "bench_press_incline_barbell": {
+      "id": "Barbell_Incline_Bench_Press_-_Medium_Grip",
+      "match": "exact"
+    },
     "bench_press_incline_dumbbell": {
       "id": "Incline_Dumbbell_Press",
       "match": "exact"
     },
     "box_jump": {
       "id": "Front_Box_Jump",
+      "match": "exact"
+    },
+    "cable_crossover": {
+      "id": "Cable_Crossover",
       "match": "exact"
     },
     "cable_crunch": {
@@ -81,6 +89,10 @@
     },
     "fly_dumbbell": {
       "id": "Dumbbell_Flyes",
+      "match": "exact"
+    },
+    "fly_incline_dumbbell": {
+      "id": "Incline_Dumbbell_Flyes",
       "match": "exact"
     },
     "front_raise_dumbbell": {
@@ -195,6 +207,10 @@
       "id": "Plank",
       "match": "exact"
     },
+    "pullover_dumbbell": {
+      "id": "Straight-Arm_Dumbbell_Pullover",
+      "match": "exact"
+    },
     "pullup_band": {
       "id": "Band_Assisted_Pull-Up",
       "match": "exact"
@@ -206,6 +222,11 @@
     "pushup_bw": {
       "id": "Pushups",
       "match": "exact"
+    },
+    "pushup_incline_bench": {
+      "id": "Incline_Push-Up",
+      "match": "exact",
+      "reversed": true
     },
     "pushup_narrow_bw": {
       "id": "Push-Ups_-_Close_Triceps_Position",

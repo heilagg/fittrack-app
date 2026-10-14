@@ -1,0 +1,42 @@
+{
+  "slug": "pullover_dumbbell",
+  "name": "Пуловер с гантелью",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "pecs": 0.45,
+    "lats": 0.40,
+    "triceps": 0.10,
+    "front_delts": 0.05
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["fly_dumbbell", "straight_arm_pulldown_cable"],
+  "progression_family": "pullover",
+  "setup_seconds": 30,
+  "cues": [
+    "Лопатки лежат на скамье поперёк, таз ниже скамьи",
+    "Руки почти прямые",
+    "Опускать за голову до лёгкого растяжения"
+  ],
+  "common_errors": [
+    "Сгибание рук в локтях",
+    "Подъём таза при опускании гантели"
+  ],
+  "technique": [
+    "Лечь лопатками поперёк скамьи, стопы на полу, таз чуть ниже скамьи",
+    "Взять гантель двумя руками за диск и поднять над грудью",
+    "Почти прямыми руками опустить гантель по дуге за голову",
+    "Вернуть гантель над грудью тем же путём"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Straight-Arm_Dumbbell_Pullover"}, {"catalog": "wger", "id": "1273"}, {"catalog": "exercisedb", "id": "0375"}],
+  "illustration": "placeholder/upper/pullover_dumbbell"
+}

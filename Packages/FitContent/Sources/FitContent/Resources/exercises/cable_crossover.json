@@ -1,0 +1,40 @@
+{
+  "slug": "cable_crossover",
+  "name": "Сведение рук в кроссовере",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "pecs": 0.82,
+    "front_delts": 0.18
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["fly_dumbbell", "pec_deck_machine", "fly_incline_dumbbell"],
+  "progression_family": "cable_crossover",
+  "setup_seconds": 30,
+  "cues": [
+    "Блоки вверху, шаг вперёд от линии блоков",
+    "Руки чуть согнуты, угол фиксирован",
+    "Сводить кисти перед низом груди"
+  ],
+  "common_errors": [
+    "Жим вместо сведения",
+    "Корпус раскачивается"
+  ],
+  "technique": [
+    "Поставить оба блока вверх и взять рукояти",
+    "Шагнуть вперёд, слегка наклонить корпус, руки разведены",
+    "Свести рукояти по дуге перед низом груди, локти чуть согнуты",
+    "Задержаться и медленно развести руки"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Cable_Crossover"}, {"catalog": "wger", "id": "323"}],
+  "illustration": "placeholder/upper/cable_crossover"
+}
