@@ -39,17 +39,21 @@
   "machine_step_kg" : 2.5,
   "machines" : [
     "ab_crunch",
+    "assisted_pullup",
     "back_extension",
     "calf_raise",
     "chest_press",
+    "chest_supported_row",
     "hip_abduction",
+    "hip_adduction",
     "lat_pulldown",
     "leg_curl",
     "leg_extension",
     "leg_press",
     "pec_deck",
     "seated_row",
-    "shoulder_press"
+    "shoulder_press",
+    "smith"
   ],
   "name" : "Зал",
   "plates_kg" : [

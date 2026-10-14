@@ -13,6 +13,7 @@ export const MACHINE_SLUGS = [
   'leg_press', 'leg_extension', 'leg_curl', 'hip_abduction', 'calf_raise',
   'lat_pulldown', 'seated_row', 'back_extension', 'chest_press', 'pec_deck',
   'shoulder_press', 'ab_crunch',
+  'hip_adduction', 'chest_supported_row', 'assisted_pullup', 'smith',
 ] as const
 
 const range = (from: number, to: number, step: number): number[] => {

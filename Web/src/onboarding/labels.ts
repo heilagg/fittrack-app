@@ -25,4 +25,8 @@ export const MACHINE_LABELS: Record<string, string> = {
   pec_deck: 'Бабочка',
   shoulder_press: 'Жим над головой',
   ab_crunch: 'Тренажёр для пресса',
+  hip_adduction: 'Сведение ног',
+  chest_supported_row: 'Тяга в тренажёре с упором грудью',
+  assisted_pullup: 'Гравитрон',
+  smith: 'Тренажёр Смита',
 }
