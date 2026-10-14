@@ -30,7 +30,9 @@ enum Fixtures {
         alternatives: [String] = [],
         fatigueCost: Double = 1.0,
         setupSeconds: Int = 20,
-        name: String? = nil
+        name: String? = nil,
+        technique: [String] = Fixtures.technique,
+        sources: [ExerciseSource] = []
     ) -> ExerciseSchema {
         ExerciseSchema(
             slug: slug,
@@ -48,8 +50,13 @@ enum Fixtures {
             progressionFamily: family ?? slug,
             familyLoadRatio: familyLoadRatio,
             setupSeconds: setupSeconds,
+            technique: technique,
+            sources: sources,
             illustration: slug)
     }
+
+    /// Минимальная техника, проходящая §6.2: три шага без латиницы.
+    static let technique = ["Встать в исходное положение", "Выполнить движение", "Вернуться под контролем"]
 
     /// Упражнения на собственном весе, которых хватает дню низа и дню жима на
     /// любом уровне инвентаря: пять паттернов, пять семей.

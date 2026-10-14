@@ -193,4 +193,69 @@ final class SchemaChecksTests: XCTestCase {
         let found = findings(named(["Планка", "Планка", "Боковая планка"]), rule: "§6.2")
         XCTAssertEqual(found.map(\.subject).sorted(), ["ex0", "ex1"])
     }
+    // MARK: - §6.2, техника и источники
+
+    private func technique(_ steps: [String]) -> [Finding] {
+        findings([Fixtures.exercise("ex", pattern: .squat, contributions: [.quads: 1.0],
+                                    technique: steps)], rule: "§6.2")
+    }
+
+    private func sources(_ list: [ExerciseSource]) -> [Finding] {
+        findings([Fixtures.exercise("ex", pattern: .squat, contributions: [.quads: 1.0],
+                                    sources: list)], rule: "§6.2")
+    }
+
+    func test_missingTechniqueIsReported() {
+        let found = technique([])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("0 шагов"), found[0].message)
+    }
+
+    func test_techniqueStepCountBoundsAreInclusive() {
+        XCTAssertEqual(technique(Array(repeating: "Шаг", count: 3)), [])
+        XCTAssertEqual(technique(Array(repeating: "Шаг", count: 6)), [])
+        XCTAssertEqual(technique(Array(repeating: "Шаг", count: 2)).count, 1)
+        XCTAssertEqual(technique(Array(repeating: "Шаг", count: 7)).count, 1)
+    }
+
+    func test_emptyTechniqueStepIsReported() {
+        let found = technique(["Шаг", "  ", "Шаг"])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("шаг 2 пустой"), found[0].message)
+    }
+
+    func test_latinInTechniqueIsReported() {
+        let found = technique(["Шаг", "Тянуть к face", "Шаг"])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("шаг 2 содержит латиницу"), found[0].message)
+    }
+
+    func test_knownSourcesPass() {
+        XCTAssertEqual(sources([ExerciseSource(catalog: "free-exercise-db", id: "Barbell_Hip_Thrust"),
+                                ExerciseSource(catalog: "wger", id: "984"),
+                                ExerciseSource(catalog: "exercisedb", id: "0336")]), [])
+    }
+
+    func test_emptySourcesPass() {
+        XCTAssertEqual(sources([]), [], "упражнение без источника допустимо")
+    }
+
+    func test_unknownCatalogIsReported() {
+        let found = sources([ExerciseSource(catalog: "exercemus", id: "x")])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("вне закрытого списка"), found[0].message)
+    }
+
+    func test_emptySourceIdIsReported() {
+        let found = sources([ExerciseSource(catalog: "wger", id: " ")])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("пустой id"), found[0].message)
+    }
+
+    func test_duplicateSourceIsReported() {
+        let pair = ExerciseSource(catalog: "wger", id: "984")
+        let found = sources([pair, pair])
+        XCTAssertEqual(found.count, 1)
+        XCTAssertTrue(found[0].message.contains("повтор"), found[0].message)
+    }
 }
