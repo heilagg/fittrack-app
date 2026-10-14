@@ -2,6 +2,10 @@
   "_comment": "Сопоставление слагов с free-exercise-db (SPEC §6.5). match: exact — то же движение и снаряд; close — то же движение, снаряд на картинке другой. reversed: кадры каталога идут финишем вперёд. Файлы выгружает Tools/illustrations/fetch.py.",
   "source": "https://github.com/yuhonas/free-exercise-db",
   "exercises": {
+    "arnold_press_dumbbell": {
+      "id": "Arnold_Dumbbell_Press",
+      "match": "exact"
+    },
     "back_extension_machine": {
       "id": "Hyperextensions_Back_Extensions",
       "match": "exact"
@@ -82,6 +86,10 @@
     "face_pull_band": {
       "id": "Face_Pull",
       "match": "close"
+    },
+    "face_pull_cable": {
+      "id": "Face_Pull",
+      "match": "exact"
     },
     "farmer_carry_dumbbell": {
       "id": "Farmers_Walk",
@@ -195,6 +203,10 @@
       "id": "Standing_Dumbbell_Press",
       "match": "exact"
     },
+    "overhead_press_seated_dumbbell": {
+      "id": "Dumbbell_Shoulder_Press",
+      "match": "exact"
+    },
     "pallof_press_band": {
       "id": "Pallof_Press",
       "match": "close"
@@ -242,6 +254,14 @@
     },
     "reverse_fly_dumbbell": {
       "id": "Reverse_Flyes",
+      "match": "exact"
+    },
+    "reverse_fly_incline_dumbbell": {
+      "id": "Dumbbell_Lying_Rear_Lateral_Raise",
+      "match": "exact"
+    },
+    "reverse_pec_deck_machine": {
+      "id": "Reverse_Machine_Flyes",
       "match": "exact"
     },
     "row_barbell_bent_over": {

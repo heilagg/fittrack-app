@@ -1,0 +1,41 @@
+{
+  "slug": "reverse_fly_incline_dumbbell",
+  "name": "Разведение гантелей лёжа грудью на наклонной скамье",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "rear_delts": 0.55,
+    "traps_mid": 0.32,
+    "side_delts": 0.13
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.4,
+  "alternatives": ["reverse_fly_dumbbell", "reverse_pec_deck_machine", "face_pull_cable"],
+  "progression_family": "reverse_fly_incline",
+  "setup_seconds": 30,
+  "cues": [
+    "Грудь прижата к скамье",
+    "Руки чуть согнуты, ладони к корпусу",
+    "Разводить до линии плеч"
+  ],
+  "common_errors": [
+    "Отрыв груди от скамьи",
+    "Слишком тяжёлые гантели и раскачка"
+  ],
+  "technique": [
+    "Поставить спинку скамьи под небольшим углом и лечь на неё грудью",
+    "Гантели в опущенных руках, ладони к корпусу, локти чуть согнуты",
+    "Развести руки в стороны до линии плеч",
+    "Медленно опустить гантели"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Dumbbell_Lying_Rear_Lateral_Raise"}, {"catalog": "wger", "id": "828"}, {"catalog": "exercisedb", "id": "0348"}],
+  "illustration": "placeholder/upper/reverse_fly_incline_dumbbell"
+}

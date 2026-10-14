@@ -1,0 +1,41 @@
+{
+  "slug": "face_pull_cable",
+  "name": "Фейс-пул на верхнем блоке",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "rear_delts": 0.50,
+    "traps_mid": 0.35,
+    "side_delts": 0.15
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.4,
+  "alternatives": ["face_pull_band", "reverse_pec_deck_machine"],
+  "progression_family": "face_pull_cable",
+  "setup_seconds": 30,
+  "cues": [
+    "Канат на уровне лица или чуть выше",
+    "Тянуть к переносице, разводя концы каната",
+    "Локти выше кистей"
+  ],
+  "common_errors": [
+    "Тяга к груди вместо лица",
+    "Отклонение корпуса назад"
+  ],
+  "technique": [
+    "Закрепить канат на блоке на уровне лица и взять концы хватом сверху",
+    "Отойти на шаг, руки вытянуты вперёд",
+    "Тянуть канат к лицу, разводя концы в стороны, локти выше кистей",
+    "Задержаться и медленно вернуть руки вперёд"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Face_Pull"}, {"catalog": "wger", "id": "222"}],
+  "illustration": "placeholder/upper/face_pull_cable"
+}
