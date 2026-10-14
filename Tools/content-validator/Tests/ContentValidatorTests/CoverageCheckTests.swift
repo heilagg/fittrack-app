@@ -12,14 +12,21 @@ import ContentValidator
 
 final class CoverageCheckTests: XCTestCase {
 
+    /// Список, на котором проверяется механизм исключений. Настоящий список
+    /// §20.11 с 2026-10-14 пуст; синтетическим фикстурам нужна объявленная
+    /// строка, и это та, что была в SPEC, — (upper, дома без железа).
+    private static let declared: Set<CoverageCheck.Combination> = [
+        .init(kind: .upper, level: .bodyweight),
+    ]
+
     private func run(_ library: ContentLibrary) -> [Finding] {
         let collector = FindingCollector()
-        _ = CoverageCheck.run(library, into: collector)
+        _ = CoverageCheck.run(library, into: collector, declared: Self.declared)
         return collector.findings
     }
 
     private func summary(_ library: ContentLibrary) -> CoverageCheck.Summary {
-        CoverageCheck.run(library, into: FindingCollector())
+        CoverageCheck.run(library, into: FindingCollector(), declared: Self.declared)
     }
 
     // MARK: - Пустая библиотека
@@ -141,8 +148,7 @@ final class CoverageCheckTests: XCTestCase {
 
     func test_declaredIncompleteListMatchesTheSpecTable() {
         // Список — копия §20.11, и расти он обязан только правкой SPEC.
-        XCTAssertEqual(CoverageCheck.declaredIncomplete, [
-            .init(kind: .upper, level: .bodyweight),
-        ])
+        XCTAssertEqual(CoverageCheck.declaredIncomplete, [],
+                       "с 2026-10-14 список §20.11 пуст")
     }
 }
