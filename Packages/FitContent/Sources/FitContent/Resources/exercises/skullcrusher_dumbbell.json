@@ -1,0 +1,40 @@
+{
+  "slug": "skullcrusher_dumbbell",
+  "name": "Французский жим гантелей лёжа",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "triceps": 0.95,
+    "forearms": 0.05
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["triceps_extension_overhead_dumbbell", "triceps_pushdown_cable"],
+  "progression_family": "skullcrusher_dumbbell",
+  "setup_seconds": 30,
+  "cues": [
+    "Плечи перпендикулярны полу и неподвижны",
+    "Гантели опускаются к ушам",
+    "Ладони смотрят друг на друга"
+  ],
+  "common_errors": [
+    "Локти разъезжаются в стороны",
+    "Плечи двигаются, и разгибание превращается в жим"
+  ],
+  "technique": [
+    "Лечь на скамью, гантели над грудью на прямых руках, ладони друг к другу",
+    "Не двигая плечами, согнуть руки и опустить гантели к ушам",
+    "Разогнуть руки вверх в исходное положение",
+    "Повторить, удерживая локти на месте"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Lying_Dumbbell_Tricep_Extension"}, {"catalog": "exercisedb", "id": "0351"}],
+  "illustration": "placeholder/upper/skullcrusher_dumbbell"
+}

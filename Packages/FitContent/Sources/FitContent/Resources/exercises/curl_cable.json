@@ -1,0 +1,40 @@
+{
+  "slug": "curl_cable",
+  "name": "Сгибание рук на нижнем блоке",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.84,
+    "forearms": 0.16
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["curl_barbell", "curl_dumbbell", "hammer_curl_cable_rope"],
+  "progression_family": "curl_cable",
+  "setup_seconds": 30,
+  "cues": [
+    "Локти у корпуса",
+    "Натяжение троса сохраняется внизу",
+    "Корпус неподвижен"
+  ],
+  "common_errors": [
+    "Раскачка корпусом",
+    "Локти уходят вперёд"
+  ],
+  "technique": [
+    "Закрепить прямую рукоять на нижнем блоке и взять её хватом снизу на ширине плеч",
+    "Встать прямо, локти прижаты к корпусу",
+    "Согнуть руки до плеч",
+    "Медленно опустить до полного разгибания"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Standing_Biceps_Cable_Curl"}, {"catalog": "wger", "id": "95"}, {"catalog": "exercisedb", "id": "0868"}],
+  "illustration": "placeholder/upper/curl_cable"
+}

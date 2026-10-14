@@ -66,8 +66,16 @@
       "id": "Barbell_Curl",
       "match": "exact"
     },
+    "curl_cable": {
+      "id": "Standing_Biceps_Cable_Curl",
+      "match": "exact"
+    },
     "curl_dumbbell": {
       "id": "Dumbbell_Bicep_Curl",
+      "match": "exact"
+    },
+    "curl_incline_dumbbell": {
+      "id": "Incline_Dumbbell_Curl",
       "match": "exact"
     },
     "dead_bug_bw": {
@@ -121,6 +129,10 @@
     },
     "glute_kickback_cable": {
       "id": "One-Legged_Cable_Kickback",
+      "match": "exact"
+    },
+    "hammer_curl_cable_rope": {
+      "id": "Cable_Hammer_Curls_-_Rope_Attachment",
       "match": "exact"
     },
     "hammer_curl_dumbbell": {
@@ -308,6 +320,11 @@
       "id": "Side_Bridge",
       "match": "exact"
     },
+    "skullcrusher_dumbbell": {
+      "id": "Lying_Dumbbell_Tricep_Extension",
+      "match": "exact",
+      "reversed": true
+    },
     "split_squat_bulgarian_dumbbell": {
       "id": "Split_Squat_with_Dumbbells",
       "match": "close"
@@ -345,6 +362,10 @@
       "id": "Superman",
       "match": "exact"
     },
+    "triceps_extension_overhead_cable_rope": {
+      "id": "Cable_Rope_Overhead_Triceps_Extension",
+      "match": "exact"
+    },
     "triceps_extension_overhead_dumbbell": {
       "id": "Dumbbell_One-Arm_Triceps_Extension",
       "match": "exact"
@@ -353,8 +374,16 @@
       "id": "Triceps_Pushdown",
       "match": "exact"
     },
+    "triceps_pushdown_rope_cable": {
+      "id": "Triceps_Pushdown_-_Rope_Attachment",
+      "match": "exact"
+    },
     "wrist_curl_dumbbell": {
       "id": "Seated_Dumbbell_Palms-Up_Wrist_Curl",
+      "match": "exact"
+    },
+    "wrist_extension_dumbbell": {
+      "id": "Seated_Dumbbell_Palms-Down_Wrist_Curl",
       "match": "exact"
     }
   }

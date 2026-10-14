@@ -1,0 +1,39 @@
+{
+  "slug": "wrist_extension_dumbbell",
+  "name": "Разгибание запястий с гантелями",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "forearms": 1.00
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["wrist_curl_dumbbell", "hammer_curl_dumbbell"],
+  "progression_family": "wrist_extension",
+  "setup_seconds": 15,
+  "cues": [
+    "Предплечья на бёдрах ладонями вниз",
+    "Двигается только кисть",
+    "Вес небольшой, амплитуда полная"
+  ],
+  "common_errors": [
+    "Отрыв предплечий от бёдер",
+    "Рывок"
+  ],
+  "technique": [
+    "Сесть на край скамьи, предплечья положить на бёдра ладонями вниз",
+    "Кисти с гантелями свисают за колени",
+    "Поднять кисти вверх, разгибая запястья",
+    "Медленно опустить"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Seated_Dumbbell_Palms-Down_Wrist_Curl"}, {"catalog": "exercisedb", "id": "0385"}],
+  "illustration": "placeholder/upper/wrist_extension_dumbbell"
+}
