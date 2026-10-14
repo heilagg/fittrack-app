@@ -352,12 +352,17 @@ final class FitContentTests: XCTestCase {
         XCTAssertEqual(map.exercises["a"], IllustrationMap.Entry(id: "X", match: .close, reversed: false))
     }
 
-    /// Бандл: 64 упражнения с картинкой, 11 на заглушке (§6.5).
-    func test_bundledLibraryHasSixtyFourPicturesAndElevenPlaceholders() throws {
+    /// Бандл: 96 упражнений с картинкой, 18 на заглушке (§6.5). До
+    /// расширения 2026-10-14 было 64 и 11; из 39 новых картинку получили 32
+    /// — только совпадения `exact`.
+    func test_bundledLibraryHasNinetySixPicturesAndEighteenPlaceholders() throws {
         let library = try Content.loadBundled()
         let keys = library.exercises.map(\.illustration)
-        XCTAssertEqual(keys.filter { $0.hasPrefix("catalog/") }.count, 64)
-        XCTAssertEqual(keys.filter { $0.hasPrefix("placeholder/") }.count, 11)
+        XCTAssertEqual(keys.filter { $0.hasPrefix("catalog/") }.count, 96)
+        XCTAssertEqual(keys.filter { $0.hasPrefix("placeholder/") }.count, 18)
+        XCTAssertEqual(library.bySlug["squat_smith"]?.illustration, "catalog/exact/squat_smith")
+        XCTAssertEqual(library.bySlug["pullup_assisted_machine"]?.illustration,
+                       "placeholder/upper/pullup_assisted_machine")
         XCTAssertEqual(library.bySlug["farmer_carry_dumbbell"]?.illustration, "catalog/close/farmer_carry_dumbbell")
         XCTAssertEqual(library.bySlug["bird_dog_bw"]?.illustration, "placeholder/full_body/bird_dog_bw")
     }
