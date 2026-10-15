@@ -50,6 +50,12 @@ public struct ExerciseSchema: Sendable, Equatable {
     public var setupSeconds: Int
     public var cues: [String]
     public var commonErrors: [String]
+    /// Шаги выполнения, 3–6 по-русски (§6.2, «Техника и источники»). Только
+    /// показ; число шагов и латиницу проверяет валидатор.
+    public var technique: [String]
+    /// Откуда описание движения (§6.2). Каталог — строка, а не enum: закрытый
+    /// список проверяет валидатор, как и слаги тренажёров §6.6.
+    public var sources: [ExerciseSource]
     public var illustration: String
 
     public init(
@@ -72,6 +78,8 @@ public struct ExerciseSchema: Sendable, Equatable {
         setupSeconds: Int,
         cues: [String] = [],
         commonErrors: [String] = [],
+        technique: [String] = [],
+        sources: [ExerciseSource] = [],
         illustration: String
     ) {
         self.slug = slug
@@ -93,6 +101,8 @@ public struct ExerciseSchema: Sendable, Equatable {
         self.setupSeconds = setupSeconds
         self.cues = cues
         self.commonErrors = commonErrors
+        self.technique = technique
+        self.sources = sources
         self.illustration = illustration
     }
 
@@ -141,6 +151,7 @@ extension ExerciseSchema: Decodable {
         case setupSeconds = "setup_seconds"
         case cues
         case commonErrors = "common_errors"
+        case technique, sources
         case illustration
     }
 
@@ -170,7 +181,25 @@ extension ExerciseSchema: Decodable {
         setupSeconds = try c.decode(Int.self, forKey: .setupSeconds)
         cues = try c.decodeIfPresent([String].self, forKey: .cues) ?? []
         commonErrors = try c.decodeIfPresent([String].self, forKey: .commonErrors) ?? []
+        // Отсутствие поля представимо как пустой список — и ловится валидатором,
+        // а не здесь: загрузчик падает только на непредставимом.
+        technique = try c.decodeIfPresent([String].self, forKey: .technique) ?? []
+        sources = try c.decodeIfPresent([ExerciseSource].self, forKey: .sources) ?? []
         illustration = try c.decode(String.self, forKey: .illustration)
+    }
+}
+
+/// Одна запись `sources` (§6.2): каталог и идентификатор упражнения в нём.
+/// Происхождение описания, а не картинки — картинки даёт `illustrations.json`
+/// (§6.5).
+public struct ExerciseSource: Sendable, Equatable, Hashable, Decodable {
+    /// `free-exercise-db`, `wger` или `exercisedb`; список закрыт в §6.2.
+    public var catalog: String
+    public var id: String
+
+    public init(catalog: String, id: String) {
+        self.catalog = catalog
+        self.id = id
     }
 }
 

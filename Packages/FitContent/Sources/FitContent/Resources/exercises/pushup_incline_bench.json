@@ -1,0 +1,42 @@
+{
+  "slug": "pushup_incline_bench",
+  "name": "Отжимание с руками на скамье",
+  "pattern": "push_h",
+  "muscle_contributions": {
+    "pecs": 0.50,
+    "triceps": 0.25,
+    "front_delts": 0.20,
+    "abs": 0.05
+  },
+  "equipment": ["bench_flat"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["pushup_bw", "pushup_knees_bw", "chest_press_machine"],
+  "progression_family": "pushup_incline",
+  "setup_seconds": 10,
+  "cues": [
+    "Кисти на краю скамьи чуть шире плеч",
+    "Тело прямой линией от пяток до головы",
+    "Опускаться грудью к краю скамьи"
+  ],
+  "common_errors": [
+    "Провисание таза",
+    "Локти разведены строго в стороны"
+  ],
+  "technique": [
+    "Встать лицом к скамье, кисти на её край чуть шире плеч",
+    "Отставить ноги назад, тело прямой линией",
+    "Опуститься грудью к краю скамьи, сгибая руки",
+    "Выжать себя в исходное положение"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Incline_Push-Up"}, {"catalog": "wger", "id": "1111"}, {"catalog": "exercisedb", "id": "0493"}],
+  "illustration": "placeholder/upper/pushup_incline_bench"
+}

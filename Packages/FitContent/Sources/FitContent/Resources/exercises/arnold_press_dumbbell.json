@@ -1,0 +1,42 @@
+{
+  "slug": "arnold_press_dumbbell",
+  "name": "Жим Арнольда",
+  "pattern": "push_v",
+  "muscle_contributions": {
+    "front_delts": 0.45,
+    "side_delts": 0.25,
+    "triceps": 0.25,
+    "erectors": 0.05
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "high",
+    "wrist": "medium", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["overhead_press_seated_dumbbell", "overhead_press_dumbbell", "lateral_raise_dumbbell"],
+  "progression_family": "arnold_press",
+  "setup_seconds": 30,
+  "cues": [
+    "Старт как в верхней точке сгибания: ладони к себе",
+    "Разворот кистей идёт вместе с жимом",
+    "Наверху ладони вперёд"
+  ],
+  "common_errors": [
+    "Разворот после жима, а не во время",
+    "Прогиб поясницы"
+  ],
+  "technique": [
+    "Сесть на скамью со спинкой, гантели перед верхом груди, ладони к себе",
+    "Начать выжимать гантели вверх, разворачивая кисти ладонями вперёд",
+    "Закончить жим над плечами с ладонями вперёд",
+    "Опустить гантели обратным движением в исходное положение"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Arnold_Dumbbell_Press"}, {"catalog": "wger", "id": "20"}, {"catalog": "exercisedb", "id": "2137"}],
+  "illustration": "placeholder/upper/arnold_press_dumbbell"
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "curl_incline_dumbbell",
+  "name": "Сгибание рук с гантелями на наклонной скамье",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.88,
+    "forearms": 0.12
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["curl_dumbbell", "curl_cable", "hammer_curl_dumbbell"],
+  "progression_family": "curl",
+  "family_load_ratio": 0.4,
+  "setup_seconds": 30,
+  "cues": [
+    "Плечи прижаты к спинке",
+    "Локти смотрят в пол и не уходят вперёд",
+    "Внизу руки полностью разгибаются"
+  ],
+  "common_errors": [
+    "Вынос локтей вперёд",
+    "Раскачка корпусом"
+  ],
+  "technique": [
+    "Поставить спинку скамьи под углом около сорока пяти градусов и сесть, гантели в опущенных руках",
+    "Развернуть ладони вперёд, локти у корпуса",
+    "Согнуть руки, поднимая гантели к плечам, плечо неподвижно",
+    "Медленно опустить гантели до полного разгибания"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Incline_Dumbbell_Curl"}, {"catalog": "wger", "id": "204"}, {"catalog": "exercisedb", "id": "0318"}],
+  "illustration": "placeholder/upper/curl_incline_dumbbell"
+}

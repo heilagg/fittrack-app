@@ -355,7 +355,7 @@ describe('онбординг (срез 5)', () => {
   it('пресет «зал»: непрерывный шаг 2.5, все слаги тренажёров, гири включены', () => {
     const gym = equipmentRowSchema.parse(load('equipment_preset_gym.json'))
     expect(gym.dumbbells_kg[1]! - gym.dumbbells_kg[0]!).toBe(2.5)
-    expect(gym.machines).toHaveLength(12)
+    expect(gym.machines).toHaveLength(16)
     expect(gym.has_kettlebells).toBe(true)
     expect(gym.bench).toBe('adjustable')
   })

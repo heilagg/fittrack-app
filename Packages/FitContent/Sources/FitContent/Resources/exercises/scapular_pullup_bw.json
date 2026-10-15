@@ -1,0 +1,41 @@
+{
+  "slug": "scapular_pullup_bw",
+  "name": "Подтягивание лопатками",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "traps_mid": 0.45,
+    "lats": 0.40,
+    "rear_delts": 0.15
+  },
+  "equipment": ["pullup_bar"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.4,
+  "alternatives": ["pullup_band", "face_pull_band"],
+  "progression_family": "scapular_pullup",
+  "setup_seconds": 10,
+  "cues": [
+    "Руки прямые всё время",
+    "Подъём только за счёт опускания лопаток",
+    "Пауза в верхней точке"
+  ],
+  "common_errors": [
+    "Сгибание рук в локтях",
+    "Раскачка ногами"
+  ],
+  "technique": [
+    "Повиснуть на перекладине хватом сверху, руки прямые",
+    "Не сгибая рук, опустить и свести лопатки, тело поднимется на несколько сантиметров",
+    "Задержаться на секунду",
+    "Медленно вернуться в полный вис"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Scapular_Pull-Up"}, {"catalog": "wger", "id": "1435"}, {"catalog": "exercisedb", "id": "0688"}],
+  "illustration": "placeholder/upper/scapular_pullup_bw"
+}

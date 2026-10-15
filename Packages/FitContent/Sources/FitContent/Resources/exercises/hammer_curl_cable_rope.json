@@ -1,0 +1,40 @@
+{
+  "slug": "hammer_curl_cable_rope",
+  "name": "Молотки на нижнем блоке с канатом",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "biceps": 0.60,
+    "forearms": 0.40
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["hammer_curl_dumbbell", "curl_cable"],
+  "progression_family": "hammer_curl_cable",
+  "setup_seconds": 30,
+  "cues": [
+    "Ладони смотрят друг на друга всю амплитуду",
+    "Локти прижаты",
+    "Пауза наверху"
+  ],
+  "common_errors": [
+    "Раскачка корпусом",
+    "Локти уходят вперёд"
+  ],
+  "technique": [
+    "Закрепить канат на нижнем блоке и встать лицом к нему",
+    "Взять канат нейтральным хватом, локти у корпуса",
+    "Согнуть руки до плеч, не разворачивая кисти",
+    "Медленно опустить до полного разгибания"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Cable_Hammer_Curls_-_Rope_Attachment"}, {"catalog": "exercisedb", "id": "0165"}],
+  "illustration": "placeholder/upper/hammer_curl_cable_rope"
+}

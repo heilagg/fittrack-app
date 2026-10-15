@@ -1,0 +1,42 @@
+{
+  "slug": "superman_bw",
+  "name": "Супермен",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "erectors": 0.60,
+    "glute_max": 0.25,
+    "hamstrings": 0.08,
+    "traps_mid": 0.07
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "low", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["back_extension_machine", "bird_dog_bw"],
+  "progression_family": "superman",
+  "setup_seconds": 5,
+  "cues": [
+    "Поднимать руки, грудь и ноги одновременно",
+    "Взгляд в пол, шея продолжает спину",
+    "Задержка наверху на две секунды"
+  ],
+  "common_errors": [
+    "Запрокидывание головы",
+    "Рывок вместо плавного подъёма"
+  ],
+  "technique": [
+    "Лечь на живот, руки вытянуть вперёд, ноги прямые",
+    "Одновременно поднять руки, грудь и ноги от пола",
+    "Задержаться на две секунды, напрягая ягодицы и спину",
+    "Медленно опуститься"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Superman"}, {"catalog": "wger", "id": "636"}],
+  "illustration": "placeholder/lower/superman_bw"
+}

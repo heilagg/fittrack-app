@@ -1,0 +1,41 @@
+{
+  "slug": "reverse_pec_deck_machine",
+  "name": "Обратная бабочка (на задние дельты)",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "rear_delts": 0.60,
+    "traps_mid": 0.30,
+    "side_delts": 0.10
+  },
+  "equipment": ["machine:pec_deck"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "none", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.4,
+  "alternatives": ["reverse_fly_dumbbell", "face_pull_cable", "reverse_fly_incline_dumbbell"],
+  "progression_family": "reverse_pec_deck",
+  "setup_seconds": 30,
+  "cues": [
+    "Рукояти на уровне плеч",
+    "Лицом к спинке, грудь прижата",
+    "Разводить по полукругу, руки почти прямые"
+  ],
+  "common_errors": [
+    "Тяга локтями вместо разведения",
+    "Рывок и бросание веса"
+  ],
+  "technique": [
+    "Отвести рукояти тренажёра назад и настроить сиденье: рукояти на уровне плеч",
+    "Сесть лицом к спинке, грудь прижата, взять рукояти",
+    "Развести руки по полукругу в стороны и назад до линии плеч",
+    "Медленно вернуть рукояти вперёд"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Reverse_Machine_Flyes"}, {"catalog": "wger", "id": "1775"}, {"catalog": "exercisedb", "id": "0602"}],
+  "illustration": "placeholder/upper/reverse_pec_deck_machine"
+}

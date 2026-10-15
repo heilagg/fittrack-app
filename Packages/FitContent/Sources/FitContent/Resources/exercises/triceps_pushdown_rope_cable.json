@@ -1,0 +1,40 @@
+{
+  "slug": "triceps_pushdown_rope_cable",
+  "name": "Разгибание рук на верхнем блоке с канатом",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "triceps": 0.92,
+    "forearms": 0.08
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["triceps_pushdown_cable", "triceps_extension_band"],
+  "progression_family": "triceps_pushdown_rope",
+  "setup_seconds": 30,
+  "cues": [
+    "Локти прижаты и неподвижны",
+    "Внизу развести концы каната",
+    "Корпус чуть наклонён"
+  ],
+  "common_errors": [
+    "Локти уходят вперёд и назад",
+    "Помощь корпусом"
+  ],
+  "technique": [
+    "Закрепить канат на верхнем блоке и взять его нейтральным хватом",
+    "Встать прямо с лёгким наклоном вперёд, локти у корпуса",
+    "Разогнуть руки вниз, в конце разводя концы каната в стороны",
+    "Медленно вернуть предплечья вверх"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Triceps_Pushdown_-_Rope_Attachment"}, {"catalog": "wger", "id": "1900"}, {"catalog": "exercisedb", "id": "0200"}],
+  "illustration": "placeholder/upper/triceps_pushdown_rope_cable"
+}

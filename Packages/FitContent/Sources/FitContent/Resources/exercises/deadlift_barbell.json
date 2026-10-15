@@ -1,0 +1,46 @@
+{
+  "slug": "deadlift_barbell",
+  "name": "Становая тяга со штангой",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "glute_max": 0.30,
+    "hamstrings": 0.25,
+    "erectors": 0.20,
+    "quads": 0.15,
+    "forearms": 0.05,
+    "traps_upper": 0.05
+  },
+  "equipment": [],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "high", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 150,
+  "fatigue_cost": 1.4,
+  "alternatives": ["deadlift_romanian_barbell", "rdl_dumbbell", "back_extension_machine"],
+  "progression_family": "deadlift",
+  "setup_seconds": 60,
+  "cues": [
+    "Гриф над серединой стопы, вплотную к голеням",
+    "Спина нейтральна, грудь вперёд до отрыва штанги",
+    "Ноги толкают пол, таз и плечи поднимаются вместе"
+  ],
+  "common_errors": [
+    "Округление поясницы на старте",
+    "Таз уходит вверх раньше плеч",
+    "Штанга отходит от ног"
+  ],
+  "technique": [
+    "Встать вплотную к штанге, гриф над серединой стопы, стопы на ширине таза",
+    "Присесть, взять гриф хватом на ширине плеч, спина ровная",
+    "Вдохнуть, напрячь живот и поднять штангу, отталкиваясь ногами, гриф скользит по ногам",
+    "Выпрямиться полностью, не отклоняясь назад",
+    "Опустить штангу тем же путём, сначала отводя таз назад"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Barbell_Deadlift"}, {"catalog": "wger", "id": "184"}, {"catalog": "exercisedb", "id": "0032"}],
+  "illustration": "placeholder/lower/deadlift_barbell"
+}

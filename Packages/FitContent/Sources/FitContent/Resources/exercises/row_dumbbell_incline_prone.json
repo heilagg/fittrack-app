@@ -1,0 +1,42 @@
+{
+  "slug": "row_dumbbell_incline_prone",
+  "name": "Тяга гантелей лёжа грудью на наклонной скамье",
+  "pattern": "pull_h",
+  "muscle_contributions": {
+    "lats": 0.40,
+    "traps_mid": 0.30,
+    "rear_delts": 0.15,
+    "biceps": 0.15
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["row_dumbbell_one_arm", "chest_supported_row_machine", "row_seated_machine"],
+  "progression_family": "incline_dumbbell_row",
+  "setup_seconds": 30,
+  "cues": [
+    "Грудь прижата к скамье всю амплитуду",
+    "Сначала свести лопатки, потом согнуть руки",
+    "Локти вдоль корпуса"
+  ],
+  "common_errors": [
+    "Отрыв груди от скамьи",
+    "Рывок плечами вверх к ушам"
+  ],
+  "technique": [
+    "Поставить спинку скамьи под углом около тридцати градусов",
+    "Лечь грудью на скамью, гантели в опущенных руках нейтральным хватом",
+    "Свести лопатки и подтянуть гантели к поясу, локти вдоль корпуса",
+    "Задержаться и медленно опустить гантели"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Dumbbell_Incline_Row"}, {"catalog": "wger", "id": "310"}, {"catalog": "exercisedb", "id": "0327"}],
+  "illustration": "placeholder/upper/row_dumbbell_incline_prone"
+}

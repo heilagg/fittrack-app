@@ -76,6 +76,9 @@ public enum EquipmentLevel: String, Sendable, Equatable, Hashable, CaseIterable 
         "leg_press", "leg_extension", "leg_curl", "hip_abduction", "calf_raise",
         "lat_pulldown", "seated_row", "back_extension", "chest_press", "pec_deck",
         "shoulder_press", "ab_crunch",
+        // Расширение библиотеки 2026-10-14 (§6.1, §6.6). Смит — штанга с
+        // требованием тренажёра, гравитрон — собственный вес без учёта помощи.
+        "hip_adduction", "chest_supported_row", "assisted_pullup", "smith",
     ]
 
     /// Требования §6.6, выполнимые на этом уровне. Через него проверяется

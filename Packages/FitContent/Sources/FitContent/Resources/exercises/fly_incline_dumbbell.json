@@ -1,0 +1,40 @@
+{
+  "slug": "fly_incline_dumbbell",
+  "name": "Разведение гантелей на наклонной скамье",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "pecs": 0.80,
+    "front_delts": 0.20
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["fly_dumbbell", "cable_crossover", "pec_deck_machine"],
+  "progression_family": "fly_incline",
+  "setup_seconds": 30,
+  "cues": [
+    "Угол скамьи не выше тридцати градусов",
+    "Руки чуть согнуты, угол не меняется",
+    "Разводить до лёгкого растяжения груди"
+  ],
+  "common_errors": [
+    "Сгибание рук: разведение превращается в жим",
+    "Слишком глубокое опускание с болью в плече"
+  ],
+  "technique": [
+    "Поставить спинку скамьи под углом до тридцати градусов",
+    "Лечь, гантели над грудью, ладони друг к другу, локти чуть согнуты",
+    "Развести руки по дуге до лёгкого растяжения груди",
+    "Свести гантели над грудью по той же дуге"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Incline_Dumbbell_Flyes"}, {"catalog": "wger", "id": "308"}, {"catalog": "exercisedb", "id": "0319"}],
+  "illustration": "placeholder/upper/fly_incline_dumbbell"
+}

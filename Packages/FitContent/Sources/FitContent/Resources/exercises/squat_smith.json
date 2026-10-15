@@ -1,0 +1,44 @@
+{
+  "slug": "squat_smith",
+  "name": "Присед в тренажёре Смита",
+  "pattern": "squat",
+  "muscle_contributions": {
+    "quads": 0.45,
+    "glute_max": 0.30,
+    "hamstrings": 0.10,
+    "adductors": 0.10,
+    "erectors": 0.05
+  },
+  "equipment": ["machine:smith"],
+  "load_type": "barbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "medium", "lower_back": "low", "shoulder": "low",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 120,
+  "fatigue_cost": 1.1,
+  "alternatives": ["squat_back_barbell", "leg_press_machine", "squat_goblet_dumbbell"],
+  "progression_family": "smith_squat",
+  "setup_seconds": 45,
+  "cues": [
+    "Стопы чуть впереди грифа",
+    "Гриф на трапециях, лопатки сведены",
+    "Колени в сторону носков, пятки на полу"
+  ],
+  "common_errors": [
+    "Стопы точно под грифом, и колени уходят далеко вперёд",
+    "Округление поясницы внизу"
+  ],
+  "technique": [
+    "Установить гриф чуть ниже уровня плеч и встать под него, гриф на трапециях",
+    "Поставить стопы на ширине плеч чуть впереди грифа",
+    "Снять гриф с крюков поворотом кистей",
+    "Опуститься в присед до параллели бёдер с полом или ниже, пока спина держит нейтраль",
+    "Встать и в конце подхода повесить гриф на крюки"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Smith_Machine_Squat"}, {"catalog": "wger", "id": "1747"}, {"catalog": "exercisedb", "id": "0770"}],
+  "illustration": "placeholder/lower/squat_smith"
+}

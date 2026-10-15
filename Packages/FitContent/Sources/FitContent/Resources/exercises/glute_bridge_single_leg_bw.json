@@ -1,0 +1,42 @@
+{
+  "slug": "glute_bridge_single_leg_bw",
+  "name": "Ягодичный мостик на одной ноге",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "glute_max": 0.58,
+    "hamstrings": 0.24,
+    "glute_med": 0.10,
+    "erectors": 0.08
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["glute_bridge_bw", "hip_thrust_dumbbell", "glute_kickback_band"],
+  "progression_family": "glute_bridge_single_leg",
+  "setup_seconds": 10,
+  "cues": [
+    "Свободная нога подтянута к груди и не помогает",
+    "Таз поднимается ровно, не заваливается в сторону",
+    "Толкаться пяткой опорной ноги"
+  ],
+  "common_errors": [
+    "Прогиб в пояснице вместо разгибания в тазе",
+    "Перекос таза на сторону свободной ноги"
+  ],
+  "technique": [
+    "Лечь на спину, ноги согнуть, стопы на полу",
+    "Поднять одну ногу и подтянуть колено к груди",
+    "Толкаясь пяткой опорной ноги, поднять таз до прямой линии от колена до плеч",
+    "Задержаться на секунду и медленно опустить таз, после подхода сменить ногу"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Single_Leg_Glute_Bridge"}, {"catalog": "wger", "id": "1740"}],
+  "illustration": "placeholder/lower/glute_bridge_single_leg_bw"
+}

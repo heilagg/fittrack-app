@@ -59,13 +59,14 @@ public enum CoverageCheck {
     /// Список — копия §20.11, и расти он обязан только правкой SPEC. Поэтому
     /// здесь он константа, а не вывод из данных: вычисляемый список молча
     /// оправдывал бы любую дыру, ради чего его и нельзя вычислять.
-    /// На принятом срезе строка одна. Ожидалось три — `pull` и `full_body`
-    /// сняты прогоном: тянущего паттерна на пустом профиле нет, но полное
-    /// правило они набирают другими паттернами, а требования «в дне спины
-    /// обязана быть тяга» §20.11 не вводит.
-    public static let declaredIncomplete: Set<Combination> = [
-        Combination(kind: .upper, level: .bodyweight),
-    ]
+    /// С расширения библиотеки 2026-10-14 список пуст. Ожидалось три строки —
+    /// `pull` и `full_body` сняты прогоном среза: тянущего паттерна на пустом
+    /// профиле нет, но полное правило они набирают другими паттернами, а
+    /// требования «в дне спины обязана быть тяга» §20.11 не вводит. Последнюю,
+    /// `upper` на пустом профиле, снял «Супермен», давший акцентам `biceps` и
+    /// `forearms` третий паттерн. Механизм остаётся: строка возвращается
+    /// правкой SPEC, если разметка снова сделает полное правило недостижимым.
+    public static let declaredIncomplete: Set<Combination> = []
 
     public struct Combination: Hashable, Sendable {
         public let kind: SessionKind
@@ -77,7 +78,13 @@ public enum CoverageCheck {
         }
     }
 
-    public static func run(_ library: ContentLibrary, into findings: FindingCollector) -> Summary {
+    /// `declared` — список заведомо неполных комбинаций. По умолчанию — копия
+    /// §20.11; параметр существует для тестов механизма, которым нужна
+    /// объявленная строка, когда в настоящем списке её нет.
+    public static func run(
+        _ library: ContentLibrary, into findings: FindingCollector,
+        declared: Set<Combination> = declaredIncomplete
+    ) -> Summary {
         var summary = Summary()
         guard !library.candidates.isEmpty else {
             findings.add(rule: "§20.11", subject: "покрытие",
@@ -88,7 +95,7 @@ public enum CoverageCheck {
         for level in EquipmentLevel.allCases {
             for kind in DayVectorTable.vectorBearingKinds {
                 let combination = Combination(kind: kind, level: level)
-                let exempt = declaredIncomplete.contains(combination)
+                let exempt = declared.contains(combination)
                 var everyAccentPassedFully = true
                 var builtAnything = false
 

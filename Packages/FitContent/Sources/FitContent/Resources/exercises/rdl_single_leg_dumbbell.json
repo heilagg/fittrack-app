@@ -1,0 +1,43 @@
+{
+  "slug": "rdl_single_leg_dumbbell",
+  "name": "Румынская тяга с гантелью на одной ноге",
+  "pattern": "hinge",
+  "muscle_contributions": {
+    "hamstrings": 0.44,
+    "glute_max": 0.32,
+    "erectors": 0.12,
+    "glute_med": 0.12
+  },
+  "equipment": [],
+  "load_type": "dumbbell",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "medium", "shoulder": "none",
+    "wrist": "low", "neck": "none", "hip": "medium", "ankle": "low"
+  },
+  "impact": "none",
+  "skill_level": "intermediate",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["rdl_single_leg_bw", "rdl_dumbbell", "deadlift_romanian_barbell"],
+  "progression_family": "rdl_single_leg_dumbbell",
+  "setup_seconds": 15,
+  "cues": [
+    "Гантель в руке на стороне свободной ноги",
+    "Таз и плечи параллельны полу, без разворота",
+    "Опорное колено чуть согнуто, угол не меняется"
+  ],
+  "common_errors": [
+    "Округление спины в нижней точке",
+    "Разворот таза наружу вслед за свободной ногой"
+  ],
+  "technique": [
+    "Встать на одну ногу, гантель держать в противоположной руке",
+    "Слегка согнуть опорное колено",
+    "Наклониться вперёд, отводя таз назад, свободная нога уходит назад продолжением корпуса",
+    "Опустить гантель вдоль опорной ноги до параллели корпуса с полом",
+    "Вернуться в стойку за счёт ягодицы опорной ноги"
+  ],
+  "sources": [{"catalog": "wger", "id": "1736"}, {"catalog": "exercisedb", "id": "1757"}],
+  "illustration": "placeholder/lower/rdl_single_leg_dumbbell"
+}

@@ -1,0 +1,42 @@
+{
+  "slug": "glute_kickback_cable",
+  "name": "Отведение ноги назад на нижнем блоке",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "glute_max": 0.70,
+    "hamstrings": 0.20,
+    "glute_med": 0.05,
+    "erectors": 0.05
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": true,
+  "joint_stress": {
+    "knee": "low", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "none", "hip": "medium", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["glute_kickback_band", "hip_thrust_dumbbell", "glute_bridge_bw"],
+  "progression_family": "glute_kickback_cable",
+  "setup_seconds": 30,
+  "cues": [
+    "Манжета на щиколотке, лицом к блоку",
+    "Нога уходит назад за счёт ягодицы, поясница неподвижна",
+    "Корпус чуть наклонён и не раскачивается"
+  ],
+  "common_errors": [
+    "Прогиб поясницы в конце движения",
+    "Мах ногой с рывком"
+  ],
+  "technique": [
+    "Надеть манжету нижнего блока на щиколотку и встать лицом к блоку, держась за раму",
+    "Слегка согнуть опорное колено, корпус чуть наклонить вперёд",
+    "Отвести рабочую ногу назад по дуге, сжимая ягодицу",
+    "Медленно вернуть ногу вперёд, после подхода сменить ногу"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "One-Legged_Cable_Kickback"}, {"catalog": "wger", "id": "1131"}, {"catalog": "exercisedb", "id": "0860"}],
+  "illustration": "placeholder/lower/glute_kickback_cable"
+}

@@ -1,0 +1,41 @@
+{
+  "slug": "straight_arm_pulldown_cable",
+  "name": "Тяга верхнего блока прямыми руками",
+  "pattern": "isolation",
+  "muscle_contributions": {
+    "lats": 0.78,
+    "triceps": 0.12,
+    "rear_delts": 0.10
+  },
+  "equipment": ["cable_machine"],
+  "load_type": "cable",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.5,
+  "alternatives": ["lat_pulldown_machine", "pullup_bw"],
+  "progression_family": "straight_arm_pulldown",
+  "setup_seconds": 30,
+  "cues": [
+    "Руки почти прямые, угол в локтях не меняется",
+    "Корпус наклонён вперёд и неподвижен",
+    "Вести рукоять к бёдрам за счёт широчайших"
+  ],
+  "common_errors": [
+    "Сгибание рук: упражнение превращается в разгибание на трицепс",
+    "Раскачка корпусом"
+  ],
+  "technique": [
+    "Взять прямую рукоять верхнего блока хватом сверху шире плеч",
+    "Отойти на шаг, слегка наклонить корпус вперёд, руки вытянуты перед собой",
+    "Опустить рукоять по дуге к бёдрам почти прямыми руками",
+    "Медленно вернуть рукоять до уровня головы"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Straight-Arm_Pulldown"}, {"catalog": "wger", "id": "628"}, {"catalog": "exercisedb", "id": "0238"}],
+  "illustration": "placeholder/upper/straight_arm_pulldown_cable"
+}

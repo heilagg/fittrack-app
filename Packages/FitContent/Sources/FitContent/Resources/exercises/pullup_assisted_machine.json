@@ -1,0 +1,42 @@
+{
+  "slug": "pullup_assisted_machine",
+  "name": "Подтягивание в гравитроне",
+  "pattern": "pull_v",
+  "muscle_contributions": {
+    "lats": 0.52,
+    "biceps": 0.22,
+    "traps_mid": 0.14,
+    "rear_delts": 0.12
+  },
+  "equipment": ["machine:assisted_pullup"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "medium",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["pullup_band", "lat_pulldown_machine", "pullup_bw"],
+  "progression_family": "pullup_assisted",
+  "setup_seconds": 30,
+  "cues": [
+    "Колени на платформе, корпус вертикально",
+    "Опустить лопатки до сгибания рук",
+    "Вниз медленно до прямых рук"
+  ],
+  "common_errors": [
+    "Отталкивание от платформы ногами",
+    "Неполная амплитуда"
+  ],
+  "technique": [
+    "Выставить вес помощи и взяться за верхние рукояти",
+    "Встать коленями на платформу, руки прямые",
+    "Опустить лопатки и подтянуться до подбородка выше рукоятей",
+    "Медленно опуститься до прямых рук и в конце подхода сойти с платформы"
+  ],
+  "sources": [{"catalog": "wger", "id": "1929"}, {"catalog": "exercisedb", "id": "0017"}],
+  "illustration": "placeholder/upper/pullup_assisted_machine"
+}

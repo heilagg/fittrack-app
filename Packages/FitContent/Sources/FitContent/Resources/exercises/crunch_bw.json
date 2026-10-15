@@ -1,0 +1,40 @@
+{
+  "slug": "crunch_bw",
+  "name": "Скручивание лёжа",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.85,
+    "obliques": 0.15
+  },
+  "equipment": [],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "none",
+    "wrist": "none", "neck": "low", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 45,
+  "fatigue_cost": 0.3,
+  "alternatives": ["crunch_machine", "cable_crunch", "dead_bug_bw"],
+  "progression_family": "crunch",
+  "setup_seconds": 5,
+  "cues": [
+    "Поясница прижата к полу",
+    "Отрывать от пола только лопатки",
+    "Руки у головы не тянут шею"
+  ],
+  "common_errors": [
+    "Рывок за голову руками",
+    "Подъём корпуса до сидения: работа уходит в сгибатели бедра"
+  ],
+  "technique": [
+    "Лечь на спину, ноги согнуть, стопы на полу",
+    "Положить кисти по сторонам головы, локти в стороны",
+    "На выдохе скруглить спину и оторвать лопатки от пола",
+    "Задержаться и медленно опуститься"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Crunches"}, {"catalog": "wger", "id": "167"}, {"catalog": "exercisedb", "id": "0274"}],
+  "illustration": "placeholder/full_body/crunch_bw"
+}

@@ -1,0 +1,43 @@
+{
+  "slug": "overhead_press_seated_dumbbell",
+  "name": "Жим гантелей над головой сидя",
+  "pattern": "push_v",
+  "muscle_contributions": {
+    "front_delts": 0.45,
+    "triceps": 0.27,
+    "side_delts": 0.23,
+    "erectors": 0.05
+  },
+  "equipment": ["bench_adjustable"],
+  "load_type": "dumbbell",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "high",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.9,
+  "alternatives": ["overhead_press_dumbbell", "shoulder_press_machine", "arnold_press_dumbbell"],
+  "progression_family": "overhead_press",
+  "family_load_ratio": 0.45,
+  "setup_seconds": 30,
+  "cues": [
+    "Спинка скамьи вертикально, спина прижата",
+    "Старт от уровня ушей",
+    "Наверху гантели над плечами"
+  ],
+  "common_errors": [
+    "Прогиб поясницы и отрыв от спинки",
+    "Неполная амплитуда внизу"
+  ],
+  "technique": [
+    "Поставить спинку скамьи вертикально, сесть, гантели на бёдра",
+    "Поднять гантели к плечам, ладони вперёд",
+    "Выжать гантели вверх над плечами, спина прижата к спинке",
+    "Медленно опустить к уровню ушей"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Dumbbell_Shoulder_Press"}, {"catalog": "exercisedb", "id": "0405"}],
+  "illustration": "placeholder/upper/overhead_press_seated_dumbbell"
+}

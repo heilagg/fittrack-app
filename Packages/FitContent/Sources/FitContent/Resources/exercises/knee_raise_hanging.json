@@ -1,0 +1,42 @@
+{
+  "slug": "knee_raise_hanging",
+  "name": "Подъём коленей в висе",
+  "pattern": "core",
+  "muscle_contributions": {
+    "abs": 0.60,
+    "obliques": 0.20,
+    "forearms": 0.12,
+    "lats": 0.08
+  },
+  "equipment": ["pullup_bar"],
+  "load_type": "bodyweight",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "low", "shoulder": "low",
+    "wrist": "medium", "neck": "none", "hip": "low", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 60,
+  "fatigue_cost": 0.6,
+  "alternatives": ["leg_raise_hanging", "crunch_bw", "dead_bug_bw"],
+  "progression_family": "hanging_knee_raise",
+  "setup_seconds": 15,
+  "cues": [
+    "Плечи активны, не висеть расслабленно",
+    "Подкрутить таз, колени к груди",
+    "Опускать без раскачки"
+  ],
+  "common_errors": [
+    "Раскачка корпусом",
+    "Подъём коленей только до параллели без подкручивания таза"
+  ],
+  "technique": [
+    "Повиснуть на перекладине хватом на ширине плеч",
+    "Опустить плечи от ушей",
+    "Подтянуть колени к груди, подкручивая таз",
+    "Медленно опустить ноги без раскачки"
+  ],
+  "sources": [{"catalog": "wger", "id": "978"}],
+  "illustration": "placeholder/full_body/knee_raise_hanging"
+}

@@ -5,6 +5,7 @@
 //  §6.6), а правила — здесь, потому что гейт правил — CI, а не рантайм сервера
 //  (§20.11).
 
+import Foundation
 import FitCore
 import FitContent
 
@@ -14,6 +15,15 @@ public enum SchemaChecks {
     /// разметке примера §6.2 — вклады записаны с двумя знаками, и сумма
     /// двух знаков не может разойтись с 1.0 больше чем на округление.
     public static let contributionSumTolerance = 0.01
+
+    /// Число шагов `technique` (§6.2): меньше трёх — не описание, а подсказка,
+    /// больше шести — уже не помещается на экран упражнения одним взглядом.
+    public static let techniqueSteps = 3...6
+
+    /// Закрытый список каталогов `sources` (§6.2). Строка, а не enum в схеме,
+    /// по той же причине, что слаг тренажёра: опечатка представима и
+    /// ловится здесь, с именем упражнения.
+    public static let sourceCatalogs: Set<String> = ["free-exercise-db", "wger", "exercisedb"]
 
     public static func run(_ library: ContentLibrary, into findings: FindingCollector) {
         let machineSlugs = Set(EquipmentLevel.machineSlugs)
@@ -34,7 +44,56 @@ public enum SchemaChecks {
             checkFamily(exercise, slug: slug, familySizes: familySizes, into: findings)
             checkSanity(exercise, slug: slug, into: findings)
             checkName(exercise, slug: slug, nameCounts: nameCounts, into: findings)
+            checkTechnique(exercise, slug: slug, into: findings)
+            checkSources(exercise, slug: slug, into: findings)
         }
+    }
+
+    // MARK: - §6.2: техника и источники
+
+    private static func checkTechnique(
+        _ exercise: ExerciseSchema, slug: String, into findings: FindingCollector
+    ) {
+        let steps = exercise.technique
+        if !techniqueSteps.contains(steps.count) {
+            findings.add(rule: "§6.2", subject: slug,
+                         "technique: \(steps.count) шагов, нужно от \(techniqueSteps.lowerBound) "
+                         + "до \(techniqueSteps.upperBound)")
+        }
+        for (index, step) in steps.enumerated() {
+            let number = index + 1
+            if step.trimmingCharacters(in: .whitespaces).isEmpty {
+                findings.add(rule: "§6.2", subject: slug, "technique: шаг \(number) пустой")
+            }
+            if containsLatin(step) {
+                findings.add(rule: "§6.2", subject: slug,
+                             "technique: шаг \(number) содержит латиницу: «\(step)»")
+            }
+        }
+    }
+
+    private static func checkSources(
+        _ exercise: ExerciseSchema, slug: String, into findings: FindingCollector
+    ) {
+        var seen: Set<ExerciseSource> = []
+        for source in exercise.sources {
+            if !sourceCatalogs.contains(source.catalog) {
+                findings.add(rule: "§6.2", subject: slug,
+                             "sources: каталог «\(source.catalog)» вне закрытого списка")
+            }
+            if source.id.trimmingCharacters(in: .whitespaces).isEmpty {
+                findings.add(rule: "§6.2", subject: slug,
+                             "sources: пустой id у каталога «\(source.catalog)»")
+            }
+            if !seen.insert(source).inserted {
+                findings.add(rule: "§6.2", subject: slug,
+                             "sources: повтор «\(source.catalog)» / «\(source.id)»")
+            }
+        }
+    }
+
+    private static func containsLatin(_ text: String) -> Bool {
+        text.unicodeScalars.contains { ("a"..."z").contains($0) || ("A"..."Z").contains($0) }
     }
 
     // MARK: - §6.2: русские названия, механическая часть правил
@@ -47,7 +106,7 @@ public enum SchemaChecks {
         into findings: FindingCollector
     ) {
         let name = exercise.name
-        if name.unicodeScalars.contains(where: { ("a"..."z").contains($0) || ("A"..."Z").contains($0) }) {
+        if containsLatin(name) {
             findings.add(rule: "§6.2", subject: slug, "название «\(name)» содержит латиницу")
         }
         if let first = name.first, !(first.isUppercase && first.isLetter) {

@@ -1,0 +1,42 @@
+{
+  "slug": "chest_supported_row_machine",
+  "name": "Тяга в тренажёре с упором грудью",
+  "pattern": "pull_h",
+  "muscle_contributions": {
+    "lats": 0.40,
+    "traps_mid": 0.30,
+    "rear_delts": 0.15,
+    "biceps": 0.15
+  },
+  "equipment": ["machine:chest_supported_row"],
+  "load_type": "machine",
+  "unilateral": false,
+  "joint_stress": {
+    "knee": "none", "lower_back": "none", "shoulder": "low",
+    "wrist": "low", "neck": "none", "hip": "none", "ankle": "none"
+  },
+  "impact": "none",
+  "skill_level": "novice",
+  "default_rest_seconds": 90,
+  "fatigue_cost": 0.8,
+  "alternatives": ["row_seated_machine", "row_dumbbell_incline_prone", "row_barbell_bent_over"],
+  "progression_family": "chest_supported_row",
+  "setup_seconds": 30,
+  "cues": [
+    "Грудь прижата к упору",
+    "Сначала свести лопатки, потом тянуть локтями",
+    "Возврат до полного растяжения спины"
+  ],
+  "common_errors": [
+    "Отрыв груди от упора",
+    "Тяга рывком"
+  ],
+  "technique": [
+    "Настроить сиденье так, чтобы верх груди был у края упора",
+    "Лечь грудью на упор и взять рукояти",
+    "Свести лопатки и тянуть рукояти к корпусу, локти назад",
+    "Медленно вернуть рукояти до прямых рук"
+  ],
+  "sources": [{"catalog": "free-exercise-db", "id": "Lying_T-Bar_Row"}, {"catalog": "exercisedb", "id": "1350"}],
+  "illustration": "placeholder/upper/chest_supported_row_machine"
+}

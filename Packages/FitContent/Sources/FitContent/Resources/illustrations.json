@@ -2,6 +2,10 @@
   "_comment": "Сопоставление слагов с free-exercise-db (SPEC §6.5). match: exact — то же движение и снаряд; close — то же движение, снаряд на картинке другой. reversed: кадры каталога идут финишем вперёд. Файлы выгружает Tools/illustrations/fetch.py.",
   "source": "https://github.com/yuhonas/free-exercise-db",
   "exercises": {
+    "arnold_press_dumbbell": {
+      "id": "Arnold_Dumbbell_Press",
+      "match": "exact"
+    },
     "back_extension_machine": {
       "id": "Hyperextensions_Back_Extensions",
       "match": "exact"
@@ -14,12 +18,20 @@
       "id": "Dumbbell_Bench_Press",
       "match": "exact"
     },
+    "bench_press_incline_barbell": {
+      "id": "Barbell_Incline_Bench_Press_-_Medium_Grip",
+      "match": "exact"
+    },
     "bench_press_incline_dumbbell": {
       "id": "Incline_Dumbbell_Press",
       "match": "exact"
     },
     "box_jump": {
       "id": "Front_Box_Jump",
+      "match": "exact"
+    },
+    "cable_crossover": {
+      "id": "Cable_Crossover",
       "match": "exact"
     },
     "cable_crunch": {
@@ -46,6 +58,10 @@
       "id": "Chin-Up",
       "match": "exact"
     },
+    "crunch_bw": {
+      "id": "Crunches",
+      "match": "exact"
+    },
     "crunch_machine": {
       "id": "Ab_Crunch_Machine",
       "match": "exact"
@@ -54,12 +70,24 @@
       "id": "Barbell_Curl",
       "match": "exact"
     },
+    "curl_cable": {
+      "id": "Standing_Biceps_Cable_Curl",
+      "match": "exact"
+    },
     "curl_dumbbell": {
       "id": "Dumbbell_Bicep_Curl",
       "match": "exact"
     },
+    "curl_incline_dumbbell": {
+      "id": "Incline_Dumbbell_Curl",
+      "match": "exact"
+    },
     "dead_bug_bw": {
       "id": "Dead_Bug",
+      "match": "exact"
+    },
+    "deadlift_barbell": {
+      "id": "Barbell_Deadlift",
       "match": "exact"
     },
     "deadlift_romanian_barbell": {
@@ -71,12 +99,20 @@
       "id": "Face_Pull",
       "match": "close"
     },
+    "face_pull_cable": {
+      "id": "Face_Pull",
+      "match": "exact"
+    },
     "farmer_carry_dumbbell": {
       "id": "Farmers_Walk",
       "match": "close"
     },
     "fly_dumbbell": {
       "id": "Dumbbell_Flyes",
+      "match": "exact"
+    },
+    "fly_incline_dumbbell": {
+      "id": "Incline_Dumbbell_Flyes",
       "match": "exact"
     },
     "front_raise_dumbbell": {
@@ -87,9 +123,21 @@
       "id": "Butt_Lift_Bridge",
       "match": "exact"
     },
+    "glute_bridge_single_leg_bw": {
+      "id": "Single_Leg_Glute_Bridge",
+      "match": "exact"
+    },
     "glute_kickback_band": {
       "id": "Glute_Kickback",
       "match": "close"
+    },
+    "glute_kickback_cable": {
+      "id": "One-Legged_Cable_Kickback",
+      "match": "exact"
+    },
+    "hammer_curl_cable_rope": {
+      "id": "Cable_Hammer_Curls_-_Rope_Attachment",
+      "match": "exact"
     },
     "hammer_curl_dumbbell": {
       "id": "Hammer_Curls",
@@ -99,6 +147,14 @@
       "id": "Thigh_Abductor",
       "match": "exact"
     },
+    "hip_adduction_cable": {
+      "id": "Cable_Hip_Adduction",
+      "match": "exact"
+    },
+    "hip_adduction_machine": {
+      "id": "Thigh_Adductor",
+      "match": "exact"
+    },
     "hip_thrust_barbell": {
       "id": "Barbell_Hip_Thrust",
       "match": "exact"
@@ -106,6 +162,10 @@
     "hip_thrust_dumbbell": {
       "id": "Barbell_Hip_Thrust",
       "match": "close"
+    },
+    "lat_pulldown_close_grip_machine": {
+      "id": "Close-Grip_Front_Lat_Pulldown",
+      "match": "exact"
     },
     "lat_pulldown_machine": {
       "id": "Wide-Grip_Lat_Pulldown",
@@ -139,6 +199,10 @@
       "id": "Hanging_Leg_Raise",
       "match": "exact"
     },
+    "lunge_forward_dumbbell": {
+      "id": "Dumbbell_Lunges",
+      "match": "exact"
+    },
     "lunge_reverse_bw": {
       "id": "Dumbbell_Rear_Lunge",
       "match": "close"
@@ -155,6 +219,10 @@
       "id": "Standing_Dumbbell_Press",
       "match": "exact"
     },
+    "overhead_press_seated_dumbbell": {
+      "id": "Dumbbell_Shoulder_Press",
+      "match": "exact"
+    },
     "pallof_press_band": {
       "id": "Pallof_Press",
       "match": "close"
@@ -167,6 +235,14 @@
       "id": "Plank",
       "match": "exact"
     },
+    "pullover_dumbbell": {
+      "id": "Straight-Arm_Dumbbell_Pullover",
+      "match": "exact"
+    },
+    "pullup_band": {
+      "id": "Band_Assisted_Pull-Up",
+      "match": "exact"
+    },
     "pullup_bw": {
       "id": "Pullups",
       "match": "exact"
@@ -174,6 +250,11 @@
     "pushup_bw": {
       "id": "Pushups",
       "match": "exact"
+    },
+    "pushup_incline_bench": {
+      "id": "Incline_Push-Up",
+      "match": "exact",
+      "reversed": true
     },
     "pushup_narrow_bw": {
       "id": "Push-Ups_-_Close_Triceps_Position",
@@ -191,8 +272,20 @@
       "id": "Reverse_Flyes",
       "match": "exact"
     },
+    "reverse_fly_incline_dumbbell": {
+      "id": "Dumbbell_Lying_Rear_Lateral_Raise",
+      "match": "exact"
+    },
+    "reverse_pec_deck_machine": {
+      "id": "Reverse_Machine_Flyes",
+      "match": "exact"
+    },
     "row_barbell_bent_over": {
       "id": "Bent_Over_Barbell_Row",
+      "match": "exact"
+    },
+    "row_dumbbell_incline_prone": {
+      "id": "Dumbbell_Incline_Row",
       "match": "exact"
     },
     "row_dumbbell_one_arm": {
@@ -203,6 +296,10 @@
       "id": "Inverted_Row",
       "match": "exact"
     },
+    "row_seated_cable_machine": {
+      "id": "Seated_Cable_Rows",
+      "match": "exact"
+    },
     "row_seated_machine": {
       "id": "Seated_Cable_Rows",
       "match": "close"
@@ -210,6 +307,10 @@
     "russian_twist_dumbbell": {
       "id": "Russian_Twist",
       "match": "close"
+    },
+    "scapular_pullup_bw": {
+      "id": "Scapular_Pull-Up",
+      "match": "exact"
     },
     "shoulder_press_machine": {
       "id": "Machine_Shoulder_Military_Press",
@@ -222,6 +323,11 @@
     "side_plank_bw": {
       "id": "Side_Bridge",
       "match": "exact"
+    },
+    "skullcrusher_dumbbell": {
+      "id": "Lying_Dumbbell_Tricep_Extension",
+      "match": "exact",
+      "reversed": true
     },
     "split_squat_bulgarian_dumbbell": {
       "id": "Split_Squat_with_Dumbbells",
@@ -243,8 +349,25 @@
       "id": "Freehand_Jump_Squat",
       "match": "exact"
     },
+    "squat_smith": {
+      "id": "Smith_Machine_Squat",
+      "match": "exact",
+      "reversed": true
+    },
     "step_up_dumbbell": {
       "id": "Dumbbell_Step_Ups",
+      "match": "exact"
+    },
+    "straight_arm_pulldown_cable": {
+      "id": "Straight-Arm_Pulldown",
+      "match": "exact"
+    },
+    "superman_bw": {
+      "id": "Superman",
+      "match": "exact"
+    },
+    "triceps_extension_overhead_cable_rope": {
+      "id": "Cable_Rope_Overhead_Triceps_Extension",
       "match": "exact"
     },
     "triceps_extension_overhead_dumbbell": {
@@ -255,8 +378,16 @@
       "id": "Triceps_Pushdown",
       "match": "exact"
     },
+    "triceps_pushdown_rope_cable": {
+      "id": "Triceps_Pushdown_-_Rope_Attachment",
+      "match": "exact"
+    },
     "wrist_curl_dumbbell": {
       "id": "Seated_Dumbbell_Palms-Up_Wrist_Curl",
+      "match": "exact"
+    },
+    "wrist_extension_dumbbell": {
+      "id": "Seated_Dumbbell_Palms-Down_Wrist_Curl",
       "match": "exact"
     }
   }
