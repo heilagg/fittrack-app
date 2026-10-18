@@ -355,6 +355,23 @@ describe('онбординг (срез 5)', () => {
     ).toThrow()
   })
 
+  it('схема тренировок обязательна в профиле и закрыта словарём (§7.2)', () => {
+    const complete = load('profile_complete.json') as Record<string, unknown>
+    expect(profileSchema.parse(complete).training_split).toBe('push_pull_legs')
+    const { training_split: _omitted, ...without } = complete
+    void _omitted
+    expect(profileSchema.safeParse(without).success).toBe(false)
+    expect(profileSchema.safeParse({ ...complete, training_split: 'bro_split' }).success).toBe(false)
+    expect(patchProfileRequestSchema.parse(load('request_patch_profile_training_split.json'))).toEqual({
+      training_split: 'upper_lower',
+    })
+  })
+
+  it('подписи снаряда: массив строк у каждого упражнения, пустой — законен', () => {
+    const list = exerciseContentListSchema.parse(load('content_exercises.json'))
+    expect(list.map((e) => e.equipment_labels)).toEqual([['Штанга'], ['Гантели', 'Регулируемая скамья'], []])
+  })
+
   it('пресет «зал»: непрерывный шаг 2.5, все слаги тренажёров, гири включены', () => {
     const gym = equipmentRowSchema.parse(load('equipment_preset_gym.json'))
     expect(gym.dumbbells_kg[1]! - gym.dumbbells_kg[0]!).toBe(2.5)
