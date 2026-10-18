@@ -30,6 +30,13 @@ final class EquipmentLabelsTests: XCTestCase {
         XCTAssertEqual(labels(.bodyweight, [.plyoBox]), ["Тумба"])
     }
 
+    /// Повтор в разметке подписи не удваивает: тренажёр, указанный дважды, —
+    /// одна строка.
+    func test_repeatedRequirementGivesOneLabel() {
+        XCTAssertEqual(labels(.machine, [.machine("leg_press"), .machine("leg_press")]), ["Жим ногами"])
+        XCTAssertEqual(labels(.band, [.bands, .bands]), ["Резинка"])
+    }
+
     func test_bodyweightWithoutEquipmentHasNoLabel() {
         XCTAssertEqual(labels(.bodyweight), [])
         XCTAssertEqual(labels(.bodyweightLoaded), [])
