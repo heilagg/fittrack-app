@@ -112,7 +112,7 @@ struct WeekPlanRoutesTests {
     func missingFieldsAreNamed() {
         let slice = Mapping.profile(from: Mapping.ProfileRow(
             experienceLevel: nil, goal: "hypertrophy", trainingWeekdays: nil,
-            sessionMinutes: 45, cycleTracking: "off", sexAtBirth: nil,
+            sessionMinutes: 45, trainingSplit: "auto", cycleTracking: "off", sexAtBirth: nil,
             hasDefaultEquipment: true))
         #expect(Mapping.missingProfileFields(slice) == ["experience_level", "training_weekdays"])
         #expect(!Mapping.missingProfileFields(slice).contains("goal"))
@@ -131,7 +131,7 @@ struct WeekPlanRoutesTests {
     func inputDigestShape() throws {
         let weekStart = CalendarDay(year: 2026, month: 9, day: 28)
         let profile = Mapping.CompleteProfile(level: .novice, goal: .hypertrophy,
-                                              trainingWeekdays: [1, 3, 5])
+                                              trainingWeekdays: [1, 3, 5], trainingSplit: .upperLower)
         let context = WeekContext(
             weekStart: weekStart, week: [], today: weekStart,
             fatigue: [.quads: FatigueState(value: 1.5, updatedAt: Timestamp(hoursSinceEpoch: 10))],
@@ -152,12 +152,19 @@ struct WeekPlanRoutesTests {
         #expect(digest.phaseMode == "no_phases")
         #expect(digest.cycleEvents == ["period_start@2026-09-28"])
         #expect(digest.trainingWeekdays == [1, 3, 5])
+        // Версия 2 (§20.6): схема рядом с днями — обе задают сетку недели.
+        #expect(digest.version == 2)
+        #expect(digest.trainingSplit == "upper_lower")
+        let json = try Mapping.json(digest)
+        #expect(json.contains("\"training_split\":\"upper_lower\""))
+        #expect(json.contains("\"v\":2"))
     }
 
     @Test("снимок сериализуется воспроизводимо: его читают глазами и дифом")
     func inputDigestIsStable() throws {
         let weekStart = CalendarDay(year: 2026, month: 9, day: 28)
-        let profile = Mapping.CompleteProfile(level: .novice, goal: .general, trainingWeekdays: [2, 4])
+        let profile = Mapping.CompleteProfile(level: .novice, goal: .general, trainingWeekdays: [2, 4],
+                                              trainingSplit: .auto)
         let context = WeekContext(
             weekStart: weekStart, week: [], today: weekStart, library: [],
             availability: EquipmentAvailability(), equipment: EquipmentProfile(),

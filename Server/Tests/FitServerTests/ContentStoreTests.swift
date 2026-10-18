@@ -126,10 +126,12 @@ struct ContentStoreTests {
     func bodyCarriesNoSelectionFields() throws {
         let store = try store([exercise("a")])
         let text = String(decoding: store.exercises.bytes, as: UTF8.self)
-        for field in ["muscle_contributions", "joint_stress", "equipment",
+        // Ключ в кавычках, а не подстрока: `equipment_labels` — поле показа
+        // (§6.6), и слово `equipment` в нём законно; сам `equipment` — нет.
+        for field in ["muscle_contributions", "joint_stress", "equipment", "load_type",
                       "fatigue_cost", "setup_seconds", "progression_family",
                       "family_load_ratio", "impact", "skill_level", "alternatives"] {
-            #expect(!text.contains(field), "\(field) в браузере не нужен (§20.1)")
+            #expect(!text.contains("\"\(field)\""), "\(field) в браузере не нужен (§20.1)")
         }
         #expect(text.contains("\"cues\"") && text.contains("\"common_errors\""))
     }
@@ -184,5 +186,44 @@ struct ContentStoreTests {
             #expect(etag == store[path].etag)
         }
         #expect(store.exercises.etag != store.stretches.etag)
+    }
+
+    // MARK: - Подпись снаряда (§6.6)
+
+    @Test("Тело несёт equipment_labels из load_type и equipment (§6.6, §20.11)")
+    func bodyCarriesEquipmentLabels() throws {
+        let store = try store([exercise("a")])
+        let decoded = try JSONDecoder().decode([ExerciseContentDTO].self, from: store.exercises.bytes)
+        #expect(decoded.first?.equipmentLabels == ["Штанга", "Скамья"])
+        let raw = try #require(String(data: store.exercises.bytes, encoding: .utf8))
+        #expect(raw.contains("\"equipment_labels\""))
+    }
+
+    /// Слаги тренажёров — строки, и полноту каталога FitAPI против закрытого
+    /// списка FitContent компилятор не проверит: проверяется здесь, где
+    /// линкуются оба пакета. Заодно — на всей библиотеке: у каждой подписи нет
+    /// голого слага (запасного пути `label(.machine)`), Смит подписан только
+    /// тренажёром, у упражнений без снаряда подписей нет.
+    @Test("Подписи на реальной библиотеке: каталог полон, Смит и собственный вес")
+    func bundledLibraryLabels() throws {
+        #expect(Set(EquipmentLabels.machineNames.keys) == Set(EquipmentLevel.machineSlugs))
+        let library = try Content.loadBundled()
+        let store = try ContentStore(library: library)
+        let decoded = try JSONDecoder().decode([ExerciseContentDTO].self, from: store.exercises.bytes)
+        #expect(decoded.count == library.exercises.count)
+        let bySlug = Dictionary(uniqueKeysWithValues: decoded.map { ($0.slug, $0.equipmentLabels) })
+        for c in library.candidates {
+            let labels = try #require(bySlug[c.slug])
+            #expect(!labels.contains { EquipmentLevel.machineSlugs.contains($0) }, "голый слаг у \(c.slug)")
+            if c.equipment.isEmpty && (c.loadType == .bodyweight || c.loadType == .bodyweightLoaded) {
+                #expect(labels.isEmpty, "\(c.slug): без снаряда строки нет")
+            } else {
+                #expect(!labels.isEmpty, "\(c.slug): снаряд есть, подписи нет")
+            }
+        }
+        #expect(bySlug["squat_smith"] == ["Тренажёр Смита"])
+        #expect(bySlug["cable_crossover"] == ["Блочный тренажёр (кроссовер)"])
+        #expect(bySlug["pullup_band"] == ["Турник", "Резинка"])
+        #expect(bySlug["pullup_assisted_machine"] == ["Гравитрон"])
     }
 }

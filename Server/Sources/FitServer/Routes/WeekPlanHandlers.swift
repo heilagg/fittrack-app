@@ -104,7 +104,7 @@ extension WeekPlanRoutes {
             let slots = Planner.weekGrid(
                 days: Mapping.trainingDates(weekStart: weekStart,
                                             weekdays: inputs.complete.trainingWeekdays),
-                level: inputs.complete.level)
+                level: inputs.complete.level, split: inputs.complete.trainingSplit)
 
             if let existing = try await loadWeek(tx, weekStart: weekStart) {
                 // Идемпотентность §20.3: повтор С ТЕМИ ЖЕ параметрами отдаёт

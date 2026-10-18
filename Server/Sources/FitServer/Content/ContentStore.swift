@@ -34,6 +34,7 @@ import Foundation
 import Crypto
 import FitAPI
 import FitContent
+import FitCore
 
 /// Готовый ответ одного пути: байты и их `ETag`.
 public struct ContentPayload: Sendable, Equatable {
@@ -81,7 +82,16 @@ public struct ContentStore: Sendable {
 
     public init(library: ContentLibrary) throws {
         let encoder = Self.encoder()
-        let exerciseDTOs = library.exercises.map(ExerciseContentDTO.init(_:))
+        // Подпись снаряда (§6.6) считается из среза планировщика: `load_type`
+        // и `equipment` там уже приведены к типам FitCore, а разбор разметки во
+        // второй раз дал бы второе толкование одного поля.
+        let candidates = Dictionary(uniqueKeysWithValues: library.candidates.map { ($0.slug, $0) })
+        let exerciseDTOs = try library.exercises.map { exercise in
+            guard let candidate = candidates[exercise.slug] else {
+                throw ContentStoreError.missingCandidate(exercise.slug)
+            }
+            return ExerciseContentDTO(exercise, candidate: candidate)
+        }
         let stretchDTOs = library.stretches.map(StretchContentDTO.init(_:))
         exercises = ContentPayload(bytes: try encoder.encode(exerciseDTOs))
         stretches = ContentPayload(bytes: try encoder.encode(stretchDTOs))
@@ -128,11 +138,19 @@ public enum ContentPath: String, Sendable, CaseIterable {
     public var route: String { "/v1/content/\(rawValue)" }
 }
 
+/// Упражнение без записи среза — рассогласование внутри `FitContent`, а не
+/// данных: срез строится из того же файла. Сервер с ним не стартует.
+enum ContentStoreError: Error, Equatable {
+    case missingCandidate(String)
+}
+
 extension ExerciseContentDTO {
-    init(_ exercise: ExerciseSchema) {
+    init(_ exercise: ExerciseSchema, candidate: ExerciseCandidate) {
         self.init(slug: exercise.slug, name: exercise.name, cues: exercise.cues,
                   commonErrors: exercise.commonErrors, illustration: exercise.illustration,
-                  defaultRestSeconds: exercise.defaultRestSeconds)
+                  defaultRestSeconds: exercise.defaultRestSeconds,
+                  equipmentLabels: EquipmentLabels.labels(loadType: candidate.loadType,
+                                                          equipment: candidate.equipment))
     }
 }
 

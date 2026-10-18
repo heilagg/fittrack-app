@@ -18,11 +18,23 @@ struct MappingProfileTests {
 
     private func row(level: String? = "novice", goal: String? = "hypertrophy",
                      weekdays: [Int]? = [1, 3, 5], minutes: Int = 45,
-                     tracking: String = "off",
+                     tracking: String = "off", split: String = "auto",
                      equipment: Bool = true) -> Mapping.ProfileRow {
         Mapping.ProfileRow(experienceLevel: level, goal: goal, trainingWeekdays: weekdays,
-                           sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: "female",
+                           sessionMinutes: minutes, trainingSplit: split, cycleTracking: tracking,
+                           sexAtBirth: "female",
                            hasDefaultEquipment: equipment)
+    }
+
+    @Test("training_split читается в срез и доезжает до CompleteProfile (§7.2)")
+    func trainingSplitReachesCompleteProfile() throws {
+        let slice = Mapping.profile(from: row(split: "push_pull_legs"))
+        #expect(slice.trainingSplit == .pushPullLegs)
+        #expect(slice.complete?.trainingSplit == .pushPullLegs)
+        // Значение вне словаря — умолчание, как у cycle_tracking: профиль не
+        // становится нечитаемым из-за одного поля.
+        #expect(Mapping.profile(from: row(split: "bro_split")).trainingSplit == .auto)
+        #expect(Mapping.ProfileSlice.notStarted.trainingSplit == .auto)
     }
 
     @Test("полный профиль даёт CompleteProfile")
