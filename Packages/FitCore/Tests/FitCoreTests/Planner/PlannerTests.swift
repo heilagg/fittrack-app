@@ -421,6 +421,12 @@ final class PlannerTests: XCTestCase {
         noW12.weights.w12 = 0
         XCTAssertTrue(F.slugs(build(home)).contains(band.slug))
         XCTAssertEqual(build(home).composition, build(noW12).composition, "без зала w12 ничего не меняет")
+        // Блок — не слаг `machines` и признаком зала не служит (§7.5).
+        var cable = F.input(week: week, library: library, equipment: F.noDumbbells, states: states)
+        cable.availability.cableMachine = true
+        var cableNoW12 = cable
+        cableNoW12.weights.w12 = 0
+        XCTAssertEqual(build(cable).composition, build(cableNoW12).composition, "блок w12 не включает")
         // Тренажёр — тоже признак зала, даже без гантелей.
         let machineOnly = EquipmentAvailability(bench: .flat, pullupBar: true, bands: true, machines: ["leg_press"])
         var withMachine = F.input(week: week, library: library + [dumbbell], availability: machineOnly,
