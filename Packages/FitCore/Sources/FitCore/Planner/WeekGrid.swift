@@ -1,6 +1,7 @@
 //  Недельная сетка (SPEC §7.2) и запись дня недели, которую читают сборка и
-//  пересборка. Сетка зависит только от выбранных дней и уровня: цель, фаза,
-//  утомление и прошлый объём действуют в сборке, не в расстановке.
+//  пересборка. Сетка зависит только от выбранных дней, уровня и схемы
+//  тренировок (`TrainingSplit`): цель, фаза, утомление и прошлый объём
+//  действуют в сборке, не в расстановке.
 
 /// `planned_days.session_kind` (SPEC §3.1). «Ноги» — `lower`.
 public enum SessionKind: String, Sendable, Equatable, Hashable, CaseIterable {
@@ -64,6 +65,15 @@ public struct GridSlot: Sendable, Equatable {
     }
 }
 
+/// `profiles.training_split` (SPEC §3.1, §7.2, «Схема тренировок»).
+public enum TrainingSplit: String, Sendable, Equatable, Hashable, CaseIterable {
+    /// Расстановка §7.2 по числу дней и уровню — прежнее поведение.
+    case auto
+    case fullBody = "full_body"
+    case upperLower = "upper_lower"
+    case pushPullLegs = "push_pull_legs"
+}
+
 extension Planner {
     /// Расстановка §7.2. Типы назначаются выбранным дням в календарном порядке;
     /// растяжка — последний выбранный день и входит в `days_per_week`.
@@ -74,18 +84,61 @@ extension Planner {
     /// обязана проверяться схемой: `{2,2,4}` при `days_per_week = 3` даёт два
     /// дня вместо трёх и другие типы дней (два full body вместо верх/низ/full
     /// body).
-    public static func weekGrid(days: [CalendarDay], level: ExperienceLevel) -> [GridSlot] {
+    ///
+    /// `split` — схема тренировок из Профиля. Значения по умолчанию у параметра
+    /// нет намеренно: забытый аргумент неотличим от «Авто», и выбранная схема
+    /// молча перестала бы действовать. Уровень опыта читает только «Авто»: явная
+    /// схема — выбор пользовательницы (§7.2). Ротации между неделями нет, каждая
+    /// неделя собирается от понедельника заново.
+    public static func weekGrid(days: [CalendarDay], level: ExperienceLevel, split: TrainingSplit) -> [GridSlot] {
         let sorted = Set(days).sorted()
-        let kinds: [SessionKind]
-        switch sorted.count {
-        case 0: kinds = []
-        case 1, 2: kinds = Array(repeating: .fullBody, count: sorted.count)
-        case 3: kinds = level == .novice ? [.fullBody, .fullBody, .fullBody] : [.upper, .lower, .fullBody]
-        case 4: kinds = [.upper, .lower, .upper, .lower]
-        case 5: kinds = [.upper, .lower, .upper, .lower, .fullBody]
-        case 6: kinds = [.push, .pull, .lower, .upper, .lower, .stretch]
-        default: kinds = [.push, .pull, .lower, .push, .pull, .lower, .stretch]
-        }
+        let kinds = gridKinds(count: sorted.count, level: level, split: split)
         return zip(sorted, kinds).map { GridSlot(date: $0, kind: $1) }
+    }
+
+    /// Таблица §7.2 — типы по числу дней. Больше семи дней в неделе не бывает:
+    /// всё, что выше, читается как семь, как и раньше.
+    static func gridKinds(count: Int, level: ExperienceLevel, split: TrainingSplit) -> [SessionKind] {
+        guard count > 0 else { return [] }
+        let n = min(count, 7)
+        switch split {
+        case .auto:
+            switch n {
+            case 1, 2: return Array(repeating: .fullBody, count: n)
+            case 3: return level == .novice ? [.fullBody, .fullBody, .fullBody] : [.upper, .lower, .fullBody]
+            case 4: return [.upper, .lower, .upper, .lower]
+            case 5: return [.upper, .lower, .upper, .lower, .fullBody]
+            case 6: return [.push, .pull, .lower, .upper, .lower, .stretch]
+            default: return [.push, .pull, .lower, .push, .pull, .lower, .stretch]
+            }
+        case .fullBody:
+            // С шести дней последний — растяжка, как в «Авто» (§7.2).
+            return n >= 6 ? Array(repeating: .fullBody, count: n - 1) + [.stretch]
+                          : Array(repeating: .fullBody, count: n)
+        case .upperLower:
+            switch n {
+            // Один день — «Всё тело»: одна сессия верха или низа оставила бы
+            // половину тела без работы на неделю (§7.2, «Где схема подменяется»).
+            case 1: return [.fullBody]
+            case 2: return [.upper, .lower]
+            case 3: return [.upper, .lower, .fullBody]
+            case 4: return [.upper, .lower, .upper, .lower]
+            case 5: return [.upper, .lower, .upper, .lower, .fullBody]
+            case 6: return [.upper, .lower, .upper, .lower, .upper, .stretch]
+            default: return [.upper, .lower, .upper, .lower, .upper, .lower, .stretch]
+            }
+        case .pushPullLegs:
+            switch n {
+            case 1: return [.fullBody]
+            // Два дня — «Верх тела / Низ тела»: жимовая и тяговая без дня низа
+            // оставили бы ноги без нагрузки, а ротации между неделями нет (§7.2).
+            case 2: return [.upper, .lower]
+            case 3: return [.push, .pull, .lower]
+            case 4: return [.push, .pull, .lower, .fullBody]
+            case 5: return [.push, .pull, .lower, .upper, .lower]
+            case 6: return [.push, .pull, .lower, .upper, .lower, .stretch]
+            default: return [.push, .pull, .lower, .push, .pull, .lower, .stretch]
+            }
+        }
     }
 }
