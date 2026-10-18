@@ -22,8 +22,9 @@
 //  «поставить» (§20.3). Различать первые два обязательно: онбординг шлёт
 //  подмножества полей, и «поле не прислали» не означает «сними его».
 //
-//  Исключение — `session_minutes` и `cycle_tracking`: в схеме они `not null` с
-//  умолчанием, снять их нечем, и третьего состояния у них не бывает.
+//  Исключение — `session_minutes`, `training_split` и `cycle_tracking`: в схеме
+//  они `not null` с умолчанием, снять их нечем, и третьего состояния у них не
+//  бывает.
 
 import FitCore
 
@@ -90,6 +91,9 @@ public struct ProfileDTO: Sendable, Equatable, Codable {
     public var daysPerWeek: Int?
     public var trainingWeekdays: [Int]?
     public var sessionMinutes: Int
+    /// Схема тренировок (§7.2). Смена действует со следующей генерации недели
+    /// (§7.1), как смена дней.
+    public var trainingSplit: TrainingSplit
     public var cycleTracking: CycleTracking
     /// Хватает ли данных, чтобы сгенерировать неделю (§20.6). Считает сервер.
     public var isComplete: Bool
@@ -101,15 +105,16 @@ public struct ProfileDTO: Sendable, Equatable, Codable {
         case sexAtBirth = "sex_at_birth", birthYear = "birth_year", heightCm = "height_cm"
         case experienceLevel = "experience_level", goal
         case daysPerWeek = "days_per_week", trainingWeekdays = "training_weekdays"
-        case sessionMinutes = "session_minutes", cycleTracking = "cycle_tracking"
+        case sessionMinutes = "session_minutes", trainingSplit = "training_split"
+        case cycleTracking = "cycle_tracking"
         case isComplete = "is_complete", cycle
     }
 
     public init(sexAtBirth: String? = nil, birthYear: Int? = nil, heightCm: Double? = nil,
                 experienceLevel: ExperienceLevel? = nil, goal: Goal? = nil,
                 daysPerWeek: Int? = nil, trainingWeekdays: [Int]? = nil,
-                sessionMinutes: Int, cycleTracking: CycleTracking, isComplete: Bool,
-                cycle: CycleProfileDTO? = nil) {
+                sessionMinutes: Int, trainingSplit: TrainingSplit, cycleTracking: CycleTracking,
+                isComplete: Bool, cycle: CycleProfileDTO? = nil) {
         self.sexAtBirth = sexAtBirth
         self.birthYear = birthYear
         self.heightCm = heightCm
@@ -118,6 +123,7 @@ public struct ProfileDTO: Sendable, Equatable, Codable {
         self.daysPerWeek = daysPerWeek
         self.trainingWeekdays = trainingWeekdays
         self.sessionMinutes = sessionMinutes
+        self.trainingSplit = trainingSplit
         self.cycleTracking = cycleTracking
         self.isComplete = isComplete
         self.cycle = cycle
@@ -133,6 +139,7 @@ public struct ProfileDTO: Sendable, Equatable, Codable {
         daysPerWeek = try c.decodeIfPresent(Int.self, forKey: .daysPerWeek)
         trainingWeekdays = try c.decodeIfPresent([Int].self, forKey: .trainingWeekdays)
         sessionMinutes = try c.decode(Int.self, forKey: .sessionMinutes)
+        trainingSplit = try c.decodeRaw(TrainingSplit.self, forKey: .trainingSplit)
         cycleTracking = try c.decodeRaw(CycleTracking.self, forKey: .cycleTracking)
         isComplete = try c.decode(Bool.self, forKey: .isComplete)
         cycle = try c.decodeIfPresent(CycleProfileDTO.self, forKey: .cycle)
@@ -148,6 +155,7 @@ public struct ProfileDTO: Sendable, Equatable, Codable {
         try c.encodeIfPresent(daysPerWeek, forKey: .daysPerWeek)
         try c.encodeIfPresent(trainingWeekdays, forKey: .trainingWeekdays)
         try c.encode(sessionMinutes, forKey: .sessionMinutes)
+        try c.encodeRaw(trainingSplit, forKey: .trainingSplit)
         try c.encodeRaw(cycleTracking, forKey: .cycleTracking)
         try c.encode(isComplete, forKey: .isComplete)
         try c.encodeIfPresent(cycle, forKey: .cycle)

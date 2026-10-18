@@ -7,6 +7,9 @@
       "Колени по линии носков"
     ],
     "default_rest_seconds" : 120,
+    "equipment_labels" : [
+      "Штанга"
+    ],
     "illustration" : "placeholder/lower/squat_barbell",
     "name" : "Приседания со штангой",
     "slug" : "squat_barbell"
@@ -19,6 +22,25 @@
 
     ],
     "default_rest_seconds" : 90,
+    "equipment_labels" : [
+      "Гантели",
+      "Регулируемая скамья"
+    ],
+    "illustration" : "placeholder/upper/bench_press_incline_dumbbell",
+    "name" : "Жим гантелей на наклонной скамье",
+    "slug" : "bench_press_incline_dumbbell"
+  },
+  {
+    "common_errors" : [
+
+    ],
+    "cues" : [
+
+    ],
+    "default_rest_seconds" : 90,
+    "equipment_labels" : [
+
+    ],
     "illustration" : "placeholder/upper/pushup_bw",
     "name" : "Отжимания",
     "slug" : "pushup_bw"

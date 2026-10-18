@@ -12,6 +12,7 @@
   "is_complete" : true,
   "session_minutes" : 60,
   "sex_at_birth" : "female",
+  "training_split" : "push_pull_legs",
   "training_weekdays" : [
     1,
     3,

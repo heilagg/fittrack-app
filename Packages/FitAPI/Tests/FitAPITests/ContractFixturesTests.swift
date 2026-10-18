@@ -164,7 +164,7 @@ final class ContractFixturesTests: XCTestCase {
             sexAtBirth: "female", birthYear: 1994, heightCm: 168,
             experienceLevel: .intermediate, goal: .hypertrophy,
             daysPerWeek: 3, trainingWeekdays: [1, 3, 5],
-            sessionMinutes: 60, cycleTracking: .off, isComplete: false))
+            sessionMinutes: 60, trainingSplit: .auto, cycleTracking: .off, isComplete: false))
     }
 
     func test_profileComplete() throws {
@@ -172,7 +172,7 @@ final class ContractFixturesTests: XCTestCase {
             sexAtBirth: "female", birthYear: 1994, heightCm: 168,
             experienceLevel: .intermediate, goal: .hypertrophy,
             daysPerWeek: 3, trainingWeekdays: [1, 3, 5],
-            sessionMinutes: 60, cycleTracking: .off, isComplete: true,
+            sessionMinutes: 60, trainingSplit: .pushPullLegs, cycleTracking: .off, isComplete: true,
             cycle: CycleProfileDTO(phaseMode: .noPhases, noPhaseReason: .userChoice)))
     }
 
@@ -185,11 +185,15 @@ final class ContractFixturesTests: XCTestCase {
             ExerciseContentDTO(slug: "squat_barbell", name: "Приседания со штангой",
                                cues: ["Колени по линии носков"], commonErrors: ["Колени заваливаются внутрь"],
                                illustration: "placeholder/lower/squat_barbell",
-                               defaultRestSeconds: 120),
+                               defaultRestSeconds: 120, equipmentLabels: ["Штанга"]),
+            ExerciseContentDTO(slug: "bench_press_incline_dumbbell", name: "Жим гантелей на наклонной скамье",
+                               cues: [], commonErrors: [],
+                               illustration: "placeholder/upper/bench_press_incline_dumbbell",
+                               defaultRestSeconds: 90, equipmentLabels: ["Гантели", "Регулируемая скамья"]),
             ExerciseContentDTO(slug: "pushup_bw", name: "Отжимания",
                                cues: [], commonErrors: [],
                                illustration: "placeholder/upper/pushup_bw",
-                               defaultRestSeconds: 90),
+                               defaultRestSeconds: 90, equipmentLabels: []),
         ])
     }
 
@@ -362,6 +366,17 @@ final class ContractFixturesTests: XCTestCase {
             sexAtBirth: .some("female"), birthYear: .some(1994), heightCm: .some(168),
             experienceLevel: .some(.intermediate), goal: .some(.hypertrophy),
             trainingWeekdays: .some([1, 3, 5]), sessionMinutes: 60, cycleTracking: .off))
+    }
+
+    /// Смена схемы тренировок в Профиле (§7.2): одно поле, остальное не трогается.
+    func test_requestPatchProfileTrainingSplit() throws {
+        try check("request_patch_profile_training_split.json", PatchProfileRequest(trainingSplit: .upperLower))
+    }
+
+    /// Названия тренажёров (§6.6) — эталон для таблицы `MACHINE_LABELS` веба,
+    /// которая остаётся в Профиле и онбординге и сверяется с этим файлом.
+    func test_machineNames() throws {
+        try check("equipment_machine_names.json", EquipmentLabels.machineNames)
     }
 
     /// Шаг 9 онбординга, «да»: режим фаз, источник — вручную, заявленные

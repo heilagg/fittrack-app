@@ -1,0 +1,18 @@
+{
+  "ab_crunch" : "Тренажёр для пресса",
+  "assisted_pullup" : "Гравитрон",
+  "back_extension" : "Гиперэкстензия",
+  "calf_raise" : "Подъём на носки",
+  "chest_press" : "Жим от груди",
+  "chest_supported_row" : "Тяга в тренажёре с упором грудью",
+  "hip_abduction" : "Разведение ног",
+  "hip_adduction" : "Сведение ног",
+  "lat_pulldown" : "Верхний блок",
+  "leg_curl" : "Сгибание ног",
+  "leg_extension" : "Разгибание ног",
+  "leg_press" : "Жим ногами",
+  "pec_deck" : "Бабочка",
+  "seated_row" : "Горизонтальная тяга",
+  "shoulder_press" : "Жим над головой",
+  "smith" : "Тренажёр Смита"
+}
