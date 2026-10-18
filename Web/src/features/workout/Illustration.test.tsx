@@ -7,7 +7,7 @@ import { ExerciseFrames, ExerciseThumbnail } from './Illustration'
 afterEach(cleanup)
 
 const content = (illustration: string): ExerciseContent => ({
-  slug: 'plank_bw', name: 'Планка на предплечьях', cues: [], common_errors: [], illustration, default_rest_seconds: 60,
+  slug: 'plank_bw', name: 'Планка на предплечьях', cues: [], common_errors: [], illustration, default_rest_seconds: 60, equipment_labels: [],
 })
 
 describe('кадры на экране тренировки', () => {

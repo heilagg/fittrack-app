@@ -7,7 +7,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { ZodType } from 'zod'
+import { z, type ZodType } from 'zod'
 import {
   alternativesSchema,
   cycleCalendarSchema,
@@ -73,6 +73,9 @@ const schemaFor: Record<string, ZodType> = {
   'response_alternatives.json': alternativesSchema,
   'request_substitute_pain.json': substituteRequestSchema,
   'response_substitute.json': workoutExerciseSchema,
+  'request_patch_profile_training_split.json': patchProfileRequestSchema,
+  // Эталон названий тренажёров (§6.6): его сверяет с MACHINE_LABELS labels.test.ts.
+  'equipment_machine_names.json': z.record(z.string(), z.string()),
 }
 
 describe('эталонные JSON границы /v1', () => {

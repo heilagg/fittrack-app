@@ -47,7 +47,10 @@ const names = [
   { slug: 'squat_barbell', name: 'Приседания' },
   { slug: 'lunge_db', name: 'Выпады' },
   { slug: 'hip_thrust_barbell', name: 'Ягодичный мост' },
-].map((n) => ({ ...n, cues: [], common_errors: [], illustration: n.slug === 'hip_thrust_barbell' ? 'catalog/exact/hip_thrust_barbell' : 'x', default_rest_seconds: 90 }))
+].map((n) => ({
+  ...n, cues: [], common_errors: [], illustration: n.slug === 'hip_thrust_barbell' ? 'catalog/exact/hip_thrust_barbell' : 'x',
+  default_rest_seconds: 90, equipment_labels: n.slug === 'hip_thrust_barbell' ? ['Штанга', 'Скамья'] : [],
+}))
 
 const alternatives: ExerciseAlternative[] = [
   {
@@ -121,6 +124,8 @@ describe('флаг боли (§8.4)', () => {
     expect(await within(panel).findByText('Ягодичный мост')).toBeInTheDocument()
     expect(within(panel).getByText(/Меньше нагрузки на колено/)).toBeInTheDocument()
     expect(within(panel).getByTestId('thumbnail')).toHaveAttribute('src', '/illustrations/hip_thrust_barbell/start.jpg')
+    // Подпись снаряда у альтернативы (§13.4, §6.6): смена снаряда видна до тапа.
+    expect(within(panel).getByTestId('alternative-equipment')).toHaveTextContent('Штанга, Скамья')
   })
 
   it('выбор замены: reason=pain, новое упражнение с подходом 1 из 3', async () => {

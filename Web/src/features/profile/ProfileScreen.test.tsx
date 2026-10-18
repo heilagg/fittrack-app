@@ -15,7 +15,7 @@ afterEach(cleanup)
 
 const female = (cycle: Profile['cycle'], tracking: Profile['cycle_tracking'] = 'manual'): Profile => ({
   sex_at_birth: 'female',
-  session_minutes: 60,
+  session_minutes: 60, training_split: 'auto',
   cycle_tracking: tracking,
   is_complete: true,
   ...(cycle ? { cycle } : {}),
@@ -100,6 +100,7 @@ describe('Профиль: правки', () => {
   it('ссылки на личные данные, инвентарь и ограничения — у всех, и у мужского профиля', async () => {
     mount({ ...female({ phase_mode: 'phases' }), sex_at_birth: 'male' })
     expect(await screen.findByTestId('personal-link')).toHaveAttribute('href', '/profile/personal')
+    expect(screen.getByTestId('split-link')).toHaveAttribute('href', '/profile/split')
     expect(screen.getByTestId('equipment-link')).toHaveAttribute('href', '/profile/equipment')
     expect(screen.getByTestId('restrictions-link')).toHaveAttribute('href', '/profile/restrictions')
   })

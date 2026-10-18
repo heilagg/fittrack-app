@@ -21,6 +21,16 @@ test.describe('экран упражнения', () => {
 
     const name = await page.getByTestId('current-exercise').textContent()
     expect(name).not.toMatch(/^[a-z0-9_]+$/)
+    // Подпись снаряда (§6.6, §13.2) — ровно то, что отдал сервер: строка через
+    // запятую, а у упражнения без снаряда строки нет.
+    const content = (await (await page.request.get('/v1/content/exercises')).json()) as {
+      name: string
+      equipment_labels: string[]
+    }[]
+    const labels = content.find((c) => c.name === name)?.equipment_labels
+    expect(labels, 'упражнение есть в /v1/content/exercises').toBeDefined()
+    if (labels!.length > 0) await expect(page.getByTestId('equipment-line')).toHaveText(labels!.join(', '))
+    else await expect(page.getByTestId('equipment-line')).toHaveCount(0)
     await expect(page.getByTestId('weight')).toHaveText(/кг|Без веса/)
     expect(await counterText(page)).toMatchObject({ n: 1 })
     await expect(page.getByTestId('wake-lock')).toBeVisible()

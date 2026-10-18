@@ -13,7 +13,7 @@ vi.mock('../today/TodayScreen', () => ({
 afterEach(cleanup)
 
 const profile = (isComplete: boolean): Profile => ({
-  session_minutes: 45,
+  session_minutes: 45, training_split: 'auto',
   cycle_tracking: 'off',
   is_complete: isComplete,
 })

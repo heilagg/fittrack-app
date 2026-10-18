@@ -385,6 +385,10 @@ export const cycleProfileSchema = z.object({
   no_phase_reason: z.string().optional(),
 })
 
+// Схема тренировок (§7.2): закрытый словарь `profiles.training_split`.
+export const trainingSplits = ['auto', 'full_body', 'upper_lower', 'push_pull_legs'] as const
+export type TrainingSplit = (typeof trainingSplits)[number]
+
 export const profileSchema = z.object({
   sex_at_birth: z.string().optional(),
   birth_year: z.number().int().optional(),
@@ -394,6 +398,7 @@ export const profileSchema = z.object({
   days_per_week: z.number().int().optional(),
   training_weekdays: z.array(z.number().int()).optional(),
   session_minutes: z.number().int(),
+  training_split: z.enum(trainingSplits),
   cycle_tracking: z.enum(['off', 'manual', 'healthkit']),
   // Ответ сервера, а не правило клиента: четыре поля и инвентарь по умолчанию.
   is_complete: z.boolean(),
@@ -410,6 +415,9 @@ export const exerciseContentSchema = z.object({
   common_errors: z.array(z.string()),
   illustration: z.string(),
   default_rest_seconds: z.number().int(),
+  // Подписи снаряда (§6.6): готовые строки, разделитель ставит клиент; пусто —
+  // строки под названием нет.
+  equipment_labels: z.array(z.string()),
 })
 export type ExerciseContent = z.infer<typeof exerciseContentSchema>
 export const exerciseContentListSchema = z.array(exerciseContentSchema)
@@ -454,6 +462,7 @@ export const patchProfileRequestSchema = z.object({
   goal: z.enum(['strength', 'hypertrophy', 'toning', 'endurance', 'general']).nullable().optional(),
   training_weekdays: z.array(z.number().int()).nullable().optional(),
   session_minutes: z.number().int().optional(),
+  training_split: z.enum(trainingSplits).optional(),
   cycle_tracking: z.enum(['off', 'manual', 'healthkit']).optional(),
   // Шаг 9 онбординга: обе таблицы одним телом (§20.3). `null` вместо объекта
   // сервер запрещает, поэтому здесь только объект.

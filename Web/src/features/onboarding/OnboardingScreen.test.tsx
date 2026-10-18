@@ -41,6 +41,7 @@ const full: Profile = {
   days_per_week: 3,
   training_weekdays: [1, 3, 5],
   session_minutes: 45,
+  training_split: 'auto',
   cycle_tracking: 'off',
   is_complete: false,
 }
@@ -146,7 +147,7 @@ describe('PAR-Q', () => {
 describe('шаги после PAR-Q', () => {
   it('шаг 3: PATCH трёх полей и вес прямой записью', async () => {
     direct.hasParq.mockResolvedValue(true)
-    const api = mount({ session_minutes: 45, cycle_tracking: 'off', is_complete: false })
+    const api = mount({ session_minutes: 45, training_split: 'auto', cycle_tracking: 'off', is_complete: false })
     await step(3)
     fireEvent.change(screen.getByLabelText('Пол при рождении'), { target: { value: 'male' } })
     expect(screen.getByLabelText('Год рождения').getAttribute('placeholder')).toBe('ГГГГ, например 2005')

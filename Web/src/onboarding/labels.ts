@@ -11,7 +11,9 @@ export const EXPERIENCE_OPTIONS = [
   { value: 'advanced', label: 'Больше 2 лет' },
 ] as const
 
-/** Русские названия тренажёров (§6.6); в базу пишется слаг. */
+/** Русские названия тренажёров (§6.6); в базу пишется слаг. Эталон —
+ * `Contract/fixtures/equipment_machine_names.json` из FitAPI: таблица остаётся
+ * здесь ради Профиля и онбординга и сверяется с ним тестом (`labels.test.ts`). */
 export const MACHINE_LABELS: Record<string, string> = {
   leg_press: 'Жим ногами',
   leg_extension: 'Разгибание ног',
@@ -29,4 +31,32 @@ export const MACHINE_LABELS: Record<string, string> = {
   chest_supported_row: 'Тяга в тренажёре с упором грудью',
   assisted_pullup: 'Гравитрон',
   smith: 'Тренажёр Смита',
+}
+
+/** Схема тренировок в Профиле (§7.2, §13.1). */
+export const TRAINING_SPLIT_OPTIONS = [
+  { value: 'auto', label: 'Авто' },
+  { value: 'full_body', label: 'Всё тело' },
+  { value: 'upper_lower', label: 'Верх и низ' },
+  { value: 'push_pull_legs', label: 'Пуш пулл ноги' },
+] as const
+
+/**
+ * Где схема подменяется (§7.2): при таком числе дней собирается другое, и
+ * интерфейс говорит об этом при выборе. Сетку клиент не строит — это две
+ * строки текста SPEC, а не расстановка.
+ */
+export function trainingSplitNote(split: string, days: number): string | null {
+  if (days === 1 && (split === 'upper_lower' || split === 'push_pull_legs')) {
+    return 'При одном дне в неделю собирается «Всё тело».'
+  }
+  if (days === 2 && split === 'push_pull_legs') {
+    return 'При двух днях в неделю собирается «Верх тела / Низ тела».'
+  }
+  return null
+}
+
+/** Строка подписей снаряда под названием упражнения (§6.6). */
+export function equipmentLine(labels: readonly string[] | undefined): string | null {
+  return labels && labels.length > 0 ? labels.join(', ') : null
 }

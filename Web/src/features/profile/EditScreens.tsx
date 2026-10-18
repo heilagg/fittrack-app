@@ -1,10 +1,14 @@
-// Правки Профиля, срез 6: личные данные, инвентарь по умолчанию, ограничения.
+// Правки Профиля, срез 6: личные данные, схема тренировок, инвентарь по
+// умолчанию, ограничения.
 // Выбор профиля инвентаря на «Начать», экспорт и удаление аккаунта — вне среза.
 //
 // Куда что пишется (§20.6):
 //   личные данные — `PATCH /v1/profile` (только изменённые поля) и вес тела
 //     прямой записью; план пересчитывает сервер, изменение приезжает `notice`
 //     недели;
+//   схема тренировок — `PATCH /v1/profile` одним полем `training_split`;
+//     действует со следующей недели, как смена дней (§7.1), поэтому `notice`
+//     здесь не ждём;
 //   инвентарь — прямая правка строки `is_default`, затем `/rebuild` с
 //     `equipment_changed` и показ `notice`;
 //   ограничения — снятие (`resolved_at`) и новые строки прямой записью;
@@ -15,13 +19,13 @@ import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
-import type { Profile } from '../../api/schemas'
+import type { Profile, TrainingSplit } from '../../api/schemas'
 import { browserTimeZone, localDate } from '../../api/day'
 import { currentUserId } from '../../auth/supabase'
 import { readDefaultEquipment, updateEquipmentProfile } from '../../direct/equipment'
 import { upsertBodyWeight } from '../../direct/onboarding'
 import { addRestrictions, latestBodyWeight, readActiveRestrictions, resolveRestrictions } from '../../direct/profile'
-import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION } from '../../onboarding/labels'
+import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION, TRAINING_SPLIT_OPTIONS, trainingSplitNote } from '../../onboarding/labels'
 import { personalPatch } from '../../profile/personal'
 import { levelsOf, restrictionChanges } from '../../profile/restrictions'
 import { BirthYearField } from '../onboarding/BirthYearField'
@@ -182,6 +186,85 @@ function PersonalForm({ api, profile, weight }: { api: ApiClient; profile: Profi
       </form>
       {saved && <p className="notice" data-testid="personal-saved">Сохранено</p>}
       {problem !== null && <p role="alert">{problem}</p>}
+      {error !== null && <ErrorBlock error={error} />}
+    </>
+  )
+}
+
+// MARK: - Схема тренировок (§7.2, §13.1)
+
+export function SplitScreen({ api }: { api: ApiClient }) {
+  const profile = useQuery({ queryKey: ['profile'], queryFn: () => api.getProfileIfStarted() })
+  if (profile.isPending) return <p role="status">Загрузка…</p>
+  if (profile.isError) return <ErrorBlock error={profile.error} />
+  if (!profile.data) return <ErrorBlock error={new Error('Профиль ещё не заполнен')} />
+  return (
+    <Frame title="Схема тренировок" testId="split">
+      <SplitForm api={api} profile={profile.data} />
+    </Frame>
+  )
+}
+
+function SplitForm({ api, profile }: { api: ApiClient; profile: Profile }) {
+  const queryClient = useQueryClient()
+  const [split, setSplit] = useState<TrainingSplit>(profile.training_split)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<unknown>(null)
+  const [saved, setSaved] = useState(false)
+  // Подмена считается от сохранённых дней: число дней правится на соседнем
+  // экране, и здесь оно данность.
+  const note = trainingSplitNote(split, profile.training_weekdays?.length ?? 0)
+
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    setError(null)
+    setSaved(false)
+    void (async () => {
+      try {
+        // Неизменённая схема не шлётся: она не должна выглядеть сменой.
+        if (split !== profile.training_split) await api.patchProfile({ training_split: split })
+        await refresh(queryClient, ['profile'])
+        setSaved(true)
+      } catch (e) {
+        setError(e)
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }
+
+  return (
+    <>
+      <form onSubmit={submit}>
+        <fieldset>
+          <legend>Как раскладывать дни недели</legend>
+          {TRAINING_SPLIT_OPTIONS.map((o) => (
+            <p key={o.value}>
+              <label className="option">
+                <input
+                  type="radio"
+                  name="training-split"
+                  value={o.value}
+                  checked={split === o.value}
+                  onChange={() => setSplit(o.value)}
+                />{' '}
+                {o.label}
+              </label>
+            </p>
+          ))}
+          {note !== null && (
+            <p className="caption" data-testid="split-note">
+              {note}
+            </p>
+          )}
+          <p className="caption">Новая схема вступит в силу со следующей недели.</p>
+        </fieldset>
+        <button type="submit" className="button-primary" disabled={busy}>
+          Сохранить
+        </button>
+      </form>
+      {saved && <p className="notice" data-testid="split-saved">Сохранено</p>}
       {error !== null && <ErrorBlock error={error} />}
     </>
   )

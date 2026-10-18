@@ -1,4 +1,4 @@
-// Профиль (SPEC §13.1), срез 6: правка личных данных, инвентаря по умолчанию,
+// Профиль (SPEC §13.1), срез 6: правка личных данных, схемы тренировок, инвентаря по умолчанию,
 // ограничений и цикла; вход в календарь цикла. Выбор профиля инвентаря на
 // «Начать», экспорт и удаление аккаунта — вне среза.
 //
@@ -54,6 +54,11 @@ export function ProfileScreen({ api, store = browserStore }: { api: ApiClient; s
         <li>
           <Link to="/profile/personal" data-testid="personal-link">
             Личные данные
+          </Link>
+        </li>
+        <li>
+          <Link to="/profile/split" data-testid="split-link">
+            Схема тренировок
           </Link>
         </li>
         <li>
