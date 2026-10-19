@@ -87,4 +87,21 @@ final class StretchContentTests: XCTestCase {
         XCTAssertEqual(library.poseBySlug["neck_side_stretch"]?.muscles, [.trapsUpper])
         XCTAssertEqual(library.poseBySlug["kneeling_hip_flexor_stretch"]?.muscles, [.quads])
     }
+
+    /// Правило предложенного шаблона (FitCore) называет слаги контента:
+    /// каждый обязан существовать, иначе экран отметил бы несуществующий.
+    func test_suggestedTemplatesExistInContent() throws {
+        let slugs = Set(try bundled().templates.map(\.slug))
+        for suggested in SuggestedTemplate.allCases {
+            XCTAssertTrue(slugs.contains(suggested.rawValue), suggested.rawValue)
+        }
+    }
+
+    /// Заминка на реальных позах: только статические, срез переносит поля.
+    func test_stretchPoseSlice() throws {
+        let pigeon = try XCTUnwrap(try bundled().poseBySlug["pigeon_pose"]).stretchPose
+        XCTAssertEqual(pigeon.kind, .static)
+        XCTAssertTrue(pigeon.unilateral)
+        XCTAssertEqual(pigeon.jointStress.count, Joint.allCases.count)
+    }
 }

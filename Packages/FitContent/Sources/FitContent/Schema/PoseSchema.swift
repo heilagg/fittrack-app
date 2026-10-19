@@ -176,3 +176,12 @@ public struct StretchTemplateSchema: Sendable, Equatable, Decodable {
         (seconds + 30) / 60
     }
 }
+
+extension PoseSchema {
+    /// Срез для подбора заминки (`Stretching.cooldown`, §12.2), как
+    /// `ExerciseSchema.candidate` для планировщика.
+    public var stretchPose: StretchPose {
+        StretchPose(slug: slug, kind: kind, unilateral: unilateral, defaultSeconds: defaultSeconds,
+                    muscles: muscles, jointStress: jointStress)
+    }
+}
