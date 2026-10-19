@@ -1,0 +1,41 @@
+{
+  "slug": "mountain_climber",
+  "name": "Скалолаз",
+  "kind": "cardio",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "abs",
+    "quads",
+    "front_delts"
+  ],
+  "patterns": [
+    "core"
+  ],
+  "joint_stress": {
+    "knee": "low",
+    "lower_back": "none",
+    "shoulder": "medium",
+    "wrist": "medium",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Плечи над ладонями, таз не поднимается",
+    "Колени по очереди тянутся к груди"
+  ],
+  "technique": [
+    "Встаньте в упор лёжа на прямых руках, корпус прямой.",
+    "Подтяните одно колено к груди.",
+    "Быстро смените ноги: первая уходит назад, вторая подтягивается.",
+    "Чередуйте ноги в быстром ровном темпе до конца интервала."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Mountain_Climbers"
+    }
+  ],
+  "illustration": "placeholder/stretch/mountain_climber"
+}

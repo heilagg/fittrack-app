@@ -55,6 +55,12 @@ public struct ContentLibrary: Sendable {
     public let candidates: [ExerciseCandidate]
     public let vectors: DayVectorTable
     public let stretches: [StretchSchema]
+    /// Позы растяжки и кардио (§12.3), по слагу. В `candidates` не попадают
+    /// никогда: срез планировщика строится только из `exercises` (§7.5).
+    public let poses: [PoseSchema]
+    /// Шаблоны самостоятельных сессий (§12.2), по слагу.
+    public let templates: [StretchTemplateSchema]
+    public let poseBySlug: [String: PoseSchema]
 
     public let bySlug: [String: ExerciseSchema]
     /// Слаги упражнений с НЕНУЛЕВЫМ вкладом в мышцу (§7.3: «нагруженные»).
@@ -68,12 +74,16 @@ public struct ContentLibrary: Sendable {
     /// файлы: так устроены тесты валидатора и прогоны на синтетике, где путь
     /// через JSON проверяет не то, что нужно, и только замедляет.
     public init(exercises: [ExerciseSchema], vectors: DayVectorTable,
-                stretches: [StretchSchema] = []) {
+                stretches: [StretchSchema] = [], poses: [PoseSchema] = [],
+                templates: [StretchTemplateSchema] = []) {
         let sorted = exercises.sorted { $0.slug < $1.slug }
         self.exercises = sorted
         self.candidates = sorted.map(\.candidate)
         self.vectors = vectors
         self.stretches = stretches
+        self.poses = poses.sorted { $0.slug < $1.slug }
+        self.templates = templates.sorted { $0.slug < $1.slug }
+        self.poseBySlug = Dictionary(poses.map { ($0.slug, $0) }, uniquingKeysWith: { first, _ in first })
 
         var bySlug: [String: ExerciseSchema] = [:]
         var byMuscle: [MuscleSlug: [String]] = [:]
@@ -107,15 +117,27 @@ public enum Content {
     /// `<root>/stretches/*.json`.
     public static func load(from root: URL) throws -> ContentLibrary {
         var exercises: [ExerciseSchema] = try decodeAll(in: root, subdirectory: "exercises")
+        var poses: [PoseSchema] = try decodeAll(in: root, subdirectory: "stretches/poses")
+        let templates: [StretchTemplateSchema] = try decodeAll(in: root, subdirectory: "stretches/templates")
         // Картинки (§6.5): ключ найденным слагам подставляется здесь, разметка
         // упражнений его не несёт. Файла нет — картинок нет, все на заглушке.
         let mapURL = root.appendingPathComponent("illustrations.json")
         if let data = FileManager.default.contents(atPath: mapURL.path) {
             do {
-                exercises = try JSONDecoder().decode(IllustrationMap.self, from: data).applied(to: exercises)
+                let map = try JSONDecoder().decode(IllustrationMap.self, from: data)
+                exercises = try map.applied(to: exercises)
+                poses = try map.applied(to: poses)
             } catch let error as DecodingError {
                 throw ContentError.malformedFile(path: "illustrations.json", reason: Self.explain(error))
             }
+        }
+        var seenPoses = Set<String>()
+        for pose in poses where !seenPoses.insert(pose.slug).inserted {
+            throw ContentError.duplicateSlug(pose.slug, path: "stretches/poses")
+        }
+        var seenTemplates = Set<String>()
+        for template in templates where !seenTemplates.insert(template.slug).inserted {
+            throw ContentError.duplicateSlug(template.slug, path: "stretches/templates")
         }
         var seen: [String: String] = [:]
         for exercise in exercises {
@@ -139,7 +161,9 @@ public enum Content {
 
         return ContentLibrary(exercises: exercises,
                               vectors: DayVectorTable(rows),
-                              stretches: stretches)
+                              stretches: stretches,
+                              poses: poses,
+                              templates: templates)
     }
 
     /// Корень ресурсов пакета. Отдельно от `loadBundled()`, чтобы тест мог
@@ -163,7 +187,7 @@ public enum Content {
               isDirectory.boolValue
         else {
             // Каталога нет — это пустой раздел контента, а не поломка:
-            // `stretches/` пуст до этапа В3 (§20.11), а на раннем срезе
+            // На раннем срезе пустым бывал `stretches/` (до этапа В3), а
             // пустым может быть и `vectors/`. Недостачу ловит валидатор.
             return []
         }

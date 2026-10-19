@@ -1,0 +1,37 @@
+{
+  "slug": "wall_angel",
+  "name": "Ангел у стены",
+  "kind": "dynamic",
+  "unilateral": false,
+  "default_seconds": 45,
+  "muscles": [
+    "traps_mid",
+    "rear_delts",
+    "front_delts"
+  ],
+  "patterns": [
+    "push_v",
+    "pull_v"
+  ],
+  "joint_stress": {
+    "knee": "none",
+    "lower_back": "none",
+    "shoulder": "medium",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Поясница, лопатки и затылок касаются стены",
+    "Двигайтесь медленно, без рывков"
+  ],
+  "technique": [
+    "Встаньте спиной к стене, стопы чуть впереди, поясница прижата.",
+    "Согните руки под прямым углом и прижмите к стене плечи, локти и кисти.",
+    "Медленно скользите руками вверх, не отрывая их от стены.",
+    "Опустите руки обратно и повторяйте в спокойном темпе."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/wall_angel"
+}

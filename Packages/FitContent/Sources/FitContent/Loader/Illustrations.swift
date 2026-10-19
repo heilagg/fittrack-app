@@ -41,9 +41,20 @@ public struct IllustrationMap: Sendable, Equatable, Decodable {
     }
 
     public var exercises: [String: Entry]
+    /// Позы растяжки и кардио (§12.3): тот же каталог и те же правила (§6.5).
+    public var poses: [String: Entry]
 
-    public init(exercises: [String: Entry]) {
+    enum CodingKeys: String, CodingKey { case exercises, poses }
+
+    public init(exercises: [String: Entry], poses: [String: Entry] = [:]) {
         self.exercises = exercises
+        self.poses = poses
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        exercises = try c.decode([String: Entry].self, forKey: .exercises)
+        poses = try c.decodeIfPresent([String: Entry].self, forKey: .poses) ?? [:]
     }
 
     /// Ключ `illustration` найденного слага (§6.5).
@@ -64,6 +75,21 @@ public struct IllustrationMap: Sendable, Equatable, Decodable {
             guard let entry = self.exercises[exercise.slug] else { return exercise }
             var copy = exercise
             copy.illustration = Self.key(slug: exercise.slug, match: entry.match)
+            return copy
+        }
+    }
+
+    /// Позы с подставленным ключом — то же правило, что у упражнений.
+    public func applied(to poses: [PoseSchema]) throws -> [PoseSchema] {
+        let known = Set(poses.map(\.slug))
+        if let unknown = self.poses.keys.sorted().first(where: { !known.contains($0) }) {
+            throw ContentError.malformedFile(path: "illustrations.json",
+                                             reason: "слага «\(unknown)» нет среди поз")
+        }
+        return poses.map { pose in
+            guard let entry = self.poses[pose.slug] else { return pose }
+            var copy = pose
+            copy.illustration = Self.key(slug: pose.slug, match: entry.match)
             return copy
         }
     }

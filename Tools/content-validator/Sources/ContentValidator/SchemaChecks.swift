@@ -43,18 +43,17 @@ public enum SchemaChecks {
             checkAlternatives(exercise, slug: slug, library: library, into: findings)
             checkFamily(exercise, slug: slug, familySizes: familySizes, into: findings)
             checkSanity(exercise, slug: slug, into: findings)
-            checkName(exercise, slug: slug, nameCounts: nameCounts, into: findings)
-            checkTechnique(exercise, slug: slug, into: findings)
-            checkSources(exercise, slug: slug, into: findings)
+            checkName(exercise.name, slug: slug, nameCounts: nameCounts, into: findings)
+            checkTechnique(exercise.technique, slug: slug, into: findings)
+            checkSources(exercise.sources, slug: slug, into: findings)
         }
     }
 
     // MARK: - §6.2: техника и источники
 
-    private static func checkTechnique(
-        _ exercise: ExerciseSchema, slug: String, into findings: FindingCollector
+    static func checkTechnique(
+        _ steps: [String], slug: String, into findings: FindingCollector
     ) {
-        let steps = exercise.technique
         if !techniqueSteps.contains(steps.count) {
             findings.add(rule: "§6.2", subject: slug,
                          "technique: \(steps.count) шагов, нужно от \(techniqueSteps.lowerBound) "
@@ -72,11 +71,11 @@ public enum SchemaChecks {
         }
     }
 
-    private static func checkSources(
-        _ exercise: ExerciseSchema, slug: String, into findings: FindingCollector
+    static func checkSources(
+        _ sources: [ExerciseSource], slug: String, into findings: FindingCollector
     ) {
         var seen: Set<ExerciseSource> = []
-        for source in exercise.sources {
+        for source in sources {
             if !sourceCatalogs.contains(source.catalog) {
                 findings.add(rule: "§6.2", subject: slug,
                              "sources: каталог «\(source.catalog)» вне закрытого списка")
@@ -92,7 +91,7 @@ public enum SchemaChecks {
         }
     }
 
-    private static func containsLatin(_ text: String) -> Bool {
+    static func containsLatin(_ text: String) -> Bool {
         text.unicodeScalars.contains { ("a"..."z").contains($0) || ("A"..."Z").contains($0) }
     }
 
@@ -101,11 +100,10 @@ public enum SchemaChecks {
     /// Только то, что проверяется машиной (§6.2, «Русские названия», п.7):
     /// латиница, заглавная буква, точка в конце, повтор. Устоявшееся имя,
     /// порядок слов и «с собственным весом» проверяются глазами.
-    private static func checkName(
-        _ exercise: ExerciseSchema, slug: String, nameCounts: [String: Int],
+    static func checkName(
+        _ name: String, slug: String, nameCounts: [String: Int],
         into findings: FindingCollector
     ) {
-        let name = exercise.name
         if containsLatin(name) {
             findings.add(rule: "§6.2", subject: slug, "название «\(name)» содержит латиницу")
         }

@@ -64,8 +64,10 @@ let report = Validator.run(library)
 print("content-validator: \(report.exerciseCount) "
       + plural(report.exerciseCount, "упражнение", "упражнения", "упражнений")
       + ", \(report.vectorCount) из \(DayVectorTable.allKeys.count) целевых векторов"
-      + ", \(report.stretchCount) "
-      + plural(report.stretchCount, "шаблон", "шаблона", "шаблонов") + " растяжки")
+      + ", \(report.poseCount) "
+      + plural(report.poseCount, "поза", "позы", "поз") + " растяжки и кардио"
+      + ", \(report.templateCount) "
+      + plural(report.templateCount, "шаблон", "шаблона", "шаблонов"))
 
 if report.coverage.builds > 0 {
     print("покрытие §20.11: \(report.coverage.builds) сборок, "

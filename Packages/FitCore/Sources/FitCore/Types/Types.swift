@@ -322,6 +322,15 @@ public enum RebuildCause: Sendable, Equatable {
     case equipmentChanged
 }
 
+/// Вид позы растяжки (SPEC §12.3). Закрытый словарь: статическая и
+/// динамическая растяжка и кардио — один тип позы, разный таймер (§12.2).
+/// Заминка берёт только `static`.
+public enum PoseKind: String, Sendable, Equatable, Hashable, CaseIterable {
+    case dynamic
+    case `static`
+    case cardio
+}
+
 /// `exercise.pattern` (SPEC §6.3).
 public enum Pattern: String, Sendable, Equatable, Hashable, CaseIterable {
     case squat

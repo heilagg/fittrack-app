@@ -1,0 +1,41 @@
+{
+  "slug": "hamstring_stretch",
+  "name": "Растяжка задней поверхности бедра",
+  "kind": "static",
+  "unilateral": true,
+  "default_seconds": 30,
+  "muscles": [
+    "hamstrings",
+    "calves"
+  ],
+  "patterns": [
+    "hinge"
+  ],
+  "joint_stress": {
+    "knee": "low",
+    "lower_back": "low",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Колено вытянутой ноги не сгибайте",
+    "Тяните ногу к себе мягко, без рывков",
+    "Таз и вторая нога остаются на полу"
+  ],
+  "technique": [
+    "Лягте на спину, одна нога вытянута на полу.",
+    "Вторую ногу поднимите вверх и обхватите руками бедро или накиньте на стопу полотенце.",
+    "Мягко тяните ногу к себе, пока не почувствуете растяжение по задней поверхности бедра.",
+    "Дышите ровно и удерживайте положение, затем смените ногу."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Hamstring_Stretch"
+    }
+  ],
+  "illustration": "placeholder/stretch/hamstring_stretch"
+}

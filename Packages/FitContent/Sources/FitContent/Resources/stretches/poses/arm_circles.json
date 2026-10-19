@@ -1,0 +1,42 @@
+{
+  "slug": "arm_circles",
+  "name": "Круговые движения руками",
+  "kind": "dynamic",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "front_delts",
+    "side_delts",
+    "rear_delts"
+  ],
+  "patterns": [
+    "push_v",
+    "pull_h"
+  ],
+  "joint_stress": {
+    "knee": "none",
+    "lower_back": "none",
+    "shoulder": "low",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Руки прямые, круги начинаются с небольших",
+    "Половину времени вперёд, половину назад"
+  ],
+  "technique": [
+    "Встаньте прямо и разведите прямые руки в стороны на уровне плеч.",
+    "Начните описывать руками небольшие круги вперёд.",
+    "Постепенно увеличивайте размер кругов.",
+    "Через половину времени смените направление на обратное."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Arm_Circles"
+    }
+  ],
+  "illustration": "placeholder/stretch/arm_circles"
+}

@@ -1,0 +1,39 @@
+{
+  "slug": "evening_relax",
+  "name": "Вечерняя расслабляющая",
+  "purpose": "Парасимпатика перед сном",
+  "items": [
+    {
+      "pose": "childs_pose",
+      "seconds": 120
+    },
+    {
+      "pose": "cat_cow",
+      "seconds": 60
+    },
+    {
+      "pose": "cobra_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "butterfly_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "pigeon_pose",
+      "seconds": 60
+    },
+    {
+      "pose": "hamstring_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "neck_side_stretch",
+      "seconds": 30
+    },
+    {
+      "pose": "doorway_chest_stretch",
+      "seconds": 45
+    }
+  ]
+}

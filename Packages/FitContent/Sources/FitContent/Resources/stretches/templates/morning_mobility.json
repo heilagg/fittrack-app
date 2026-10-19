@@ -1,0 +1,35 @@
+{
+  "slug": "morning_mobility",
+  "name": "Утренняя мобильность",
+  "purpose": "Общая, после сна",
+  "items": [
+    {
+      "pose": "cat_cow",
+      "seconds": 60
+    },
+    {
+      "pose": "arm_circles",
+      "seconds": 30
+    },
+    {
+      "pose": "open_book",
+      "seconds": 45
+    },
+    {
+      "pose": "standing_toe_touch",
+      "seconds": 45
+    },
+    {
+      "pose": "wall_angel",
+      "seconds": 60
+    },
+    {
+      "pose": "kneeling_hip_flexor_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "childs_pose",
+      "seconds": 60
+    }
+  ]
+}

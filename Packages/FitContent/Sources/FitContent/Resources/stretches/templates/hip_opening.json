@@ -1,0 +1,35 @@
+{
+  "slug": "hip_opening",
+  "name": "Раскрытие бёдер",
+  "purpose": "Приводящие, сгибатели бедра",
+  "items": [
+    {
+      "pose": "butterfly_stretch",
+      "seconds": 90
+    },
+    {
+      "pose": "frog_stretch",
+      "seconds": 90
+    },
+    {
+      "pose": "kneeling_hip_flexor_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "pigeon_pose",
+      "seconds": 75
+    },
+    {
+      "pose": "hamstring_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "childs_pose",
+      "seconds": 60
+    },
+    {
+      "pose": "cat_cow",
+      "seconds": 60
+    }
+  ]
+}

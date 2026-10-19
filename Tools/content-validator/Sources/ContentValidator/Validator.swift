@@ -13,7 +13,8 @@ public struct ValidationReport: Sendable {
     public let coverage: CoverageCheck.Summary
     public let exerciseCount: Int
     public let vectorCount: Int
-    public let stretchCount: Int
+    public let poseCount: Int
+    public let templateCount: Int
 
     public var passed: Bool { findings.isEmpty }
     /// Строки для вывода, отсортированные: порядок находок обязан не зависеть
@@ -26,6 +27,7 @@ public enum Validator {
     public static func run(_ library: ContentLibrary) -> ValidationReport {
         let findings = FindingCollector()
         SchemaChecks.run(library, into: findings)
+        PoseChecks.run(library, into: findings)
         VectorChecks.run(library, into: findings)
         let coverage = CoverageCheck.run(library, into: findings)
         return ValidationReport(
@@ -33,6 +35,7 @@ public enum Validator {
             coverage: coverage,
             exerciseCount: library.exercises.count,
             vectorCount: library.vectors.vectors.count,
-            stretchCount: library.stretches.count)
+            poseCount: library.poses.count,
+            templateCount: library.templates.count)
     }
 }

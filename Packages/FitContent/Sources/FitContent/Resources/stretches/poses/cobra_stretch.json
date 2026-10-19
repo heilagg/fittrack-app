@@ -1,0 +1,34 @@
+{
+  "slug": "cobra_stretch",
+  "name": "Кобра",
+  "kind": "static",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "abs"
+  ],
+  "patterns": [
+    "core"
+  ],
+  "joint_stress": {
+    "knee": "none",
+    "lower_back": "medium",
+    "shoulder": "low",
+    "wrist": "low",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Таз прижат к полу",
+    "Плечи опущены от ушей, прогиб без боли в пояснице"
+  ],
+  "technique": [
+    "Лягте на живот, ладони под плечами, ноги вытянуты.",
+    "Плавно выпрямляйте руки и поднимайте грудь, таз остаётся на полу.",
+    "Поднимайтесь только до лёгкого растяжения живота, без боли в пояснице.",
+    "Удерживайте положение и медленно опуститесь."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/cobra_stretch"
+}

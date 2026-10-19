@@ -1,0 +1,34 @@
+{
+  "slug": "jumping_jack",
+  "name": "Джампинг-джек",
+  "kind": "cardio",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "calves",
+    "quads",
+    "side_delts"
+  ],
+  "patterns": [],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "none",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "medium"
+  },
+  "cues": [
+    "Приземляйтесь мягко на носки",
+    "Темп ровный, дыхание не задерживайте"
+  ],
+  "technique": [
+    "Встаньте прямо, ноги вместе, руки опущены.",
+    "Прыжком разведите ноги в стороны и одновременно поднимите руки над головой.",
+    "Прыжком вернитесь в исходное положение.",
+    "Повторяйте в ровном темпе до конца интервала."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/jumping_jack"
+}

@@ -1,0 +1,37 @@
+{
+  "slug": "burpee_no_pushup",
+  "name": "Бёрпи без отжимания",
+  "kind": "cardio",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "quads",
+    "glute_max",
+    "front_delts"
+  ],
+  "patterns": [
+    "squat"
+  ],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "low",
+    "shoulder": "medium",
+    "wrist": "medium",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "medium"
+  },
+  "cues": [
+    "Корпус в упоре прямой, таз не проваливается",
+    "Приземляйтесь мягко, колени не заваливаются внутрь"
+  ],
+  "technique": [
+    "Встаньте прямо, ноги на ширине плеч.",
+    "Присядьте и поставьте ладони на пол перед стопами.",
+    "Прыжком отведите ноги назад в упор лёжа.",
+    "Прыжком верните ноги к рукам.",
+    "Выпрыгните вверх с поднятыми руками и мягко приземлитесь."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/burpee_no_pushup"
+}

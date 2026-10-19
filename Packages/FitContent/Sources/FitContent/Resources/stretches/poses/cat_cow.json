@@ -1,0 +1,36 @@
+{
+  "slug": "cat_cow",
+  "name": "Кошка-корова",
+  "kind": "dynamic",
+  "unilateral": false,
+  "default_seconds": 45,
+  "muscles": [
+    "erectors",
+    "abs"
+  ],
+  "patterns": [
+    "hinge",
+    "core"
+  ],
+  "joint_stress": {
+    "knee": "low",
+    "lower_back": "low",
+    "shoulder": "none",
+    "wrist": "medium",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Движение идёт волной по всему позвоночнику",
+    "На выдохе спина округляется, на вдохе прогибается"
+  ],
+  "technique": [
+    "Встаньте на четвереньки: ладони под плечами, колени под тазом.",
+    "На выдохе округлите спину вверх, подбородок к груди.",
+    "На вдохе мягко прогнитесь, грудь вперёд, взгляд вперёд.",
+    "Плавно чередуйте два положения в ритме дыхания."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/cat_cow"
+}

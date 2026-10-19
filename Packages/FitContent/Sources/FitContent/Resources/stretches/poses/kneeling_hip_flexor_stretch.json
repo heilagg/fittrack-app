@@ -1,0 +1,39 @@
+{
+  "slug": "kneeling_hip_flexor_stretch",
+  "name": "Растяжка сгибателей бедра стоя на колене",
+  "kind": "static",
+  "unilateral": true,
+  "default_seconds": 45,
+  "muscles": [
+    "quads"
+  ],
+  "patterns": [
+    "lunge"
+  ],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "low",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "low",
+    "ankle": "none"
+  },
+  "cues": [
+    "Ягодица опорной ноги напряжена, таз подкручен вперёд",
+    "Корпус прямой, не прогибайтесь в пояснице"
+  ],
+  "technique": [
+    "Встаньте на одно колено, вторая нога впереди, стопа на полу.",
+    "Подкрутите таз и напрягите ягодицу ноги, стоящей на колене.",
+    "Медленно перенесите вес вперёд до растяжения передней поверхности бедра.",
+    "Удерживайте положение, затем смените ногу."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Kneeling_Hip_Flexor"
+    }
+  ],
+  "illustration": "placeholder/stretch/kneeling_hip_flexor_stretch"
+}
