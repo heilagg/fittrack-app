@@ -215,7 +215,7 @@ Vite проксирует `/v1` на сервер (по умолчанию `:808
 ### 3.8 Контент
 
 - `GET /v1/content/exercises` и `/stretches` — с `ETag`, долгий кеш на клиенте;
-  до этапа В3 растяжки — пустой список (валидный ответ).
+  `/v1/content/stretches` с этапа В3 — объект `{poses, templates}` (§12.3, §20.3).
 - По проводу едет срез показа из семи полей: `slug`, `name`, `cues`,
   `common_errors`, `illustration`, `default_rest_seconds`, `equipment_labels`
   (подписи снаряда §6.6; разделитель ставит клиент). Шаг «+»/«−» берётся
