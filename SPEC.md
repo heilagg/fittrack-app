@@ -4033,7 +4033,7 @@ predictionMissFactor:  промах 0 дней   → 1.0
   "muscles": ["glute_max", "glute_med"],
   "patterns": ["hinge", "lunge"],
   "joint_stress": {"knee": "medium", "hip": "medium", "lower_back": "low",
-                   "shoulder": "none", "elbow": "none", "wrist": "none", "ankle": "none"},
+                   "shoulder": "none", "wrist": "none", "neck": "none", "ankle": "none"},
   "cues": ["Таз ровно, не заваливайте его на сторону согнутой ноги"],
   "technique": ["...", "...", "..."],
   "sources": [{"catalog": "free-exercise-db", "id": "..."}],
