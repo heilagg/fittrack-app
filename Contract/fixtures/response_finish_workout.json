@@ -1,4 +1,14 @@
 {
+  "cooldown" : [
+    {
+      "pose" : "pigeon_pose",
+      "seconds" : 45
+    },
+    {
+      "pose" : "hamstring_stretch",
+      "seconds" : 30
+    }
+  ],
   "week" : {
     "notice" : {
       "code" : "plan_rebuilt",

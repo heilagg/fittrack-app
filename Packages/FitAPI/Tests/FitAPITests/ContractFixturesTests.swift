@@ -315,20 +315,93 @@ final class ContractFixturesTests: XCTestCase {
             workout: finishedWorkout,
             week: WeekPlanResponseDTO(
                 plan: weekPlanDTO(),
-                notice: ReasonDTO(.planRebuilt(cause: .workoutCompleted)))))
+                notice: ReasonDTO(.planRebuilt(cause: .workoutCompleted))),
+            cooldown: [CooldownPoseDTO(pose: "pigeon_pose", seconds: 45),
+                       CooldownPoseDTO(pose: "hamstring_stretch", seconds: 30)]))
     }
 
     /// Повтор `/finish` или неделя без перестройки: `week` есть, `notice` нет.
     func test_responseFinishWorkoutNoNotice() throws {
         try check("response_finish_workout_no_notice.json", FinishWorkoutResponseDTO(
             workout: finishedWorkout,
-            week: WeekPlanResponseDTO(plan: weekPlanDTO(), notice: nil)))
+            week: WeekPlanResponseDTO(plan: weekPlanDTO(), notice: nil),
+            cooldown: [CooldownPoseDTO(pose: "pigeon_pose", seconds: 45),
+                       CooldownPoseDTO(pose: "hamstring_stretch", seconds: 30)]))
     }
 
     /// Недели нет: ключа `week` в теле нет вовсе.
     func test_responseFinishWorkoutNoWeek() throws {
         try check("response_finish_workout_no_week.json", FinishWorkoutResponseDTO(
-            workout: finishedWorkout, week: nil))
+            workout: finishedWorkout, week: nil, cooldown: []))
+    }
+
+    // MARK: - Растяжка и прогресс (этап В3)
+
+    /// Тело `/v1/content/stretches`: объект с позами и шаблонами (§12.3).
+    func test_contentStretches() throws {
+        try check("content_stretches.json", StretchContentDTO(
+            poses: [
+                PoseDTO(slug: "pigeon_pose", name: "Поза голубя", kind: "static", unilateral: true,
+                        defaultSeconds: 45, cues: ["Таз ровно"], illustration: "placeholder/stretch/pigeon_pose"),
+                PoseDTO(slug: "jumping_jack", name: "Джампинг-джек", kind: "cardio", unilateral: false,
+                        defaultSeconds: 30, cues: ["Мягко на носки"], illustration: "placeholder/stretch/jumping_jack"),
+            ],
+            templates: [
+                StretchTemplateDTO(slug: "hip_opening", name: "Раскрытие бёдер", purpose: "Приводящие, сгибатели бедра",
+                                   durationSeconds: 150, minutes: 3, items: [TemplateItemDTO(pose: "pigeon_pose", seconds: 75)]),
+                StretchTemplateDTO(slug: "cardio_intervals", name: "Кардио", purpose: "Интервальная сессия, не силовая",
+                                   durationSeconds: 120, minutes: 2,
+                                   items: [TemplateItemDTO(pose: "jumping_jack", workSeconds: 30, restSeconds: 15, rounds: 3)]),
+            ]))
+    }
+
+    func test_requestStartStretchSession() throws {
+        try check("request_start_stretch_session.json", StartStretchSessionRequest(
+            id: "33333333-3333-4333-8333-333333333333", kind: "standalone", templateSlug: "hip_opening",
+            day: DayContext(date: "2026-10-19", tz: "Europe/Moscow")))
+    }
+
+    func test_requestStartCooldownSession() throws {
+        try check("request_start_cooldown_session.json", StartStretchSessionRequest(
+            id: "44444444-4444-4444-8444-444444444444", kind: "static_cooldown", templateSlug: nil,
+            day: DayContext(date: "2026-10-19", tz: "Europe/Moscow")))
+    }
+
+    func test_requestFinishStretchSession() throws {
+        try check("request_finish_stretch_session.json",
+                  FinishStretchSessionRequest(day: DayContext(date: "2026-10-19", tz: "Europe/Moscow")))
+    }
+
+    private var finishedStretch: StretchSessionDTO {
+        StretchSessionDTO(id: "33333333-3333-4333-8333-333333333333", kind: "standalone",
+                          templateSlug: "hip_opening", performedOn: "2026-10-19",
+                          startedAt: "2026-10-19T18:00:00Z", finishedAt: "2026-10-19T18:12:00Z",
+                          durationSeconds: 720)
+    }
+
+    func test_responseStretchSession() throws {
+        try check("response_stretch_session.json", finishedStretch)
+    }
+
+    func test_responseStretchHistory() throws {
+        try check("response_stretch_history.json",
+                  StretchHistoryDTO(sessions: [finishedStretch], suggestedTemplate: "lower_back_pelvis"))
+    }
+
+    func test_responseProgress() throws {
+        let groups = Dictionary(uniqueKeysWithValues: MuscleGroup.allCases.map { ($0.rawValue, 0.0) })
+            .merging(["legs_glutes": 14.5, "back": 6.2], uniquingKeysWith: { $1 })
+        try check("response_progress.json", ProgressDTO(
+            from: "2026-09-01", to: "2026-10-19",
+            weeks: [ProgressWeekDTO(weekStart: "2026-10-12", partial: false, groups: groups),
+                    ProgressWeekDTO(weekStart: "2026-10-19", partial: true, groups: groups)],
+            groupNorms: MuscleGroup.allCases.map { GroupNormDTO(group: $0, level: .intermediate) },
+            baselines: [BaselineSeriesDTO(slug: "squat_barbell", points: [
+                BaselinePointDTO(date: "2026-10-12", kg: 40), BaselinePointDTO(date: "2026-10-15", kg: 42.5)])],
+            days: [ProgressDayDTO(date: "2026-10-12", strength: true, stretch: false, skipped: false, phase: "follicular"),
+                   ProgressDayDTO(date: "2026-10-13", strength: false, stretch: true, skipped: false, phase: nil),
+                   ProgressDayDTO(date: "2026-10-14", strength: false, stretch: false, skipped: true, phase: nil)],
+            streakWeeks: 3))
     }
 
     // MARK: - Ошибки
