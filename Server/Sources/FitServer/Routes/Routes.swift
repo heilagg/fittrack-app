@@ -51,5 +51,7 @@ public enum Routes {
         CycleRoutes.register(on: v1, database: database)
         WeekPlanRoutes.register(on: v1, database: database, library: library)
         WorkoutRoutes.register(on: v1, database: database, library: library)
+        StretchRoutes.register(on: v1, database: database, library: library)
+        ProgressRoutes.register(on: v1, database: database, library: library)
     }
 }

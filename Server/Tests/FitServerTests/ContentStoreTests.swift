@@ -35,16 +35,22 @@ struct ContentStoreTests {
             illustration: slug)
     }
 
-    private func stretch(_ slug: String, minutes: Int = 7) -> StretchSchema {
-        StretchSchema(slug: slug, name: "Шаблон \(slug)", durationMinutes: minutes,
-                      purpose: "Общая, после сна")
+    /// Поза и шаблон из одной позы (§12.3).
+    private func stretch(_ slug: String, seconds: Int = 60) -> (PoseSchema, StretchTemplateSchema) {
+        let pose = PoseSchema(slug: "pose_\(slug)", name: "Поза", kind: .static, unilateral: true,
+                              defaultSeconds: 30, muscles: [.gluteMax], patterns: [.hinge],
+                              jointStress: [.knee: .medium], cues: ["Ровно"], illustration: "placeholder/stretch/x")
+        let template = StretchTemplateSchema(slug: slug, name: "Шаблон", purpose: "Общая, после сна",
+                                             items: [TemplateItem(pose: pose.slug, seconds: seconds)])
+        return (pose, template)
     }
 
     private func store(_ exercises: [ExerciseSchema],
-                       _ stretches: [StretchSchema] = []) throws -> ContentStore {
+                       _ stretches: [(PoseSchema, StretchTemplateSchema)] = []) throws -> ContentStore {
         try ContentStore(library: ContentLibrary(exercises: exercises,
                                                 vectors: DayVectorTable([]),
-                                                stretches: stretches))
+                                                poses: stretches.map(\.0),
+                                                templates: stretches.map(\.1)))
     }
 
     // MARK: - Форма ETag
@@ -105,8 +111,8 @@ struct ContentStoreTests {
 
     @Test("Правка шаблона растяжки не сбрасывает кеш библиотеки упражнений")
     func editingStretchesLeavesTheExercisesEtagAlone() throws {
-        let before = try store([exercise("a")], [stretch("morning", minutes: 7)])
-        let after = try store([exercise("a")], [stretch("morning", minutes: 10)])
+        let before = try store([exercise("a")], [stretch("morning", seconds: 60)])
+        let after = try store([exercise("a")], [stretch("morning", seconds: 90)])
 
         #expect(before.exercises.etag == after.exercises.etag, "библиотека не менялась")
         #expect(before.stretches.etag != after.stretches.etag, "растяжка менялась")
@@ -136,11 +142,35 @@ struct ContentStoreTests {
         #expect(text.contains("\"cues\"") && text.contains("\"common_errors\""))
     }
 
-    @Test("Пустая растяжка — валидный пустой массив со своим ETag (до этапа В3)")
+    @Test("Тело растяжки — объект {poses, templates}; без контента — оба пусты")
     func emptyStretchesAreAValidBody() throws {
         let store = try store([exercise("a")])
-        #expect(String(decoding: store.stretches.bytes, as: UTF8.self) == "[]")
+        #expect(String(decoding: store.stretches.bytes, as: UTF8.self) == #"{"poses":[],"templates":[]}"#)
         #expect(store.stretches.etag.count == 66)
+    }
+
+    @Test("Шаблон несёт длительность из поз; входы подбора поз наружу не едут (§12.3, §20.11)")
+    func stretchBodyCarriesComputedDurationAndNoSelectionFields() throws {
+        let store = try store([exercise("a")], [stretch("morning", seconds: 45)])
+        let body = try JSONDecoder().decode(StretchContentDTO.self, from: store.stretches.bytes)
+        #expect(body.templates.first?.durationSeconds == 90, "односторонняя поза — дважды")
+        #expect(body.templates.first?.minutes == 2, "1.5 минуты — половина вверх")
+        #expect(body.poses.first?.kind == "static")
+        let text = String(decoding: store.stretches.bytes, as: UTF8.self)
+        for field in ["muscles", "patterns", "joint_stress", "technique", "sources"] {
+            #expect(!text.contains("\"\(field)\""), "\(field) — вход подбора, в браузер не едет")
+        }
+    }
+
+    @Test("Реальные шаблоны: длительности из таблицы §12.2")
+    func bundledTemplateMinutes() throws {
+        let store = try ContentStore(library: try Content.loadBundled())
+        let body = try JSONDecoder().decode(StretchContentDTO.self, from: store.stretches.bytes)
+        let minutes = Dictionary(uniqueKeysWithValues: body.templates.map { ($0.slug, $0.minutes) })
+        #expect(minutes == ["morning_mobility": 7, "evening_relax": 10, "neck_thoracic": 8, "hip_opening": 12,
+                            "lower_back_pelvis": 10, "menstrual_gentle": 12, "full_stretch": 20,
+                            "cardio_intervals": 9])
+        #expect(body.poses.count == 18)
     }
 
     // MARK: - Условный запрос

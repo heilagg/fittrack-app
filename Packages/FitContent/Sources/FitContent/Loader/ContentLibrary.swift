@@ -54,7 +54,6 @@ public struct ContentLibrary: Sendable {
     /// без предварительного отбора.
     public let candidates: [ExerciseCandidate]
     public let vectors: DayVectorTable
-    public let stretches: [StretchSchema]
     /// Позы растяжки и кардио (§12.3), по слагу. В `candidates` не попадают
     /// никогда: срез планировщика строится только из `exercises` (§7.5).
     public let poses: [PoseSchema]
@@ -74,13 +73,12 @@ public struct ContentLibrary: Sendable {
     /// файлы: так устроены тесты валидатора и прогоны на синтетике, где путь
     /// через JSON проверяет не то, что нужно, и только замедляет.
     public init(exercises: [ExerciseSchema], vectors: DayVectorTable,
-                stretches: [StretchSchema] = [], poses: [PoseSchema] = [],
+                poses: [PoseSchema] = [],
                 templates: [StretchTemplateSchema] = []) {
         let sorted = exercises.sorted { $0.slug < $1.slug }
         self.exercises = sorted
         self.candidates = sorted.map(\.candidate)
         self.vectors = vectors
-        self.stretches = stretches
         self.poses = poses.sorted { $0.slug < $1.slug }
         self.templates = templates.sorted { $0.slug < $1.slug }
         self.poseBySlug = Dictionary(poses.map { ($0.slug, $0) }, uniquingKeysWith: { first, _ in first })
@@ -157,11 +155,8 @@ public enum Content {
                                                   accent: row.key.accent?.rawValue)
         }
 
-        let stretches: [StretchSchema] = try decodeAll(in: root, subdirectory: "stretches")
-
         return ContentLibrary(exercises: exercises,
                               vectors: DayVectorTable(rows),
-                              stretches: stretches,
                               poses: poses,
                               templates: templates)
     }

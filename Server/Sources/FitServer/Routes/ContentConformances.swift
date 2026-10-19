@@ -29,6 +29,8 @@ extension LogSetRequest: @retroactive Content {}
 extension SubstituteExerciseRequest: @retroactive Content {}
 extension FinishWorkoutRequest: @retroactive Content {}
 extension PatchProfileRequest: @retroactive Content {}
+extension StartStretchSessionRequest: @retroactive Content {}
+extension FinishStretchSessionRequest: @retroactive Content {}
 
 // Ответы (§20.3).
 extension WeekPlanResponseDTO: @retroactive Content {}
@@ -39,4 +41,7 @@ extension WorkoutDTO: @retroactive Content {}
 extension WorkoutExerciseDTO: @retroactive Content {}
 extension LogSetResponseDTO: @retroactive Content {}
 extension ExerciseAlternativeDTO: @retroactive Content {}
+extension StretchSessionDTO: @retroactive Content {}
+extension StretchHistoryDTO: @retroactive Content {}
+extension ProgressDTO: @retroactive Content {}
 extension APIErrorEnvelope: @retroactive Content {}
