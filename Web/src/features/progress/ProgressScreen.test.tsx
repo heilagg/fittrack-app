@@ -13,8 +13,9 @@ afterEach(cleanup)
 const groups = (legs: number) => ({ legs_glutes: legs, back: 2, chest: 0, shoulders: 0, arms: 0, core: 0 })
 const progress: Progress = {
   from: '2026-08-31', to: '2026-10-19',
-  weeks: Array.from({ length: 8 }, (_, i) => ({
-    week_start: new Date(Date.UTC(2026, 7, 31 + 7 * i)).toISOString().slice(0, 10), partial: i === 7, groups: groups(10 + i),
+  // Двенадцать недель: окно запроса всегда 12, а по умолчанию показано 8.
+  weeks: Array.from({ length: 12 }, (_, i) => ({
+    week_start: new Date(Date.UTC(2026, 7, 3 + 7 * i)).toISOString().slice(0, 10), partial: i === 11, groups: groups(10 + i),
   })),
   group_norms: [
     { group: 'legs_glutes', name: 'Ноги и ягодицы', norm: 60, ceiling: 96 },
