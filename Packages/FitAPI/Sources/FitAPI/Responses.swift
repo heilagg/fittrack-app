@@ -487,10 +487,30 @@ public struct WorkoutDTO: Sendable, Equatable, Codable {
 public struct FinishWorkoutResponseDTO: Sendable, Equatable, Codable {
     public var workout: WorkoutDTO
     public var week: WeekPlanResponseDTO?
+    /// Автозаминка (§12.2): позы с секундами, пустой массив — заминки нет.
+    /// Считается на каждом ответе из подходов тренировки, поэтому повтор
+    /// `/finish` отдаёт ту же заминку.
+    public var cooldown: [CooldownPoseDTO]
 
-    public init(workout: WorkoutDTO, week: WeekPlanResponseDTO?) {
+    public init(workout: WorkoutDTO, week: WeekPlanResponseDTO?, cooldown: [CooldownPoseDTO]) {
         self.workout = workout
         self.week = week
+        self.cooldown = cooldown
+    }
+}
+
+/// Поза заминки: слаг и секунды на сторону (§12.2).
+public struct CooldownPoseDTO: Sendable, Equatable, Codable {
+    public var pose: String
+    public var seconds: Int
+
+    public init(pose: String, seconds: Int) {
+        self.pose = pose
+        self.seconds = seconds
+    }
+
+    public init(_ pose: CooldownPose) {
+        self.init(pose: pose.slug, seconds: pose.seconds)
     }
 }
 

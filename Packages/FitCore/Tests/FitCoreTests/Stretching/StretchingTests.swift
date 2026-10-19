@@ -81,6 +81,24 @@ final class StretchingTests: XCTestCase {
         XCTAssertEqual(Stretching.cooldownMaxPoses, 5)
     }
 
+    /// Только статические: динамическая поза не отвечает мышце даже тогда,
+    /// когда больше ответить нечем (§12.2).
+    func test_dynamicPoseIsNeverACooldown() {
+        let lib = ["a": candidate("a", .abs)]
+        let result = Stretching.cooldown(setsBySlug: ["a": 5], library: lib,
+                                         poses: [pose("cat_cow", [.abs], kind: .dynamic)], restrictions: [])
+        XCTAssertEqual(result, [])
+    }
+
+    /// Мышца, уже покрытая выбранной позой, второй позы не получает.
+    func test_coveredMuscleGetsNoSecondPose() {
+        let lib = ["a": candidate("a", .pecs), "b": candidate("b", .frontDelts)]
+        let result = Stretching.cooldown(setsBySlug: ["a": 6, "b": 5], library: lib,
+                                         poses: [pose("both", [.pecs, .frontDelts]), pose("delts", [.frontDelts])],
+                                         restrictions: [])
+        XCTAssertEqual(result.map(\.slug), ["both"])
+    }
+
     // MARK: - Сценарий 39
 
     /// Сценарий 39: без подходов заминки нет; мышцам без статической позы
