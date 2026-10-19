@@ -9,7 +9,7 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
 import { ApiError } from '../../api/client'
 import type { DayOutcome, ExerciseContent, WeekDay } from '../../api/schemas'
@@ -254,6 +254,14 @@ function DayBlock({ day, names }: { day: DayOutcome; names: Map<string, Exercise
         </p>
       )
     case 'stretching':
+      return (
+        <p data-testid="day-stretching" className="card">
+          {day.cause?.message ?? day.kind}{' '}
+          <Link to="/stretch" className="button-text" data-testid="choose-stretch">
+            Выбрать растяжку
+          </Link>
+        </p>
+      )
     case 'vector_missing':
     case 'generator_disabled':
       return <p data-testid={`day-${day.kind}`} className="card">{day.cause?.message ?? day.kind}</p>

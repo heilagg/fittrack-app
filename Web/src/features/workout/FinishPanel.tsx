@@ -10,8 +10,9 @@
 
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
-import type { ExerciseContent, FinishWorkoutResponse, Workout } from '../../api/schemas'
+import type { CooldownPose, ExerciseContent, FinishWorkoutResponse, Workout } from '../../api/schemas'
 
 function failureText(error: unknown): string {
   if (error instanceof NetworkError) return 'Нет связи с сервером. Тренировка не завершена — повторите.'
@@ -81,11 +82,14 @@ export function WorkoutSummary({
   workout,
   week,
   names,
+  cooldown,
 }: {
   workout: Workout
   /** Ответ `/finish`; `undefined` — тренировка открыта заново, без ответа. */
   week: FinishWorkoutResponse['week']
   names: Map<string, ExerciseContent> | undefined
+  /** Автозаминка из ответа `/finish` (§12.2); нет ответа или пусто — не предлагается. */
+  cooldown?: CooldownPose[]
 }) {
   const ordered = workout.exercises.slice().sort((a, b) => a.order_index - b.order_index)
   const done = (e: Workout['exercises'][number]) => e.sets.filter((s) => !s.skipped)
@@ -102,6 +106,14 @@ export function WorkoutSummary({
       <p data-testid="summary-total" className="chip">
         {total === 0 ? 'Ни одного подхода не выполнено.' : `Выполнено подходов: ${total}`}
       </p>
+      {cooldown && cooldown.length > 0 && (
+        <p className="card" data-testid="cooldown-offer">
+          Заминка: {cooldown.length} {cooldown.length === 1 ? 'поза' : cooldown.length < 5 ? 'позы' : 'поз'} по проработанным мышцам.{' '}
+          <Link to="/stretch/cooldown" state={{ cooldown }} className="button-text">
+            Начать заминку
+          </Link>
+        </p>
+      )}
       <ol data-testid="summary-exercises" className="card rows rows--stacked">
         {ordered.map((e) => (
           <li key={e.id}>

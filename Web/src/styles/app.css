@@ -863,3 +863,84 @@ input[type='checkbox'] {
 .thumbnail--empty {
   border: var(--size-border) dashed var(--color-border);
 }
+
+/* Растяжка и прогресс (§12.2, §13.7): только существующие токены. */
+
+.section-title {
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+  margin: 0 0 var(--space-sm);
+}
+
+.template-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--color-text);
+  text-decoration: none;
+  min-height: var(--size-touch-target-min);
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: var(--space-sm);
+}
+
+.chart-bar {
+  fill: var(--color-accent);
+}
+
+.chart-bar--partial {
+  fill: var(--color-accent-chip-bg);
+  stroke: var(--color-accent);
+  stroke-width: 0.5;
+}
+
+.chart-norm {
+  stroke: var(--color-text-muted);
+  stroke-width: 0.5;
+  stroke-dasharray: 2 1;
+}
+
+.chart-ceiling {
+  stroke: var(--color-text-muted);
+  stroke-width: 0.5;
+}
+
+.chart-line {
+  stroke: var(--color-accent);
+  stroke-width: 0.8;
+}
+
+.chart-point {
+  fill: var(--color-accent);
+}
+
+.phase-strip {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-sm) 0 0;
+}
+
+.calendar {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+.calendar-day {
+  padding: var(--space-xs) 0;
+  color: var(--color-text);
+  vertical-align: top;
+}
+
+.calendar-day--today {
+  color: var(--color-accent);
+}
+
+.calendar-mark {
+  display: block;
+  color: var(--color-accent);
+}

@@ -22,11 +22,13 @@ describe('ключ картинки (§6.5)', () => {
 describe('файлы картинок и сопоставление FitContent', () => {
   const map = JSON.parse(
     readFileSync(join(__dirname, '../../../Packages/FitContent/Sources/FitContent/Resources/illustrations.json'), 'utf-8'),
-  ) as { exercises: Record<string, { id: string; match: string }> }
+  ) as { exercises: Record<string, { id: string; match: string }>; poses?: Record<string, { id: string; match: string }> }
+  // Позы растяжки (§12.3) — тот же каталог картинок, что упражнения.
+  const all = { ...map.exercises, ...(map.poses ?? {}) }
   const dir = join(__dirname, '../../public/illustrations')
 
   it('у каждого сопоставленного слага есть оба кадра', () => {
-    for (const slug of Object.keys(map.exercises)) {
+    for (const slug of Object.keys(all)) {
       for (const frame of ['start.jpg', 'finish.jpg']) {
         const file = join(dir, slug, frame)
         expect(existsSync(file), file).toBe(true)
@@ -36,6 +38,6 @@ describe('файлы картинок и сопоставление FitContent',
   })
 
   it('лишних каталогов нет: картинка без сопоставления на экран не попадёт', () => {
-    expect(readdirSync(dir).sort()).toEqual(Object.keys(map.exercises).sort())
+    expect(readdirSync(dir).sort()).toEqual(Object.keys(all).sort())
   })
 })

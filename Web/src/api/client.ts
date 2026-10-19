@@ -42,6 +42,17 @@ import {
   type WeekPlanResponse,
   type Workout,
   type WorkoutExercise,
+  finishStretchSessionRequestSchema,
+  progressSchema,
+  startStretchSessionRequestSchema,
+  stretchContentSchema,
+  stretchHistorySchema,
+  stretchSessionSchema,
+  type Progress,
+  type StartStretchSessionRequest,
+  type StretchContent,
+  type StretchHistory,
+  type StretchSession,
 } from './schemas'
 import { currentDay, mondayOf, type DayContext } from './day'
 
@@ -287,6 +298,47 @@ export class ApiClient {
   /** Публичный путь: токен не шлётся, 401 на нём не бывает (§20.5). */
   getExercises(): Promise<ExerciseContent[]> {
     return this.request('GET', '/v1/content/exercises', exerciseContentListSchema, { authorized: false })
+  }
+
+  /** Позы и шаблоны растяжки (§12.3); путь публичный, как контент упражнений. */
+  getStretchContent(): Promise<StretchContent> {
+    return this.request('GET', '/v1/content/stretches', stretchContentSchema, { authorized: false })
+  }
+
+  /**
+   * Старт сессии растяжки. `id` создаёт вызывающий до отправки и повторяет его
+   * при повторе: первый старт — 201, повтор — 200 и та же строка (§20.3).
+   */
+  startStretchSession(id: string, kind: StartStretchSessionRequest['kind'], templateSlug?: string): Promise<StretchSession> {
+    const { date, tz } = this.today()
+    const body: StartStretchSessionRequest = { id, kind, ...(templateSlug ? { template_slug: templateSlug } : {}), date, tz }
+    return this.request('POST', '/v1/stretch-sessions', stretchSessionSchema, {
+      authorized: true,
+      body: startStretchSessionRequestSchema.parse(body),
+    })
+  }
+
+  /** Завершение; повтор — 200 и то же тело. */
+  finishStretchSession(id: string): Promise<StretchSession> {
+    const { date, tz } = this.today()
+    return this.request('POST', `/v1/stretch-sessions/${encodeURIComponent(id)}/finish`, stretchSessionSchema, {
+      authorized: true,
+      body: finishStretchSessionRequestSchema.parse({ date, tz }),
+    })
+  }
+
+  /** История завершённых сессий и предложенный шаблон дня (§12.2). */
+  getStretchHistory(): Promise<StretchHistory> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ date, tz })
+    return this.request('GET', `/v1/stretch-sessions?${query}`, stretchHistorySchema, { authorized: true })
+  }
+
+  /** Прогресс §13.7 за `from…to`; `to` — не позже сегодня. */
+  getProgress(from: string, to: string): Promise<Progress> {
+    const { date, tz } = this.today()
+    const query = new URLSearchParams({ from, to, date, tz })
+    return this.request('GET', `/v1/progress?${query}`, progressSchema, { authorized: true })
   }
 
   // MARK: - Ядро

@@ -54,3 +54,9 @@ export function weekDates(weekStart: string): string[] {
   const [y, m, d] = weekStart.split('-').map(Number) as [number, number, number]
   return Array.from({ length: 7 }, (_, i) => new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10))
 }
+
+/** `date` плюс `days` календарных дней, `YYYY-MM-DD`. */
+export function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number]
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
+}

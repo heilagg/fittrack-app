@@ -10,6 +10,9 @@ import { HomeGate } from '../features/onboarding/HomeGate'
 import { OnboardingScreen } from '../features/onboarding/OnboardingScreen'
 import { EquipmentScreen, PersonalScreen, RestrictionsScreen, SplitScreen } from '../features/profile/EditScreens'
 import { ProfileScreen } from '../features/profile/ProfileScreen'
+import { ProgressScreen } from '../features/progress/ProgressScreen'
+import { StretchPlayer } from '../features/stretch/StretchPlayer'
+import { StretchScreen } from '../features/stretch/StretchScreen'
 import { ErrorBlock } from '../features/today/TodayScreen'
 import { WorkoutScreen } from '../features/workout/WorkoutScreen'
 import { BottomNav } from './BottomNav'
@@ -38,6 +41,8 @@ export function App() {
           <Route element={<WithNav />}>
             <Route path="/" element={<HomeGate api={api} />} />
             <Route path="/profile" element={<ProfileScreen api={api} />} />
+            <Route path="/stretch" element={<StretchScreen api={api} />} />
+            <Route path="/progress" element={<ProgressScreen api={api} />} />
             <Route path="/profile/personal" element={<PersonalScreen api={api} />} />
             <Route path="/profile/split" element={<SplitScreen api={api} />} />
             <Route path="/profile/equipment" element={<EquipmentScreen api={api} />} />
@@ -48,6 +53,9 @@ export function App() {
           <Route path="/onboarding" element={<OnboardingScreen api={api} />} />
           <Route path="/link" element={<LinkScreen />} />
           <Route path="/workout/:id" element={<WorkoutScreen api={api} />} />
+          {/* Проигрыватель — полноэкранный, как тренировка: без навигации. */}
+          <Route path="/stretch/play/:slug" element={<StretchPlayer api={api} />} />
+          <Route path="/stretch/cooldown" element={<StretchPlayer api={api} />} />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
