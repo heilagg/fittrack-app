@@ -13,6 +13,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ApiClient } from '../../api/client'
 import type { AlternativesPurpose, ExerciseContent, SubstituteRequest, Workout, WorkoutExercise } from '../../api/schemas'
 import { ErrorBlock } from '../today/TodayScreen'
+import { equipmentLine } from '../../onboarding/labels'
 import { ExerciseThumbnail } from './Illustration'
 
 const REASONS: { value: SubstituteRequest['reason']; label: string }[] = [
@@ -102,6 +103,12 @@ export function AlternativesPanel({
               <ExerciseThumbnail content={names?.get(alt.slug)} />
               <span className="alternative-text">
                 <span data-testid="alternative-name">{names?.get(alt.slug)?.name ?? alt.slug}</span>
+                {equipmentLine(names?.get(alt.slug)?.equipment_labels) !== null && (
+                  <span className="caption" data-testid="alternative-equipment">
+                    {' · '}
+                    {equipmentLine(names?.get(alt.slug)?.equipment_labels)}
+                  </span>
+                )}
                 {alt.reasons.map((r, i) => (
                   <span key={i} className="caption">
                     {' · '}

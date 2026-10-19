@@ -299,7 +299,7 @@ final class PlannerTests: XCTestCase {
     func test_scenario27g_weekGrid() {
         let days = (0..<7).map(F.day)
         func kinds(_ n: Int, _ level: ExperienceLevel) -> [SessionKind] {
-            Planner.weekGrid(days: Array(days.prefix(n)), level: level).map(\.kind)
+            Planner.weekGrid(days: Array(days.prefix(n)), level: level, split: .auto).map(\.kind)
         }
         XCTAssertEqual(kinds(3, .novice), [.fullBody, .fullBody, .fullBody])
         XCTAssertEqual(kinds(3, .intermediate), [.upper, .lower, .fullBody])
@@ -308,9 +308,169 @@ final class PlannerTests: XCTestCase {
         XCTAssertEqual(kinds(7, .intermediate), [.push, .pull, .lower, .push, .pull, .lower, .stretch])
         XCTAssertEqual(kinds(2, .advanced), [.fullBody, .fullBody])
         XCTAssertEqual(kinds(4, .novice), [.upper, .lower, .upper, .lower])
-        let shuffled = Planner.weekGrid(days: [F.day(5), F.day(1), F.day(3), F.day(0), F.day(2), F.day(6)], level: .advanced)
+        let shuffled = Planner.weekGrid(days: [F.day(5), F.day(1), F.day(3), F.day(0), F.day(2), F.day(6)], level: .advanced, split: .auto)
         XCTAssertEqual(shuffled.last?.date, F.day(6), "растяжка — последний выбранный день")
         XCTAssertTrue(shuffled.allSatisfy { $0.accent == nil })
+    }
+
+    // MARK: - Сценарий 33a: схемы тренировок
+
+    /// Каждая клетка таблицы §7.2 «Схема тренировок» на 1–7 днях; «Авто» —
+    /// прежняя сетка при любом уровне; на явную схему уровень не влияет.
+    func test_scenario33a_trainingSplitGrid() {
+        let days = (0..<7).map(F.day)
+        func kinds(_ n: Int, _ split: TrainingSplit, _ level: ExperienceLevel = .intermediate) -> [SessionKind] {
+            Planner.weekGrid(days: Array(days.prefix(n)), level: level, split: split).map(\.kind)
+        }
+        let table: [TrainingSplit: [[SessionKind]]] = [
+            .fullBody: [
+                [.fullBody],
+                [.fullBody, .fullBody],
+                [.fullBody, .fullBody, .fullBody],
+                [.fullBody, .fullBody, .fullBody, .fullBody],
+                [.fullBody, .fullBody, .fullBody, .fullBody, .fullBody],
+                [.fullBody, .fullBody, .fullBody, .fullBody, .fullBody, .stretch],
+                [.fullBody, .fullBody, .fullBody, .fullBody, .fullBody, .fullBody, .stretch],
+            ],
+            .upperLower: [
+                [.fullBody],
+                [.upper, .lower],
+                [.upper, .lower, .fullBody],
+                [.upper, .lower, .upper, .lower],
+                [.upper, .lower, .upper, .lower, .fullBody],
+                [.upper, .lower, .upper, .lower, .upper, .stretch],
+                [.upper, .lower, .upper, .lower, .upper, .lower, .stretch],
+            ],
+            .pushPullLegs: [
+                [.fullBody],
+                [.upper, .lower],
+                [.push, .pull, .lower],
+                [.push, .pull, .lower, .fullBody],
+                [.push, .pull, .lower, .upper, .lower],
+                [.push, .pull, .lower, .upper, .lower, .stretch],
+                [.push, .pull, .lower, .push, .pull, .lower, .stretch],
+            ],
+        ]
+        for (split, rows) in table {
+            for (i, expected) in rows.enumerated() {
+                for level in ExperienceLevel.allCases {
+                    XCTAssertEqual(kinds(i + 1, split, level), expected, "\(split) × \(i + 1) дней, \(level)")
+                }
+            }
+        }
+        // «Авто» — прежняя сетка §7.2, уровень действует только здесь.
+        let auto: [ExperienceLevel: [[SessionKind]]] = [
+            .novice: [[.fullBody], [.fullBody, .fullBody], [.fullBody, .fullBody, .fullBody]],
+            .intermediate: [[.fullBody], [.fullBody, .fullBody], [.upper, .lower, .fullBody]],
+            .advanced: [[.fullBody], [.fullBody, .fullBody], [.upper, .lower, .fullBody]],
+        ]
+        for (level, rows) in auto {
+            for (i, expected) in rows.enumerated() {
+                XCTAssertEqual(kinds(i + 1, .auto, level), expected, "auto × \(i + 1), \(level)")
+            }
+            XCTAssertEqual(kinds(4, .auto, level), [.upper, .lower, .upper, .lower])
+            XCTAssertEqual(kinds(5, .auto, level), [.upper, .lower, .upper, .lower, .fullBody])
+            XCTAssertEqual(kinds(6, .auto, level), [.push, .pull, .lower, .upper, .lower, .stretch])
+            XCTAssertEqual(kinds(7, .auto, level), [.push, .pull, .lower, .push, .pull, .lower, .stretch])
+        }
+        XCTAssertEqual(kinds(0, .pushPullLegs), [])
+        // Растяжка — последний выбранный день и при явной схеме.
+        let shuffled = Planner.weekGrid(days: [F.day(5), F.day(1), F.day(3), F.day(0), F.day(2), F.day(6)],
+                                        level: .novice, split: .upperLower)
+        XCTAssertEqual(shuffled.last?.date, F.day(6))
+        XCTAssertEqual(shuffled.last?.kind, .stretch)
+    }
+
+    // MARK: - Сценарии 28a, 28b: резинка в зале (w12)
+
+    /// Тяга гантелью и тяга резинкой с одним профилем, из разных семей.
+    private var twinRows: (dumbbell: ExerciseCandidate, band: ExerciseCandidate) {
+        let dumbbell = ExerciseCandidate(
+            slug: "db_x", pattern: .pullH,
+            muscleContributions: [.lats: 0.5, .trapsMid: 0.3, .biceps: 0.2], jointStress: [.shoulder: .low],
+            progressionFamily: "twin_db", fatigueCost: 0.9, setupSeconds: 30, loadType: .dumbbell)
+        var band = dumbbell
+        band.slug = "band_x"
+        band.progressionFamily = "twin_band"
+        band.equipment = [.bands]
+        band.loadType = .band
+        return (dumbbell, band)
+    }
+
+    /// Сценарий 28a: в зале при равном профиле выбирается гантель; без гантелей
+    /// и тренажёров — резинка, и штрафа нет вовсе.
+    func test_scenario28a_bandYieldsToDumbbellInGym() {
+        let (dumbbell, band) = twinRows
+        let library = F.library + [dumbbell, band]
+        var states = F.familiar
+        states[dumbbell.slug] = ExerciseState(baselineKg: nil, isInCalibration: false)
+        states[band.slug] = states[dumbbell.slug]
+        let week = F.week([(.upper, nil, F.upper)])
+        for minutes in [60, 45, 30] {
+            let gym = F.slugs(build(F.input(week: week, library: library, minutes: minutes, states: states)))
+            XCTAssertTrue(gym.contains(dumbbell.slug), "\(minutes) минут: в зале гантель")
+            XCTAssertFalse(gym.contains(band.slug), "\(minutes) минут: резинка уступила")
+            let noW12 = F.slugs(build(F.input(week: week, library: library, minutes: minutes, states: states,
+                                               weights: { var w = PlannerWeights.spec; w.w12 = 0; return w }())))
+            XCTAssertTrue(noW12.contains(band.slug), "фикстура: без w12 seed отдаёт ничью резинке")
+        }
+        // Без гантелей и без тренажёров: признак «зал» не выставлен, и сборка
+        // та же, что без слагаемого.
+        let home = F.input(week: week, library: library, equipment: F.noDumbbells, states: states)
+        var noW12 = home
+        noW12.weights.w12 = 0
+        XCTAssertTrue(F.slugs(build(home)).contains(band.slug))
+        XCTAssertEqual(build(home).composition, build(noW12).composition, "без зала w12 ничего не меняет")
+        // Блок — не слаг `machines` и признаком зала не служит (§7.5).
+        var cable = F.input(week: week, library: library, equipment: F.noDumbbells, states: states)
+        cable.availability.cableMachine = true
+        var cableNoW12 = cable
+        cableNoW12.weights.w12 = 0
+        XCTAssertEqual(build(cable).composition, build(cableNoW12).composition, "блок w12 не включает")
+        // Тренажёр — тоже признак зала, даже без гантелей.
+        let machineOnly = EquipmentAvailability(bench: .flat, pullupBar: true, bands: true, machines: ["leg_press"])
+        var withMachine = F.input(week: week, library: library + [dumbbell], availability: machineOnly,
+                                  equipment: F.noDumbbells, states: states)
+        let penalized = build(withMachine)
+        withMachine.weights.w12 = 0
+        XCTAssertNotEqual(penalized.composition, build(withMachine).composition, "тренажёр включает w12")
+        // Гравитрон резинкой не считается: `bodyweight` с `machine:assisted_pullup`.
+        // Против резинки того же профиля в зале выигрывает он; без w12 ничью
+        // забирает резинка — значит решает именно слагаемое.
+        var assisted = dumbbell
+        assisted.slug = "assisted_x"
+        assisted.progressionFamily = "twin_assisted"
+        assisted.equipment = [.machine("assisted_pullup")]
+        assisted.loadType = .bodyweight
+        let gravitron = EquipmentAvailability(bench: .flat, pullupBar: true, bands: true, machines: ["assisted_pullup"])
+        var assistedStates = states
+        assistedStates[assisted.slug] = states[dumbbell.slug]
+        var assistedInput = F.input(week: week, library: F.library + [assisted, band], availability: gravitron,
+                                    equipment: F.noDumbbells, states: assistedStates)
+        let withW12 = F.slugs(build(assistedInput))
+        XCTAssertTrue(withW12.contains(assisted.slug), "гравитрон не штрафуется")
+        XCTAssertFalse(withW12.contains(band.slug), "резинка штрафуется: тренажёр в профиле")
+        assistedInput.weights.w12 = 0
+        XCTAssertTrue(F.slugs(build(assistedInput)).contains(band.slug), "фикстура: без w12 ничья у резинки")
+    }
+
+    /// Сценарий 28b: вертикальная тяга есть только резинкой — резинка в сборке.
+    func test_scenario28b_soleBandOfPatternStays() {
+        let session = build(F.input(week: F.week([(.upper, nil, F.upper)])))
+        XCTAssertTrue(F.slugs(session).contains("band_pulldown"), "w12 — штраф, а не фильтр")
+    }
+
+    /// Взаимодействие w12 и w7 (§7.3): в зале w12 = 1.0 больше фазового
+    /// максимума 0.9, и замена-резинка прыжок в овуляторную фазу не вытесняет.
+    /// Без гантелей и тренажёров прыжок уходит, как раньше.
+    func test_contract_bandReplacementDoesNotDisplaceJumpInGym() {
+        let ovulatory = F.phaseState(.ovulatory, confidence: 1.0)
+        let gym = F.slugs(build(F.input(week: twoGluteDays, minutes: 20, cycleState: ovulatory)))
+        XCTAssertTrue(gym.contains("box_jump"), "в зале прыжок остаётся")
+        XCTAssertFalse(gym.contains("band_squat"), "резинка-замена уступила")
+        let home = F.slugs(build(F.input(week: twoGluteDays, equipment: F.noDumbbells, minutes: 20, cycleState: ovulatory)))
+        XCTAssertFalse(home.contains("box_jump"), "без зала прыжок уходит")
+        XCTAssertTrue(home.contains("band_squat"))
     }
 
     // MARK: - Сценарий 27h: колонка §7.4 по сессии
@@ -733,7 +893,10 @@ final class PlannerTests: XCTestCase {
     /// ниже трёх упражнений (§7.3, шаг 3; §8.3, п.3).
     func test_step3_deepFatigueCutRemovesAtMinimum() {
         let week = F.week(Array(repeating: (.lower, .gluteMax, F.lowerGlutes), count: 3))
-        let tired = build(F.input(week: week, safety: SafetyProfile(level: .advanced), minutes: 45, fatigue: [.gluteMax: 2.5]))
+        // Профиль без гантелей: в зале w12 вытесняет резинку на отведение, и
+        // снимать на минимуме становится нечего — проверяется путь шага 3, а не w12.
+        let tired = build(F.input(week: week, equipment: F.noDumbbells, safety: SafetyProfile(level: .advanced),
+                                  minutes: 45, fatigue: [.gluteMax: 2.5]))
         XCTAssertFalse(tired.removedAtMinimum.isEmpty, "шаг 3 сработал")
         XCTAssertTrue(tired.removedAtMinimum.allSatisfy { !F.slugs(tired).contains($0) })
         XCTAssertGreaterThanOrEqual(tired.exercises.count, 3)
@@ -1156,8 +1319,11 @@ final class PlannerTests: XCTestCase {
         let ovulatory = F.phaseState(.ovulatory, confidence: 1.0)
         XCTAssertTrue(F.slugs(build(F.input(week: twoGluteDays, library: onlyJumps, cycleState: ovulatory))).contains("box_jump"),
                       "фаза — мягкий штраф, а не фильтр")
-        XCTAssertFalse(F.slugs(build(F.input(week: twoGluteDays, minutes: 20, cycleState: ovulatory))).contains("box_jump"))
-        XCTAssertTrue(F.slugs(build(F.input(week: twoGluteDays, minutes: 20))).contains("box_jump"),
+        // Профиль без гантелей: в зале замена здесь — резинка, а её w12 сильнее
+        // фазового штрафа (отдельный тест — test_contract_bandReplacementDoesNotDisplaceJumpInGym).
+        XCTAssertFalse(F.slugs(build(F.input(week: twoGluteDays, equipment: F.noDumbbells, minutes: 20,
+                                             cycleState: ovulatory))).contains("box_jump"))
+        XCTAssertTrue(F.slugs(build(F.input(week: twoGluteDays, equipment: F.noDumbbells, minutes: 20))).contains("box_jump"),
                       "фикстура: без фазы при 20 минутах прыжок в сборке есть")
     }
 

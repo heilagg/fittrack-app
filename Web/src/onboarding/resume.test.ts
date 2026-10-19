@@ -11,6 +11,7 @@ const full: Profile = {
   days_per_week: 3,
   training_weekdays: [1, 3, 5],
   session_minutes: 45,
+  training_split: 'auto',
   cycle_tracking: 'off',
   is_complete: true,
 }

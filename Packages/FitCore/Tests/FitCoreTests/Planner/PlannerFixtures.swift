@@ -141,6 +141,10 @@ enum PlannerFixtures {
     static let fullAvailability = EquipmentAvailability(bench: .flat, pullupBar: true, bands: true)
     static let fullEquipment = EquipmentProfile(dumbbellsKg: [4, 6, 8, 10, 12], platesKg: [1.25, 2.5, 5, 10], barbellKg: 20)
     static let bandsOnly = EquipmentAvailability(bands: true)
+    /// Штанга и блины без гантелей: признак «зал» слагаемого w12 не выставлен
+    /// (§7.3), и резинка конкурирует наравне. Нужен тестам, которые проверяют
+    /// не w12, а то, что раньше решала ничья с резинкой.
+    static let noDumbbells = EquipmentProfile(platesKg: [1.25, 2.5, 5, 10], barbellKg: 20)
 
     static let seed: UInt64 = 20_260_917
 

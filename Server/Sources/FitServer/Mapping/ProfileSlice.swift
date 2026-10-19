@@ -55,11 +55,17 @@ extension Mapping {
         public var goal: Goal
         /// ISO-номера дней недели, 1 = понедельник, отсортированы (§3.1).
         public var trainingWeekdays: [Int]
+        /// Схема тренировок (§7.2). Не входит в условие полноты — у колонки
+        /// есть умолчание `auto`, — но сетка без неё не строится, поэтому едет
+        /// вместе с днями.
+        public var trainingSplit: TrainingSplit
 
-        public init(level: ExperienceLevel, goal: Goal, trainingWeekdays: [Int]) {
+        public init(level: ExperienceLevel, goal: Goal, trainingWeekdays: [Int],
+                    trainingSplit: TrainingSplit) {
             self.level = level
             self.goal = goal
             self.trainingWeekdays = trainingWeekdays
+            self.trainingSplit = trainingSplit
         }
 
         /// `days_per_week` отдельным полем не хранится: он равен длине набора
@@ -73,6 +79,7 @@ extension Mapping {
         public var goal: Goal?
         public var trainingWeekdays: [Int]?
         public var sessionMinutes: Int
+        public var trainingSplit: TrainingSplit
         public var cycleTracking: CycleTracking
         public var sexAtBirth: String?
         /// Есть строка `equipment_profiles` с `is_default = true` (§20.3, §20.6).
@@ -82,12 +89,13 @@ extension Mapping {
         public var hasDefaultEquipment: Bool
 
         public init(level: ExperienceLevel?, goal: Goal?, trainingWeekdays: [Int]?,
-                    sessionMinutes: Int, cycleTracking: CycleTracking, sexAtBirth: String?,
-                    hasDefaultEquipment: Bool) {
+                    sessionMinutes: Int, trainingSplit: TrainingSplit, cycleTracking: CycleTracking,
+                    sexAtBirth: String?, hasDefaultEquipment: Bool) {
             self.level = level
             self.goal = goal
             self.trainingWeekdays = trainingWeekdays
             self.sessionMinutes = sessionMinutes
+            self.trainingSplit = trainingSplit
             self.cycleTracking = cycleTracking
             self.sexAtBirth = sexAtBirth
             self.hasDefaultEquipment = hasDefaultEquipment
@@ -104,7 +112,8 @@ extension Mapping {
         public var complete: CompleteProfile? {
             guard hasDefaultEquipment,
                   let level, let goal, let trainingWeekdays, !trainingWeekdays.isEmpty else { return nil }
-            return CompleteProfile(level: level, goal: goal, trainingWeekdays: trainingWeekdays)
+            return CompleteProfile(level: level, goal: goal, trainingWeekdays: trainingWeekdays,
+                                   trainingSplit: trainingSplit)
         }
 
         /// Пользовательница без строки `profiles` вовсе (§20.3: «первая
@@ -112,10 +121,10 @@ extension Mapping {
         /// `/today` читает отсутствие строки: онбординг не начинали, четыре
         /// поля пусты, инвентаря быть не может — `equipment_profiles`
         /// ссылается на `profiles`. Остальное — умолчания колонок
-        /// (`session_minutes = 45`, `cycle_tracking = 'off'`).
+        /// (`session_minutes = 45`, `training_split = 'auto'`, `cycle_tracking = 'off'`).
         public static let notStarted = ProfileSlice(
             level: nil, goal: nil, trainingWeekdays: nil, sessionMinutes: 45,
-            cycleTracking: .off, sexAtBirth: nil, hasDefaultEquipment: false)
+            trainingSplit: .auto, cycleTracking: .off, sexAtBirth: nil, hasDefaultEquipment: false)
     }
 
     /// Строка `profiles` в том виде, в каком её отдаёт `select` (§3.1).
@@ -124,6 +133,7 @@ extension Mapping {
         public var goal: String?
         public var trainingWeekdays: [Int]?
         public var sessionMinutes: Int
+        public var trainingSplit: String
         public var cycleTracking: String
         public var sexAtBirth: String?
         /// Результат `exists (… equipment_profiles where is_default)`, а не
@@ -132,12 +142,13 @@ extension Mapping {
         public var hasDefaultEquipment: Bool
 
         public init(experienceLevel: String?, goal: String?, trainingWeekdays: [Int]?,
-                    sessionMinutes: Int, cycleTracking: String, sexAtBirth: String?,
-                    hasDefaultEquipment: Bool) {
+                    sessionMinutes: Int, trainingSplit: String, cycleTracking: String,
+                    sexAtBirth: String?, hasDefaultEquipment: Bool) {
             self.experienceLevel = experienceLevel
             self.goal = goal
             self.trainingWeekdays = trainingWeekdays
             self.sessionMinutes = sessionMinutes
+            self.trainingSplit = trainingSplit
             self.cycleTracking = cycleTracking
             self.sexAtBirth = sexAtBirth
             self.hasDefaultEquipment = hasDefaultEquipment
@@ -157,6 +168,10 @@ extension Mapping {
             goal: row.goal.flatMap(Goal.init(rawValue:)),
             trainingWeekdays: row.trainingWeekdays.map { $0.sorted() },
             sessionMinutes: row.sessionMinutes,
+            // `training_split` — `not null default 'auto'` с check'ом (миграция
+            // `0014`); значение вне словаря читается как умолчание, по тому же
+            // правилу, что `cycle_tracking` ниже.
+            trainingSplit: TrainingSplit(rawValue: row.trainingSplit) ?? .auto,
             // `cycle_tracking` — `not null default 'off'`, поэтому неизвестное
             // значение схлопывается в `off`: источник данных, которого мы не
             // понимаем, — это отсутствие источника.

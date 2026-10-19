@@ -41,22 +41,28 @@ public struct ExerciseContentDTO: Sendable, Equatable, Codable {
     /// клиент накладывает сам по `workouts.readiness`, правило §13.3 задано
     /// текстом и в тело не едет.
     public var defaultRestSeconds: Int
+    /// Подписи снаряда под названием упражнения (§6.6, §13.2, §13.4) —
+    /// готовые строки, а не `equipment`: предикатов и `load_type` клиент не
+    /// получает. Разделитель ставит клиент; пустой массив — строки нет.
+    public var equipmentLabels: [String]
 
     enum CodingKeys: String, CodingKey {
         case slug, name, cues
         case commonErrors = "common_errors"
         case illustration
         case defaultRestSeconds = "default_rest_seconds"
+        case equipmentLabels = "equipment_labels"
     }
 
     public init(slug: String, name: String, cues: [String], commonErrors: [String],
-                illustration: String, defaultRestSeconds: Int) {
+                illustration: String, defaultRestSeconds: Int, equipmentLabels: [String]) {
         self.slug = slug
         self.name = name
         self.cues = cues
         self.commonErrors = commonErrors
         self.illustration = illustration
         self.defaultRestSeconds = defaultRestSeconds
+        self.equipmentLabels = equipmentLabels
     }
 }
 

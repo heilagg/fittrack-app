@@ -6,7 +6,7 @@ import { MemoryRouter } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
 import type { Profile } from '../../api/schemas'
 import { PRESETS } from '../../onboarding/presets'
-import { EquipmentScreen, PersonalScreen, RestrictionsScreen } from './EditScreens'
+import { EquipmentScreen, PersonalScreen, RestrictionsScreen, SplitScreen } from './EditScreens'
 
 vi.mock('../../auth/supabase', () => ({ currentUserId: async () => 'user-1' }))
 const equipment = vi.hoisted(() => ({ readDefaultEquipment: vi.fn(), updateEquipmentProfile: vi.fn(async () => undefined) }))
@@ -26,7 +26,7 @@ beforeEach(() => vi.clearAllMocks())
 
 const profile: Profile = {
   sex_at_birth: 'female', birth_year: 1994, height_cm: 168, experience_level: 'intermediate', goal: 'hypertrophy',
-  days_per_week: 3, training_weekdays: [1, 3, 5], session_minutes: 60, cycle_tracking: 'off', is_complete: true,
+  days_per_week: 3, training_weekdays: [1, 3, 5], session_minutes: 60, training_split: 'auto', cycle_tracking: 'off', is_complete: true,
 }
 
 function mount(ui: React.ReactNode) {
@@ -137,5 +137,35 @@ describe('ограничения', () => {
     await waitFor(() => expect(profileDirect.resolveRestrictions).toHaveBeenCalledWith(['r-knee', 'r-neck']))
     expect(profileDirect.addRestrictions).toHaveBeenCalledWith('user-1', [{ joint: 'knee', severity: 'careful' }])
     expect(await screen.findByTestId('restrictions-saved')).toBeInTheDocument()
+  })
+})
+
+describe('схема тренировок (§7.2, §13.1)', () => {
+  it('текущая схема отмечена; сохранение шлёт одно поле training_split', async () => {
+    const patchProfile = vi.fn(async () => profile)
+    mount(<SplitScreen api={{ getProfileIfStarted: async () => profile, patchProfile } as unknown as ApiClient} />)
+    expect(await screen.findByLabelText('Авто')).toBeChecked()
+    fireEvent.click(screen.getByLabelText('Пуш пулл ноги'))
+    fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    await waitFor(() => expect(patchProfile).toHaveBeenCalledWith({ training_split: 'push_pull_legs' }))
+    expect(await screen.findByTestId('split-saved')).toBeInTheDocument()
+    expect(screen.getByText('Новая схема вступит в силу со следующей недели.')).toBeInTheDocument()
+  })
+
+  it('неизменённая схема не шлётся', async () => {
+    const patchProfile = vi.fn(async () => profile)
+    mount(<SplitScreen api={{ getProfileIfStarted: async () => profile, patchProfile } as unknown as ApiClient} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Сохранить' }))
+    expect(await screen.findByTestId('split-saved')).toBeInTheDocument()
+    expect(patchProfile).not.toHaveBeenCalled()
+  })
+
+  it('при двух днях «Пуш пулл ноги» говорит, что собирается на деле', async () => {
+    const twoDays: Profile = { ...profile, days_per_week: 2, training_weekdays: [2, 5] }
+    mount(<SplitScreen api={{ getProfileIfStarted: async () => twoDays, patchProfile: vi.fn() } as unknown as ApiClient} />)
+    fireEvent.click(await screen.findByLabelText('Пуш пулл ноги'))
+    expect(screen.getByTestId('split-note')).toHaveTextContent('Верх тела / Низ тела')
+    fireEvent.click(screen.getByLabelText('Всё тело'))
+    expect(screen.queryByTestId('split-note')).toBeNull()
   })
 })

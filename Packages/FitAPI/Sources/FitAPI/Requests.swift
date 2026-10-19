@@ -321,6 +321,9 @@ public struct PatchProfileRequest: Sendable, Equatable {
     public var daysPerWeek: Int?
     public var trainingWeekdays: [Int]??
     public var sessionMinutes: Int?
+    /// Схема тренировок (§7.2). `not null` с умолчанием, поэтому без явного
+    /// `null`: отсутствие ключа — «не трогать».
+    public var trainingSplit: TrainingSplit?
     public var cycleTracking: CycleTracking?
     /// Настройки цикла вложенным объектом (§20.3): шаг 9 онбординга заполняет
     /// обе таблицы одним экраном. Явный `null` вместо объекта ЗАПРЕЩЁН —
@@ -331,8 +334,8 @@ public struct PatchProfileRequest: Sendable, Equatable {
     public init(sexAtBirth: String?? = nil, birthYear: Int?? = nil, heightCm: Double?? = nil,
                 experienceLevel: ExperienceLevel?? = nil, goal: Goal?? = nil,
                 daysPerWeek: Int? = nil, trainingWeekdays: [Int]?? = nil,
-                sessionMinutes: Int? = nil, cycleTracking: CycleTracking? = nil,
-                cycle: CycleProfileDTO? = nil) {
+                sessionMinutes: Int? = nil, trainingSplit: TrainingSplit? = nil,
+                cycleTracking: CycleTracking? = nil, cycle: CycleProfileDTO? = nil) {
         self.sexAtBirth = sexAtBirth
         self.birthYear = birthYear
         self.heightCm = heightCm
@@ -341,6 +344,7 @@ public struct PatchProfileRequest: Sendable, Equatable {
         self.daysPerWeek = daysPerWeek
         self.trainingWeekdays = trainingWeekdays
         self.sessionMinutes = sessionMinutes
+        self.trainingSplit = trainingSplit
         self.cycleTracking = cycleTracking
         self.cycle = cycle
     }
@@ -351,7 +355,8 @@ extension PatchProfileRequest: Codable {
         case sexAtBirth = "sex_at_birth", birthYear = "birth_year", heightCm = "height_cm"
         case experienceLevel = "experience_level", goal
         case daysPerWeek = "days_per_week", trainingWeekdays = "training_weekdays"
-        case sessionMinutes = "session_minutes", cycleTracking = "cycle_tracking", cycle
+        case sessionMinutes = "session_minutes", trainingSplit = "training_split"
+        case cycleTracking = "cycle_tracking", cycle
     }
 
     public init(from decoder: any Decoder) throws {
@@ -371,6 +376,7 @@ extension PatchProfileRequest: Codable {
         }
         daysPerWeek = try c.decodeIfPresent(Int.self, forKey: .daysPerWeek)
         sessionMinutes = try c.decodeIfPresent(Int.self, forKey: .sessionMinutes)
+        trainingSplit = try c.decodeRawIfPresent(TrainingSplit.self, forKey: .trainingSplit)
         cycleTracking = try c.decodeRawIfPresent(CycleTracking.self, forKey: .cycleTracking)
         cycle = try c.decodeIfPresent(CycleProfileDTO.self, forKey: .cycle)
     }
@@ -395,6 +401,7 @@ extension PatchProfileRequest: Codable {
         try write(trainingWeekdays, .trainingWeekdays)
         try c.encodeIfPresent(daysPerWeek, forKey: .daysPerWeek)
         try c.encodeIfPresent(sessionMinutes, forKey: .sessionMinutes)
+        try c.encodeRawIfPresent(trainingSplit, forKey: .trainingSplit)
         try c.encodeRawIfPresent(cycleTracking, forKey: .cycleTracking)
         try c.encodeIfPresent(cycle, forKey: .cycle)
     }

@@ -37,7 +37,7 @@ describe('ApiClient', () => {
 
   it('PATCH /v1/profile не несёт date и tz', async () => {
     const fetchMock = vi.fn(async () =>
-      json({ session_minutes: 60, cycle_tracking: 'off', is_complete: false }),
+      json({ session_minutes: 60, training_split: 'auto', cycle_tracking: 'off', is_complete: false }),
     )
     await client(fetchMock as unknown as typeof fetch).patchProfile({ goal: 'strength' })
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]

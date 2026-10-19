@@ -7,7 +7,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import type { ZodType } from 'zod'
+import { z, type ZodType } from 'zod'
 import {
   alternativesSchema,
   cycleCalendarSchema,
@@ -73,6 +73,9 @@ const schemaFor: Record<string, ZodType> = {
   'response_alternatives.json': alternativesSchema,
   'request_substitute_pain.json': substituteRequestSchema,
   'response_substitute.json': workoutExerciseSchema,
+  'request_patch_profile_training_split.json': patchProfileRequestSchema,
+  // Эталон названий тренажёров (§6.6): его сверяет с MACHINE_LABELS labels.test.ts.
+  'equipment_machine_names.json': z.record(z.string(), z.string()),
 }
 
 describe('эталонные JSON границы /v1', () => {
@@ -350,6 +353,23 @@ describe('онбординг (срез 5)', () => {
     expect(() =>
       patchProfileRequestSchema.parse({ cycle: { phase_mode: 'no_phases', no_phase_reason: 'tired' } }),
     ).toThrow()
+  })
+
+  it('схема тренировок обязательна в профиле и закрыта словарём (§7.2)', () => {
+    const complete = load('profile_complete.json') as Record<string, unknown>
+    expect(profileSchema.parse(complete).training_split).toBe('push_pull_legs')
+    const { training_split: _omitted, ...without } = complete
+    void _omitted
+    expect(profileSchema.safeParse(without).success).toBe(false)
+    expect(profileSchema.safeParse({ ...complete, training_split: 'bro_split' }).success).toBe(false)
+    expect(patchProfileRequestSchema.parse(load('request_patch_profile_training_split.json'))).toEqual({
+      training_split: 'upper_lower',
+    })
+  })
+
+  it('подписи снаряда: массив строк у каждого упражнения, пустой — законен', () => {
+    const list = exerciseContentListSchema.parse(load('content_exercises.json'))
+    expect(list.map((e) => e.equipment_labels)).toEqual([['Штанга'], ['Гантели', 'Регулируемая скамья'], []])
   })
 
   it('пресет «зал»: непрерывный шаг 2.5, все слаги тренажёров, гири включены', () => {

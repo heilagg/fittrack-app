@@ -5,7 +5,7 @@ import { monthOf, monthRange, monthWeeks, shiftMonth } from './month'
 import { markEnableOfferAnswered, markOverdueAnswered, shouldAskOverdue, shouldOfferEnable, type FlagStore } from './once'
 import { cycleVisibility } from './visibility'
 
-const base: Profile = { sex_at_birth: 'female', session_minutes: 60, cycle_tracking: 'manual', is_complete: true }
+const base: Profile = { sex_at_birth: 'female', session_minutes: 60, training_split: 'auto', cycle_tracking: 'manual', is_complete: true }
 const profile = (cycle: Profile['cycle'], tracking: Profile['cycle_tracking'] = 'manual'): Profile => ({
   ...base,
   cycle_tracking: tracking,

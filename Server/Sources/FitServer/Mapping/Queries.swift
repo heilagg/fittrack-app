@@ -79,16 +79,16 @@ extension Mapping {
     public static func readProfile(_ tx: UserTransaction) async throws -> ProfileSlice {
         let rows = try await tx.query("""
             select experience_level, goal, training_weekdays, session_minutes,
-                   cycle_tracking, sex_at_birth,
+                   training_split, cycle_tracking, sex_at_birth,
                    exists (select 1 from equipment_profiles where is_default)
               from profiles
             """)
         for try await row in rows {
-            let (level, goal, weekdays, minutes, tracking, sex, equipment) =
-                try row.decode((String?, String?, [Int16]?, Int, String, String?, Bool).self)
+            let (level, goal, weekdays, minutes, split, tracking, sex, equipment) =
+                try row.decode((String?, String?, [Int16]?, Int, String, String, String?, Bool).self)
             return profile(from: ProfileRow(
                 experienceLevel: level, goal: goal, trainingWeekdays: weekdays?.map(Int.init),
-                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex,
+                sessionMinutes: minutes, trainingSplit: split, cycleTracking: tracking, sexAtBirth: sex,
                 hasDefaultEquipment: equipment))
         }
         throw ReadFailure.missingRow("profiles")

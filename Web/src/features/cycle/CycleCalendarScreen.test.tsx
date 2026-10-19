@@ -77,7 +77,7 @@ const september: CycleCalendar = {
 
 const phasesProfile: Profile = {
   sex_at_birth: 'female',
-  session_minutes: 60,
+  session_minutes: 60, training_split: 'auto',
   cycle_tracking: 'manual',
   is_complete: true,
   cycle: { phase_mode: 'phases' },

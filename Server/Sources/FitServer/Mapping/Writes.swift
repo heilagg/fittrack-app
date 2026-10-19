@@ -51,7 +51,10 @@ extension Mapping {
     /// Номер версии обязателен с первой записи — правило то же, что у снимка
     /// плана (§20.6).
     public struct InputDigest: Sendable, Equatable, Codable {
-        public static let currentVersion = 1
+        /// 2 — добавлен `training_split` рядом с `training_weekdays`: оба
+        /// задают сетку недели (§7.2, §20.6). Строки первой версии не
+        /// переписываются.
+        public static let currentVersion = 2
 
         public var version: Int
         public var weekStart: String
@@ -60,6 +63,7 @@ extension Mapping {
         public var level: String
         public var sessionMinutes: Int
         public var trainingWeekdays: [Int]
+        public var trainingSplit: String
         public var userSeed: String
         public var isDeloadWeek: Bool
         /// Инвентарь на момент генерации: после правки `equipment_profiles`
@@ -78,6 +82,7 @@ extension Mapping {
         enum CodingKeys: String, CodingKey {
             case version = "v", weekStart = "week_start", today, goal, level
             case sessionMinutes = "session_minutes", trainingWeekdays = "training_weekdays"
+            case trainingSplit = "training_split"
             case userSeed = "user_seed", isDeloadWeek = "is_deload", equipment
             case barbellKg = "barbell_kg", machineStepKg = "machine_step_kg", fatigue
             case phaseMode = "phase_mode", noPhaseReason = "no_phase_reason"
@@ -92,6 +97,7 @@ extension Mapping {
             level = context.safety.level.rawValue
             sessionMinutes = context.sessionMinutes
             trainingWeekdays = profile.trainingWeekdays
+            trainingSplit = profile.trainingSplit.rawValue
             // Строкой, а не числом: `UInt64` не влезает в `Int` JSON у всех
             // читателей, а дайджест читают глазами и чужими инструментами.
             userSeed = String(context.userSeed)
@@ -381,17 +387,17 @@ extension Mapping {
         var heightCm: Double?
         let rows = try await tx.query("""
             select experience_level, goal, training_weekdays, session_minutes,
-                   cycle_tracking, sex_at_birth, birth_year, height_cm::float8,
+                   training_split, cycle_tracking, sex_at_birth, birth_year, height_cm::float8,
                    exists (select 1 from equipment_profiles where is_default)
               from profiles
             """)
         for try await row in rows {
-            let (level, goal, weekdays, minutes, tracking, sex, year, height, equipment) =
-                try row.decode((String?, String?, [Int16]?, Int, String, String?, Int?, Double?,
+            let (level, goal, weekdays, minutes, split, tracking, sex, year, height, equipment) =
+                try row.decode((String?, String?, [Int16]?, Int, String, String, String?, Int?, Double?,
                                 Bool).self)
             slice = profile(from: ProfileRow(
                 experienceLevel: level, goal: goal, trainingWeekdays: weekdays?.map(Int.init),
-                sessionMinutes: minutes, cycleTracking: tracking, sexAtBirth: sex,
+                sessionMinutes: minutes, trainingSplit: split, cycleTracking: tracking, sexAtBirth: sex,
                 hasDefaultEquipment: equipment))
             birthYear = year
             heightCm = height
@@ -420,7 +426,8 @@ extension Mapping {
             sexAtBirth: slice.sexAtBirth, birthYear: birthYear, heightCm: heightCm,
             experienceLevel: slice.level, goal: slice.goal,
             daysPerWeek: slice.trainingWeekdays?.count, trainingWeekdays: slice.trainingWeekdays,
-            sessionMinutes: slice.sessionMinutes, cycleTracking: slice.cycleTracking,
+            sessionMinutes: slice.sessionMinutes, trainingSplit: slice.trainingSplit,
+            cycleTracking: slice.cycleTracking,
             isComplete: slice.complete != nil, cycle: cycle)
     }
 
@@ -442,7 +449,7 @@ extension Mapping {
         _ = try await tx.query("""
             insert into profiles (id, sex_at_birth, birth_year, height_cm, experience_level,
                                   goal, days_per_week, training_weekdays, session_minutes,
-                                  cycle_tracking, updated_at)
+                                  training_split, cycle_tracking, updated_at)
             values (\(userID),
                     \(patch.sexAtBirth.flatMap { $0 }),
                     \(patch.birthYear.flatMap { $0 }),
@@ -451,6 +458,7 @@ extension Mapping {
                     \(patch.goal.flatMap { $0 }?.rawValue),
                     \(days), \(weekdays),
                     coalesce(\(patch.sessionMinutes), 45),
+                    coalesce(\(patch.trainingSplit?.rawValue), 'auto'),
                     coalesce(\(patch.cycleTracking?.rawValue), 'off'),
                     now())
             on conflict (id) do update set
@@ -474,6 +482,7 @@ extension Mapping {
                 training_weekdays = case when \(touchesWeekdays) then \(weekdays)
                                          else profiles.training_weekdays end,
                 session_minutes = coalesce(\(patch.sessionMinutes), profiles.session_minutes),
+                training_split  = coalesce(\(patch.trainingSplit?.rawValue), profiles.training_split),
                 cycle_tracking  = coalesce(\(patch.cycleTracking?.rawValue), profiles.cycle_tracking),
                 updated_at = now()
             """)

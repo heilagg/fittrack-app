@@ -22,6 +22,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { ExerciseContent, SetRow, Workout, WorkoutExercise } from '../../api/schemas'
+import { equipmentLine } from '../../onboarding/labels'
 import { currentSets } from '../../workout/progress'
 import { restDuration } from '../../workout/rest'
 import { applyBranch, branchFor, currentStep, type Branch, type Feedback, type Step } from '../../workout/tree'
@@ -184,6 +185,11 @@ export function ExercisePanel({
       <h2 data-testid="current-exercise" className="exercise-title">
         {content?.name ?? exercise.slug}
       </h2>
+      {equipmentLine(content?.equipment_labels) !== null && (
+        <p className="caption" data-testid="equipment-line">
+          {equipmentLine(content?.equipment_labels)}
+        </p>
+      )}
       <ExerciseFrames content={content} />
       {content && content.cues.length > 0 && (
         <ul aria-label="Подсказки" className="cues caption">

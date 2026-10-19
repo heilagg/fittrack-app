@@ -154,4 +154,18 @@ test.describe('Профиль', () => {
     await toToday(page)
     await expect(page.getByRole('heading', { name: 'Сегодня' })).toBeVisible()
   })
+
+  test('схема тренировок: одно поле в PATCH, переживает перезагрузку (§7.2)', async ({ page }) => {
+    await completeOnboarding(page)
+    await toProfile(page)
+    await page.getByTestId('split-link').click()
+    await expect(page.getByLabel('Авто')).toBeChecked()
+    await page.getByLabel('Пуш пулл ноги').check()
+    const patch = page.waitForRequest((r) => r.url().endsWith('/v1/profile') && r.method() === 'PATCH')
+    await page.getByRole('button', { name: 'Сохранить' }).click()
+    expect((await patch).postDataJSON()).toEqual({ training_split: 'push_pull_legs' })
+    await expect(page.getByTestId('split-saved')).toBeVisible()
+    await page.reload()
+    await expect(page.getByLabel('Пуш пулл ноги')).toBeChecked()
+  })
 })

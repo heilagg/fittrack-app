@@ -43,7 +43,8 @@ struct MappingAssemblyTests {
     }
 
     private var profile: Mapping.CompleteProfile {
-        Mapping.CompleteProfile(level: .intermediate, goal: .hypertrophy, trainingWeekdays: [1, 3, 5])
+        Mapping.CompleteProfile(level: .intermediate, goal: .hypertrophy, trainingWeekdays: [1, 3, 5],
+                                trainingSplit: .auto)
     }
 
     private var cycle: CycleInputs {
@@ -175,7 +176,7 @@ struct MappingAssemblyTests {
     @Test("дни профиля превращаются в даты, из которых сетка §7.2 строит типы")
     func weekdaysReachTheGrid() {
         let dates = Mapping.trainingDates(weekStart: weekStart, weekdays: profile.trainingWeekdays)
-        let grid = Planner.weekGrid(days: dates, level: profile.level)
+        let grid = Planner.weekGrid(days: dates, level: profile.level, split: profile.trainingSplit)
         #expect(grid.count == 3)
         #expect(grid.map(\.date) == dates)
         #expect(grid.map(\.kind) == [.upper, .lower, .fullBody], "три дня, не новичок (§7.2)")

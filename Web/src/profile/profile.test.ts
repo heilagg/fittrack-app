@@ -36,7 +36,7 @@ describe('ограничения: снять и добавить (§14.4, resolv
 describe('личные данные: только изменённые поля', () => {
   const profile: Profile = {
     sex_at_birth: 'female', birth_year: 1994, height_cm: 168, experience_level: 'intermediate',
-    goal: 'hypertrophy', days_per_week: 3, training_weekdays: [1, 3, 5], session_minutes: 60,
+    goal: 'hypertrophy', days_per_week: 3, training_weekdays: [1, 3, 5], session_minutes: 60, training_split: 'auto',
     cycle_tracking: 'off', is_complete: true,
   }
   const same = {

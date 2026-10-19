@@ -8,6 +8,7 @@
   "is_complete" : false,
   "session_minutes" : 60,
   "sex_at_birth" : "female",
+  "training_split" : "auto",
   "training_weekdays" : [
     1,
     3,

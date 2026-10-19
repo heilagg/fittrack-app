@@ -57,6 +57,7 @@ const content: ExerciseContent = {
   common_errors: [],
   illustration: 'placeholder/lower/squat_barbell',
   default_rest_seconds: 120,
+  equipment_labels: ['Штанга', 'Скамья'],
 }
 
 const nextTree: LogSetResponse = {
@@ -111,6 +112,8 @@ describe('экран упражнения', () => {
     expect(screen.getByTestId('reps').textContent).toBe('10')
     expect(screen.getByTestId('set-counter').textContent).toBe('Подход 1 из 3')
     expect(screen.getByTestId('current-exercise').textContent).toBe('Приседания со штангой')
+    // Подпись снаряда под названием (§13.2, §6.6): через запятую.
+    expect(screen.getByTestId('equipment-line').textContent).toBe('Штанга, Скамья')
   })
 
   it('тап: тело подхода — клиентский UUID, set_index с 1, вес дерева, повторы, фидбэк', async () => {

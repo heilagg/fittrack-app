@@ -143,6 +143,9 @@ public struct PlannerWeights: Sendable, Equatable {
     public var w9 = 0.5
     public var w10 = 0.0
     public var w11 = 5.0
+    /// Резинка при гантелях или хотя бы одном тренажёре (§7.3, «Слагаемое
+    /// резинки w12»).
+    public var w12 = 1.0
 
     public init() {}
 
@@ -396,7 +399,7 @@ private struct PoolItem {
     let rank: UInt64
     /// Эффективный вклад по индексу мышцы.
     let effective: [Double]
-    /// w4 + w6 + w7 + (w8, w9 с потолком) — не зависит от подходов.
+    /// w4 + w6 + w7 + (w8, w9 с потолком) + w12 — не зависит от подходов.
     let staticPenalty: Double
     /// Σ вклад × fatigue_cost × утомление[m] на один подход (без w5).
     let fatiguePerSet: Double
@@ -469,6 +472,10 @@ private struct Builder {
         let slugRanks = Planner.ranks(for: input.library.map(\.slug), seed: input.seed)
         let block = input.cycleState.periodization?.blockType ?? .neutral
         let vectorSet = Set(day.vector.filter { $0.value > 0 }.keys)
+        // Признак «зал» слагаемого w12 (§7.3): гантели — из лестницы весов,
+        // тренажёры — из доступности. Блок (`cableMachine`) слагом `machines`
+        // не является и признаком не служит (§7.5).
+        let gym = !input.equipment.dumbbellsKg.isEmpty || !input.availability.machines.isEmpty
         var items: [PoolItem] = []
         var seen = Set<String>()
         for c in input.library where seen.insert(c.slug).inserted {
@@ -490,6 +497,7 @@ private struct Builder {
                 + w.w6 * (input.previousWorkoutSlugs.contains(c.slug) ? 1 : 0)
                 + w.w7 * bias
                 + preference
+                + w.w12 * (c.loadType == .band && gym ? 1 : 0)
 
             var fatiguePerSet = 0.0
             var worst = 1.0
