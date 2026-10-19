@@ -60,6 +60,7 @@ struct MappingProgressTests {
         #expect(body.days[2].stretch && !body.days[2].strength)
         #expect(body.days[4].skipped)
         #expect(body.days[1] == ProgressDayDTO(date: "2026-10-13", strength: false, stretch: false, skipped: false, phase: nil))
+        #expect(body.days[1].phaseName == nil)
         #expect(body.streakWeeks == 2)
     }
 
@@ -73,8 +74,44 @@ struct MappingProgressTests {
         let withoutLate = Mapping.progress(input(cycle: CycleInputs(events: [early], profile: profile)))
         #expect(withLate.days.prefix(8).map(\.phase) == withoutLate.days.prefix(8).map(\.phase))
         #expect(withLate.days[0].phase == "menstrual")
+        #expect(withLate.days[0].phaseName == "Менструация", "название — из каталога FitAPI")
         let noPhases = Mapping.progress(input())
         #expect(noPhases.days.allSatisfy { $0.phase == nil })
+    }
+
+    @Test("лютеиновая на экране одна: ранняя и поздняя свёрнуты (§11.6)")
+    func lutealIsFolded() {
+        let profile = CycleProfile(typicalCycleLengthDays: 28, typicalPeriodLengthDays: 5,
+                                   declaredRegularity: .regular, phaseMode: .phases)
+        // День 20 и день 26 цикла — ранняя и поздняя лютеиновая.
+        let start = CycleEvent(kind: .periodStart, occurredOn: monday.adding(days: -19))
+        let body = Mapping.progress(input(cycle: CycleInputs(events: [start], profile: profile)))
+        let phases = Set(body.days.compactMap(\.phase))
+        #expect(phases.contains("luteal"))
+        #expect(phases.isSubset(of: ["menstrual", "follicular", "ovulatory", "luteal"]))
+    }
+
+    @Test("ниже порога уверенности фаза не показывается (§11.3)")
+    func lowConfidenceHidesPhase() {
+        // Нерегулярный цикл и единственная отметка полгода назад: уверенность
+        // на дни окна ниже 0.3, фаза есть, но названа быть не может.
+        let profile = CycleProfile(typicalCycleLengthDays: 28, typicalPeriodLengthDays: 5,
+                                   declaredRegularity: .irregular, phaseMode: .phases)
+        let old = CycleEvent(kind: .periodStart, occurredOn: monday.adding(days: -180))
+        let cycle = CycleInputs(events: [old], profile: profile)
+        let state = Cycle.state(events: cycle.events, profile: profile, responseProfiles: [:], asOf: monday)
+        #expect((state.cycleConfidence ?? 1) < Cycle.categoricalConfidenceThreshold, "фикстура: уверенность ниже порога")
+        #expect(state.phase != nil, "фикстура: фаза посчитана")
+        #expect(Mapping.progress(input(cycle: cycle)).days.allSatisfy { $0.phase == nil })
+    }
+
+    @Test("окно: не в будущее, не длиннее 130 дней, from ≤ to")
+    func windowRules() throws {
+        let today = CalendarDay(year: 2026, month: 10, day: 19)
+        #expect(throws: Never.self) { _ = try ProgressRoutes.window(["from": "2026-07-01", "to": "2026-10-19"], today: today) }
+        #expect(throws: APIError.self) { _ = try ProgressRoutes.window(["from": "2026-10-01", "to": "2026-10-20"], today: today) }
+        #expect(throws: APIError.self) { _ = try ProgressRoutes.window(["from": "2026-10-19", "to": "2026-10-18"], today: today) }
+        #expect(throws: APIError.self) { _ = try ProgressRoutes.window(["from": "2026-06-01", "to": "2026-10-19"], today: today) }
     }
 
     @Test("базовая линия: только упражнения с весом и с точками в окне")
@@ -83,9 +120,11 @@ struct MappingProgressTests {
         let squat = [ExerciseSession(performedAt: monday, weightReadiness: 1, isCalibration: false, sets: [set, set])]
         let push = [ExerciseSession(performedAt: monday, weightReadiness: 1, isCalibration: false,
                                     sets: [SetResult(prescribedKg: nil, actualKg: nil, actualReps: 12, feedback: .ok)])]
-        let body = Mapping.progress(input(history: ["squat": squat, "pushup": push]))
+        let earlier = ExerciseSession(performedAt: monday.adding(days: -7), weightReadiness: 1, isCalibration: false,
+                                      sets: [set, set])
+        let body = Mapping.progress(input(history: ["squat": [earlier] + squat, "pushup": push]))
         #expect(body.baselines.map(\.slug) == ["squat"])
-        #expect(body.baselines.first?.points.first?.date == "2026-10-12")
+        #expect(body.baselines.first?.points.map(\.date) == ["2026-10-12"], "точка до окна не показывается")
     }
 
     @Test("старт растяжки: шаблон из контента у самостоятельной, без шаблона у заминки")

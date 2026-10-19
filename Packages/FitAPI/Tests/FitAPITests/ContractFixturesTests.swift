@@ -398,7 +398,7 @@ final class ContractFixturesTests: XCTestCase {
             groupNorms: MuscleGroup.allCases.map { GroupNormDTO(group: $0, level: .intermediate) },
             baselines: [BaselineSeriesDTO(slug: "squat_barbell", points: [
                 BaselinePointDTO(date: "2026-10-12", kg: 40), BaselinePointDTO(date: "2026-10-15", kg: 42.5)])],
-            days: [ProgressDayDTO(date: "2026-10-12", strength: true, stretch: false, skipped: false, phase: "follicular"),
+            days: [ProgressDayDTO(date: "2026-10-12", strength: true, stretch: false, skipped: false, phase: .follicular),
                    ProgressDayDTO(date: "2026-10-13", strength: false, stretch: true, skipped: false, phase: nil),
                    ProgressDayDTO(date: "2026-10-14", strength: false, stretch: false, skipped: true, phase: nil)],
             streakWeeks: 3))

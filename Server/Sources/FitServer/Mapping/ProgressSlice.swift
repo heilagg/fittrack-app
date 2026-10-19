@@ -92,13 +92,14 @@ extension Mapping {
 
     /// Фаза дня, как её знали в тот день (§13.7): события с `occurred_on` не
     /// позже дня — других отметок времени у `cycle_events` нет. Показывается при
-    /// уверенности не ниже порога §11.3, в режиме без фаз — никогда.
-    static func phaseAsKnown(on day: CalendarDay, cycle: CycleInputs) -> String? {
+    /// уверенности не ниже порога §11.3, в режиме без фаз — никогда. Экранная
+    /// (§11.6): ранняя и поздняя лютеиновая — одна.
+    static func phaseAsKnown(on day: CalendarDay, cycle: CycleInputs) -> DisplayPhase? {
         guard cycle.profile.phaseMode == .phases else { return nil }
         let state = Cycle.state(events: cycle.events.filter { $0.occurredOn <= day }, profile: cycle.profile,
                                 responseProfiles: cycle.responseProfiles, asOf: day)
         guard let phase = state.phase, let confidence = state.cycleConfidence,
               confidence >= Cycle.categoricalConfidenceThreshold else { return nil }
-        return phase.rawValue
+        return phase.displayPhase
     }
 }

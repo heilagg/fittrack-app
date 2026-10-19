@@ -196,19 +196,29 @@ public struct BaselinePointDTO: Sendable, Equatable, Codable {
 }
 
 /// День календаря активности (§13.7). `phase` есть только в режиме с фазами и
-/// при уверенности на тот день не ниже 0.3; уверенность не отдаётся.
+/// при уверенности на тот день не ниже 0.3; уверенность не отдаётся. Фаза —
+/// одна из четырёх экранных (§11.6: ранняя и поздняя лютеиновая свёрнуты), а
+/// `phase_name` — её название из каталога `ReasonStrings.phaseText`: во
+/// фронтенде формулировок нет (web-domain §5).
 public struct ProgressDayDTO: Sendable, Equatable, Codable {
     public var date: String
     public var strength: Bool
     public var stretch: Bool
     public var skipped: Bool
     public var phase: String?
+    public var phaseName: String?
 
-    public init(date: String, strength: Bool, stretch: Bool, skipped: Bool, phase: String?) {
+    enum CodingKeys: String, CodingKey {
+        case date, strength, stretch, skipped, phase
+        case phaseName = "phase_name"
+    }
+
+    public init(date: String, strength: Bool, stretch: Bool, skipped: Bool, phase: DisplayPhase?) {
         self.date = date
         self.strength = strength
         self.stretch = stretch
         self.skipped = skipped
-        self.phase = phase
+        self.phase = phase?.rawValue
+        self.phaseName = phase.map { ReasonStrings.phaseText($0).name }
     }
 }

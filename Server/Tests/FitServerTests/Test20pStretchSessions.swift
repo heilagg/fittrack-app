@@ -83,6 +83,9 @@ struct Test20pStretchSessions {
             #expect(done.0 == 200)
             let finished = try JSONDecoder().decode(StretchSessionDTO.self, from: done.1)
             #expect(finished.finishedAt != nil && finished.durationSeconds != nil)
+            // Метка — с точностью до секунды: пауза больше секунды, иначе
+            // сдвинутый finished_at неотличим от прежнего.
+            try await Task.sleep(nanoseconds: 1_200_000_000)
             let repeated = try await self.finish(app, user, id: id)
             #expect(try JSONDecoder().decode(StretchSessionDTO.self, from: repeated.1) == finished,
                     "повтор finish не сдвигает finished_at")
@@ -119,6 +122,55 @@ struct Test20pStretchSessions {
                 let result = try await self.start(app, user, id: UUID().uuidString, kind: kind, template: template)
                 #expect(result.0 == 422, "\(kind) \(template ?? "nil")")
                 #expect(String(decoding: result.1, as: UTF8.self).contains("validation_failed"))
+            }
+        }
+    }
+
+    @Test("20p: performed_on — присланный день, а не день базы (§20.7)")
+    func performedOnIsTheSentDay() async throws {
+        let user = try await Live.signUpAnonymous()
+        try await Live.withServer("20p.day") { app in
+            try await Live.seedProfile(app, user)
+            let zone = TimeZone(identifier: "Europe/Moscow")!
+            let yesterday = Mapping.LocalTime.iso(Mapping.LocalTime.day(of: Date(), in: zone).adding(days: -1))
+            let result = try await self.start(app, user, id: UUID().uuidString,
+                                              day: DayContext(date: yesterday, tz: zone.identifier))
+            #expect(result.0 == 201, Comment(rawValue: String(decoding: result.1, as: UTF8.self)))
+            #expect(try JSONDecoder().decode(StretchSessionDTO.self, from: result.1).performedOn == yesterday)
+        }
+    }
+
+    @Test("заминка соблюдает ограничения §14.4: avoid по всем суставам — только позы без нагрузки")
+    func cooldownRespectsRestrictions() async throws {
+        let user = try await Live.signUpLinked()
+        let logger = Live.quietLogger("20p.restrict")
+        try await Live.withServer("20p.restrict") { app, database in
+            let workout = try await Live.startedWorkout(app, user, logger: logger)
+            try await database.withUserTransaction(authorization: "Bearer \(user.token)") { tx -> Void in
+                for joint in Joint.allCases {
+                    _ = try await tx.query("""
+                        insert into user_restrictions (id, user_id, joint, severity)
+                        values (\(UUID()), \(user.id), \(joint.rawValue), 'avoid')
+                        """)
+                }
+            }
+            for exercise in workout.exercises {
+                let body = LogSetRequest(id: UUID().uuidString, setIndex: 1, prescribedKg: exercise.prescribedKg,
+                                         actualKg: exercise.prescribedKg, actualReps: exercise.targetRepMin,
+                                         feedback: .ok, completedAt: ISO8601DateFormatter().string(from: Date()),
+                                         day: Live.today)
+                try await app.testing().test(.POST, "/v1/workouts/\(workout.id)/exercises/\(exercise.id)/sets",
+                                             headers: user.headers, beforeRequest: { try $0.content.encode(body) }) { _ in }
+            }
+            var dto: FinishWorkoutResponseDTO?
+            try await app.testing().test(.POST, "/v1/workouts/\(workout.id)/finish", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(FinishWorkoutRequest(day: Live.today)) }) { response in
+                dto = try JSONDecoder().decode(FinishWorkoutResponseDTO.self, from: Data(buffer: response.body))
+            }
+            let library = try Content.loadBundled()
+            for pose in try #require(dto).cooldown {
+                let stress = library.poseBySlug[pose.pose]?.jointStress ?? [:]
+                #expect(stress.values.allSatisfy { $0 < .medium }, "\(pose.pose): \(stress)")
             }
         }
     }
