@@ -20,23 +20,38 @@ function failureText(error: unknown): string {
   return error instanceof Error ? error.message : 'Не удалось завершить тренировку'
 }
 
+/** «1 подход», «3 подхода», «5 подходов». */
+export function setsWord(n: number): string {
+  const tens = n % 100
+  const ones = n % 10
+  if (tens >= 11 && tens <= 14) return `${n} подходов`
+  if (ones === 1) return `${n} подход`
+  if (ones >= 2 && ones <= 4) return `${n} подхода`
+  return `${n} подходов`
+}
+
 export function FinishButton({
   api,
   workoutId,
   disabled,
+  remainingSets,
   onFinished,
 }: {
   api: ApiClient
   workoutId: string
   /** Неподтверждённый подход в пути: завершать поверх него нельзя. */
   disabled: boolean
+  /** Невыполненные подходы открытых упражнений: при них «Завершить» переспрашивает (§13.2). */
+  remainingSets: number
   onFinished: (result: FinishWorkoutResponse) => void
 }) {
   const queryClient = useQueryClient()
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<unknown>(null)
+  const [confirming, setConfirming] = useState(false)
 
   async function finish() {
+    setConfirming(false)
     setSending(true)
     setFailure(null)
     try {
@@ -61,11 +76,26 @@ export function FinishButton({
         type="button"
         className="button-text"
         aria-label="Завершить тренировку"
-        disabled={disabled || sending}
-        onClick={() => void finish()}
+        disabled={disabled || sending || confirming}
+        onClick={() => (remainingSets > 0 ? setConfirming(true) : void finish())}
       >
         Завершить
       </button>
+      {/* Отмены завершения нет — закрытая тренировка закрыта (§20.6), поэтому
+          спрашиваем до, и только когда есть что терять. */}
+      {confirming && (
+        <div role="alertdialog" aria-label="Завершить тренировку?" data-testid="finish-confirm" className="card">
+          <p>
+            Осталось {setsWord(remainingSets)}. Завершить тренировку?
+          </p>
+          <button type="button" className="button-primary" onClick={() => void finish()}>
+            Завершить
+          </button>
+          <button type="button" className="button-text" onClick={() => setConfirming(false)}>
+            Продолжить тренировку
+          </button>
+        </div>
+      )}
       {failure !== null && (
         <div role="alert" data-testid="finish-failure">
           <p>{failureText(failure)}</p>
@@ -126,7 +156,7 @@ export function WorkoutSummary({
                 {done(e).map((s) => (
                   <li key={s.id}>
                     {s.actual_kg !== undefined ? `${s.actual_kg} кг × ` : ''}
-                    {s.actual_reps ?? '—'}
+                    {s.actual_reps !== undefined ? `${s.actual_reps} повт.` : '—'}
                   </li>
                 ))}
               </ul>

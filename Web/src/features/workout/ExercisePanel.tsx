@@ -10,15 +10,21 @@
 // ввести нельзя, а обрыв показывается прямо, с кнопкой «Повторить». Повтор
 // идёт с ТЕМ ЖЕ `id` — сервер применяет upsert, и второй строки не будет.
 //
-// Вес правится только деревом. Ручная правка веса — отдельное решение
-// (шаг «+»/«−» берётся из лестницы инвентаря, которой у клиента нет).
+// Вес вводится числом (§13.2, §19.2 п.23 (в)): поле предзаполнено весом из
+// дерева, и подход, совпавший с рекомендацией, — по-прежнему один тап. Лестницы
+// у клиента нет: набранное число сервер округляет к ступени и возвращает
+// записанный подход, и записанный вес, если он отличается, показывается
+// явно. Набранный руками вес уводит состояние с дерева (§20.9): следующий вес
+// тогда приходит с сервера, а не из ветки. У весового упражнения без
+// известного веса (калибровка без базовой линии, §9.8) поле пустое и
+// обязательное.
 //
 // Срез 6: флаг боли (§8.4) — отдельная кнопка, не в ряду фидбэка (§13.2).
 // Подход уходит сразу, с весом и повторами на экране и без фидбэка; дальше
 // экран тренировки показывает альтернативы. «Заменить» открывает замену в один
 // тап (§13.4). Подходы считаются по текущему слагу (`workout/progress`).
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { ExerciseContent, SetRow, Workout, WorkoutExercise } from '../../api/schemas'
@@ -26,6 +32,7 @@ import { equipmentLine } from '../../onboarding/labels'
 import { currentSets } from '../../workout/progress'
 import { restDuration } from '../../workout/rest'
 import { applyBranch, branchFor, currentStep, type Branch, type Feedback, type Step } from '../../workout/tree'
+import { formatWeight, parseWeight, WEIGHT_MAX_KG } from '../../workout/weight'
 import { ExerciseFrames } from './Illustration'
 import { RestTimer } from './RestTimer'
 
@@ -78,6 +85,11 @@ export function ExercisePanel({
   const [failure, setFailure] = useState<unknown>(null)
   const [sending, setSending] = useState(false)
   const [restEndAt, setRestEndAt] = useState<number | null>(null)
+  /** Набранный вес; `null` — поле следует рекомендации дерева. */
+  const [typedKg, setTypedKg] = useState<string | null>(null)
+  /** Записанный сервером вес, если он отличается от отправленного. */
+  const [recordedNote, setRecordedNote] = useState<number | null>(null)
+  const weightHint = useId()
 
   // Подход «в пути» — пока его нет среди подтверждённых. Сбрасывать его
   // сразу после ответа нельзя: кеш react-query оповещает подписчиков позже, и
@@ -94,26 +106,18 @@ export function ExercisePanel({
     return () => onBusyChange?.(false)
   }, [pending, onBusyChange])
   const terminated = view.kind === 'node' && view.terminates
+  const recommended = base.kind === 'node' ? base.weightKg : undefined
+  const weightText = typedKg ?? (recommended !== undefined ? formatWeight(recommended) : '')
+  const typed = exercise.weighted ? parseWeight(weightText) : null
+  const weightInvalid = exercise.weighted && typed === null
 
   async function send(body: Pending['body']) {
     setSending(true)
     setFailure(null)
     try {
       const response = await api.logSet(workoutId, exercise.id, body)
-      const logged: SetRow = {
-        id: body.id,
-        exercise_slug: exercise.slug,
-        set_index: body.set_index,
-        prescribed_kg: body.prescribed_kg,
-        prescribed_reps: exercise.target_rep_max,
-        actual_kg: body.actual_kg,
-        actual_reps: body.actual_reps,
-        feedback: body.feedback,
-        pain_flag: body.pain_flag,
-        pain_joints: [],
-        completed_at: body.completed_at,
-        skipped: false,
-      }
+      // Записанный подход — из ответа: вес в нём уже ступень лестницы.
+      const logged: SetRow = response.set
       // Подтверждённое сервером попадает в кеш, и только оно: «записанных»
       // подходов, которых сервер не принял, на экране не бывает.
       queryClient.setQueryData<Workout>(['workout', workoutId], (current) =>
@@ -127,8 +131,19 @@ export function ExercisePanel({
         },
       )
       setReps(exercise.target_rep_max)
+      setTypedKg(null)
+      setRecordedNote(
+        logged.actual_kg !== undefined && logged.actual_kg !== body.actual_kg ? logged.actual_kg : null,
+      )
       if (body.pain_flag) onPain?.()
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'set_index_taken') {
+        // Подход с этим номером уже записан (другая вкладка, второе нажатие):
+        // ошибки поля нет — перечитываем тренировку и показываем то, что есть.
+        setSent(null)
+        await queryClient.invalidateQueries({ queryKey: ['workout', workoutId] })
+        return
+      }
       setFailure(e)
     } finally {
       setSending(false)
@@ -136,21 +151,24 @@ export function ExercisePanel({
   }
 
   function log(feedback: Feedback) {
-    if (pending || sending || !tree || base.kind !== 'node') return
+    if (pending || sending || !tree || base.kind !== 'node' || weightInvalid) return
     const branch: Branch = branchFor(feedback, reps, exercise.target_rep_min, exercise.target_rep_max)
-    const weight = base.weightKg
     const body: Pending['body'] = {
       id: crypto.randomUUID(),
       set_index: confirmed + 1,
-      ...(weight !== undefined ? { prescribed_kg: weight, actual_kg: weight } : {}),
+      ...(recommended !== undefined ? { prescribed_kg: recommended } : {}),
+      ...(typed !== null ? { actual_kg: typed } : {}),
       actual_reps: reps,
       feedback,
       pain_flag: false,
       completed_at: new Date().toISOString(),
       skipped: false,
     }
-    // Мгновенно: следующий вес — из дерева, до ответа сервера.
-    setSent({ body, next: applyBranch(tree, base.nodeId, branch) })
+    // Мгновенно: следующий вес — из дерева, до ответа сервера. Вес, набранный
+    // мимо рекомендации, с дерева уводит (§20.9): тогда ждём сервер.
+    const offTree = exercise.weighted && typed !== recommended
+    setRecordedNote(null)
+    setSent({ body, next: offTree ? { kind: 'ask-server' } : applyBranch(tree, base.nodeId, branch) })
     const rest = restDuration(content?.default_rest_seconds ?? 90, exercise.weight_readiness, feedback)
     setRestEndAt(clock.now() + rest * 1000)
     void send(body)
@@ -162,16 +180,19 @@ export function ExercisePanel({
    */
   function pain() {
     if (pending || sending || base.kind !== 'node') return
-    const weight = base.weightKg
+    // О боли сообщают сразу: вес — если он набран, без него подход тоже
+    // принимается (§8.4, §9.8).
     const body: Pending['body'] = {
       id: crypto.randomUUID(),
       set_index: confirmed + 1,
-      ...(weight !== undefined ? { prescribed_kg: weight, actual_kg: weight } : {}),
+      ...(recommended !== undefined ? { prescribed_kg: recommended } : {}),
+      ...(typed !== null ? { actual_kg: typed } : {}),
       actual_reps: reps,
       pain_flag: true,
       completed_at: new Date().toISOString(),
       skipped: false,
     }
+    setRecordedNote(null)
     setSent({ body, next: base })
     setRestEndAt(null)
     void send(body)
@@ -232,10 +253,41 @@ export function ExercisePanel({
                 <>
                   <span className="hero-number">{weight}</span> <span className="hero-unit">кг</span>
                 </>
+              ) : exercise.weighted ? (
+                <span className="hero-text">Введите вес</span>
               ) : (
                 <span className="hero-text">Без веса</span>
               )}
             </p>
+            {recordedNote !== null && (
+              <p className="caption" data-testid="recorded-weight">
+                Записано {formatWeight(recordedNote)} кг — ближайший вес вашего инвентаря.
+              </p>
+            )}
+            {exercise.weighted && (
+              <p>
+                <label className="field">
+                  Вес, кг{' '}
+                  <input
+                    data-testid="weight-input"
+                    inputMode="decimal"
+                    aria-describedby={weightHint}
+                    aria-invalid={weightInvalid || undefined}
+                    placeholder={recommended === undefined ? 'например 20' : undefined}
+                    value={weightText}
+                    disabled={pending !== null}
+                    onChange={(e) => setTypedKg(e.target.value)}
+                  />
+                </label>
+                <span id={weightHint} className="caption" data-testid="weight-hint">
+                  {weightText === ''
+                    ? 'Подберите рабочий вес и введите его — дальше подскажем мы.'
+                    : weightInvalid
+                      ? `Вес — число от 0 до ${WEIGHT_MAX_KG} кг.`
+                      : 'Сохраним ближайший вес вашего инвентаря.'}
+                </span>
+              </p>
+            )}
             <p className="caption">
               Цель: {exercise.target_rep_min}–{exercise.target_rep_max} повторов
             </p>
@@ -256,7 +308,7 @@ export function ExercisePanel({
                 type="button"
                 className="round-button"
                 aria-label="Больше повторов"
-                onClick={() => setReps((r) => r + 1)}
+                onClick={() => setReps((r) => Math.min(100, r + 1))}
                 disabled={pending !== null}
               >
                 +
@@ -271,7 +323,7 @@ export function ExercisePanel({
                 data-feedback={f.value}
                 // Подход в пути отмечен своей кнопкой, пока сервер его не подтвердил.
                 data-selected={pending?.body.feedback === f.value}
-                disabled={pending !== null || sending || base.kind !== 'node'}
+                disabled={pending !== null || sending || base.kind !== 'node' || weightInvalid}
                 onClick={() => log(f.value)}
               >
                 {f.label}

@@ -289,6 +289,12 @@ export const workoutExerciseSchema = z.object({
   prescribed_kg: z.number().optional(),
   weight_readiness: z.number(),
   is_calibration: z.boolean(),
+  /**
+   * Есть ли у упражнения вес вообще (§20.3). Пустой `prescribed_kg` при
+   * `weighted` — вес ещё не известен (калибровка без базовой линии, §9.8), и
+   * первый подход его спрашивает; без `weighted` — веса нет.
+   */
+  weighted: z.boolean(),
   substituted_from: z.string().optional(),
   substitution_reason: z.string().optional(),
   // Пусто ровно тогда, когда подходов не осталось (§20.3).
@@ -332,8 +338,12 @@ export const logSetRequestSchema = z.object({
 })
 export type LogSetRequest = z.infer<typeof logSetRequestSchema>
 
-/** Ответ — только новое дерево, без готового следующего подхода (§20.3). */
-export const logSetResponseSchema = z.object({ decision_tree: decisionTreeSchema })
+/**
+ * Ответ — новое дерево и записанный подход, без готового следующего подхода
+ * (§20.3). Вес в `set` — ступень, которую записал сервер: введённое число он
+ * округляет к лестнице (§19.2 п.23).
+ */
+export const logSetResponseSchema = z.object({ decision_tree: decisionTreeSchema, set: setSchema })
 export type LogSetResponse = z.infer<typeof logSetResponseSchema>
 
 /** Тело `POST …/finish`: только пара дня (§20.3). */
@@ -441,6 +451,7 @@ export const errorCodes = [
   'week_exists',
   'set_id_required',
   'set_immutable',
+  'set_index_taken',
   'workout_not_started',
   'workout_finished',
   'day_not_planned',

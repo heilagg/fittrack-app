@@ -50,6 +50,7 @@ const schemaFor: Record<string, ZodType> = {
   'week_plan_response.json': weekPlanResponseSchema,
   'content_exercises.json': exerciseContentListSchema,
   'workout_started.json': workoutSchema,
+  'workout_calibration_no_weight.json': workoutSchema,
   'workout_in_progress.json': workoutSchema,
   'error_unlinked_account.json': errorEnvelopeSchema,
   'error_day_not_planned.json': errorEnvelopeSchema,

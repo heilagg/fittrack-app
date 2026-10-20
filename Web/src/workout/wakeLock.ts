@@ -58,5 +58,8 @@ export function useWakeLock(enabled: boolean): WakeLockState {
     }
   }, [enabled, api])
 
-  return state
+  // Выключенная блокировка — `idle`, а не последнее состояние: иначе «Экран
+  // не погаснет» (или «не умеет удерживать») оставалось бы на экране после
+  // завершения тренировки.
+  return enabled ? state : 'idle'
 }
