@@ -1,0 +1,36 @@
+{
+  "slug": "pigeon_pose",
+  "name": "Поза голубя",
+  "kind": "static",
+  "unilateral": true,
+  "default_seconds": 45,
+  "muscles": [
+    "glute_max",
+    "glute_med"
+  ],
+  "patterns": [
+    "hinge",
+    "lunge"
+  ],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "low",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "medium",
+    "ankle": "none"
+  },
+  "cues": [
+    "Таз ровно, не заваливайте его на сторону согнутой ноги",
+    "При дискомфорте в колене подложите под бедро подушку"
+  ],
+  "technique": [
+    "Из положения на четвереньках выведите одно колено вперёд к той же руке.",
+    "Голень согнутой ноги положите на пол наискосок, вторую ногу вытяните назад.",
+    "Выровняйте таз и опуститесь корпусом вперёд на предплечья.",
+    "Удерживайте положение, затем смените ногу."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/pigeon_pose"
+}

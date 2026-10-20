@@ -1,0 +1,37 @@
+{
+  "slug": "neck_side_stretch",
+  "name": "Растяжка шеи в сторону",
+  "kind": "static",
+  "unilateral": true,
+  "default_seconds": 30,
+  "muscles": [
+    "traps_upper"
+  ],
+  "patterns": [],
+  "joint_stress": {
+    "knee": "none",
+    "lower_back": "none",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "low",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Плечо противоположной стороны опущено",
+    "Рукой только помогайте, не тяните голову"
+  ],
+  "technique": [
+    "Сядьте или встаньте прямо, плечи расслаблены.",
+    "Мягко наклоните голову к плечу, не поднимая плечо.",
+    "Ладонью той же стороны слегка помогите наклону.",
+    "Удерживайте положение, затем смените сторону."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Side_Neck_Stretch"
+    }
+  ],
+  "illustration": "placeholder/stretch/neck_side_stretch"
+}

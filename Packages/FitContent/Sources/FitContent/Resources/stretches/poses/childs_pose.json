@@ -1,0 +1,42 @@
+{
+  "slug": "childs_pose",
+  "name": "Поза ребёнка",
+  "kind": "static",
+  "unilateral": false,
+  "default_seconds": 60,
+  "muscles": [
+    "lats",
+    "erectors",
+    "glute_max"
+  ],
+  "patterns": [
+    "hinge",
+    "pull_v"
+  ],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "none",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "low"
+  },
+  "cues": [
+    "Таз тянется к пяткам",
+    "Лоб лежит на полу, плечи расслаблены"
+  ],
+  "technique": [
+    "Встаньте на колени и сядьте тазом на пятки.",
+    "Наклонитесь вперёд и вытяните руки перед собой по полу.",
+    "Опустите лоб на пол и расслабьте спину и плечи.",
+    "Дышите глубоко в спину и удерживайте положение."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Childs_Pose"
+    }
+  ],
+  "illustration": "placeholder/stretch/childs_pose"
+}

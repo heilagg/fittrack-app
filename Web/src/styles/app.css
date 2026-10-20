@@ -129,12 +129,27 @@ button:disabled {
   font-weight: var(--font-weight-bold);
 }
 
+/* Ссылка в виде основной кнопки: у строчного `a` min-height не действует. */
+a.button-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .button-text {
   padding: 0;
   border: 0;
   background: none;
   color: var(--color-accent);
   font-weight: var(--font-weight-bold);
+}
+
+/* Текстовая ссылка-действие: цель нажатия не меньше минимума даже внутри абзаца. */
+a.button-text {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target-min);
 }
 
 .link-back {
@@ -377,7 +392,8 @@ button:disabled {
 }
 
 .reps-value,
-.rest-clock {
+.rest-clock,
+.stretch-clock {
   font-size: var(--type-reps-size);
   font-weight: var(--type-reps-weight);
   letter-spacing: var(--type-reps-tracking);
@@ -862,4 +878,127 @@ input[type='checkbox'] {
 
 .thumbnail--empty {
   border: var(--size-border) dashed var(--color-border);
+}
+
+/* Растяжка и прогресс (§12.2, §13.7): только существующие токены. */
+
+.section-title {
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+  margin: 0 0 var(--space-sm);
+}
+
+.template-link {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  color: var(--color-text);
+  text-decoration: none;
+  min-height: var(--size-touch-target-min);
+}
+
+.template-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.chart {
+  display: block;
+  align-self: stretch;
+  width: 100%;
+  height: auto;
+  margin-top: var(--space-sm);
+}
+
+.chart-bar {
+  fill: var(--color-accent);
+}
+
+.chart-bar--partial {
+  fill: var(--color-accent-chip-bg);
+  stroke: var(--color-accent);
+  stroke-width: 0.5;
+}
+
+.chart-norm {
+  stroke: var(--color-text-muted);
+  stroke-width: 0.5;
+  stroke-dasharray: 2 1;
+}
+
+.chart-ceiling {
+  stroke: var(--color-text-muted);
+  stroke-width: 0.5;
+}
+
+.chart-line {
+  stroke: var(--color-accent);
+  stroke-width: 0.8;
+}
+
+.chart-point {
+  fill: var(--color-accent);
+}
+
+.phase-strip {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-sm) 0 0;
+}
+
+.calendar {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+.calendar-day {
+  padding: var(--space-xs) 0;
+  color: var(--color-text);
+  vertical-align: top;
+}
+
+.calendar-day--today {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-bold);
+  outline: var(--size-border) solid var(--color-accent);
+  outline-offset: calc(-1 * var(--size-border));
+  border-radius: var(--radius-control);
+}
+
+.calendar-mark {
+  display: block;
+  color: var(--color-accent);
+}
+
+/* Подписи столбцов прогресса (§13.7): по клетке на неделю, в ширину столбца. */
+.chart-axis {
+  display: flex;
+  align-self: stretch;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chart-axis > li {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Переключатель окна: выбранный чип залит, как любой `aria-pressed`, а не
+   только обведён, — правило `.chip` ниже по каскаду иначе перекрыло бы его. */
+button.chip {
+  min-height: var(--size-touch-target-min);
+  border: var(--size-border) solid var(--color-accent-chip-bg);
+}
+
+button.chip[aria-pressed='true'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
 }

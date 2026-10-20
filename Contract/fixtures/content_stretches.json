@@ -1,0 +1,56 @@
+{
+  "poses" : [
+    {
+      "cues" : [
+        "Таз ровно"
+      ],
+      "default_seconds" : 45,
+      "illustration" : "placeholder/stretch/pigeon_pose",
+      "kind" : "static",
+      "name" : "Поза голубя",
+      "slug" : "pigeon_pose",
+      "unilateral" : true
+    },
+    {
+      "cues" : [
+        "Мягко на носки"
+      ],
+      "default_seconds" : 30,
+      "illustration" : "placeholder/stretch/jumping_jack",
+      "kind" : "cardio",
+      "name" : "Джампинг-джек",
+      "slug" : "jumping_jack",
+      "unilateral" : false
+    }
+  ],
+  "templates" : [
+    {
+      "duration_seconds" : 150,
+      "items" : [
+        {
+          "pose" : "pigeon_pose",
+          "seconds" : 75
+        }
+      ],
+      "minutes" : 3,
+      "name" : "Раскрытие бёдер",
+      "purpose" : "Приводящие, сгибатели бедра",
+      "slug" : "hip_opening"
+    },
+    {
+      "duration_seconds" : 120,
+      "items" : [
+        {
+          "pose" : "jumping_jack",
+          "rest_seconds" : 15,
+          "rounds" : 3,
+          "work_seconds" : 30
+        }
+      ],
+      "minutes" : 2,
+      "name" : "Кардио",
+      "purpose" : "Интервальная сессия, не силовая",
+      "slug" : "cardio_intervals"
+    }
+  ]
+}

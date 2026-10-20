@@ -1,0 +1,35 @@
+{
+  "slug": "lower_back_pelvis",
+  "name": "Поясница и таз",
+  "purpose": "После тяжёлого дня низа тела",
+  "items": [
+    {
+      "pose": "cat_cow",
+      "seconds": 90
+    },
+    {
+      "pose": "childs_pose",
+      "seconds": 90
+    },
+    {
+      "pose": "cobra_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "pigeon_pose",
+      "seconds": 60
+    },
+    {
+      "pose": "hamstring_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "standing_toe_touch",
+      "seconds": 45
+    },
+    {
+      "pose": "kneeling_hip_flexor_stretch",
+      "seconds": 45
+    }
+  ]
+}

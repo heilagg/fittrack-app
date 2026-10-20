@@ -83,7 +83,7 @@ function mount(overrides: Partial<Api>) {
   const api: Api = {
     getWorkout: vi.fn(async () => running),
     getExercises: vi.fn(async () => []),
-    finishWorkout: vi.fn(async () => ({ workout: closed, week })),
+    finishWorkout: vi.fn(async () => ({ workout: closed, week, cooldown: [{ pose: 'pigeon_pose', seconds: 45 }] })),
     logSet: vi.fn(async (): Promise<LogSetResponse> => ({ decision_tree: tree })),
     ...overrides,
   }
@@ -153,22 +153,26 @@ describe('завершение тренировки', () => {
     expect(screen.getByTestId('summary-total').textContent).toBe('Выполнено подходов: 1')
     expect(screen.getByTestId('summary-exercises').textContent).toContain('squat_barbell: 1 из 3')
     expect(screen.queryByRole('button', { name: 'Завершить тренировку' })).toBeNull()
+    // Заминка из ответа (§12.2): предложение со ссылкой в проигрыватель.
+    expect(screen.getByTestId('cooldown-offer').textContent).toContain('1 поза')
+    expect(screen.getByRole('link', { name: 'Начать заминку' }).getAttribute('href')).toBe('/stretch/cooldown')
   })
 
   it('ответ без notice или без недели: сводка есть, строки «План обновлён» нет', async () => {
-    mount({ finishWorkout: vi.fn(async (): Promise<FinishWorkoutResponse> => ({ workout: closed })) })
+    mount({ finishWorkout: vi.fn(async (): Promise<FinishWorkoutResponse> => ({ workout: closed, cooldown: [] })) })
     await ready()
     fireEvent.click(finishButton())
     await flush()
     expect(screen.getByTestId('summary')).toBeTruthy()
     expect(screen.queryByTestId('plan-notice')).toBeNull()
+    expect(screen.queryByTestId('cooldown-offer')).toBeNull()
   })
 
   it('обрыв: явная ошибка и «Повторить»; повтор приходит как второй вызов и завершает', async () => {
     const finishWorkout = vi
       .fn<ApiClient['finishWorkout']>()
       .mockRejectedValueOnce(new NetworkError('/v1/workouts/w-1/finish', new Error('x')))
-      .mockResolvedValueOnce({ workout: closed, week: { plan: week.plan } })
+      .mockResolvedValueOnce({ workout: closed, week: { plan: week.plan }, cooldown: [] })
     mount({ finishWorkout })
     await ready()
     fireEvent.click(finishButton())

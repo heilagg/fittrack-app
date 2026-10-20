@@ -388,14 +388,15 @@ final class ContractTests: XCTestCase {
     func test_finishResponseCarriesWorkoutAndOptionalWeek() throws {
         let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: []))
         let full = try JSONSerialization.jsonObject(with: try encoder.encode(
-            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: week))) as? [String: Any]
-        XCTAssertEqual(Set(full?.keys ?? [:].keys), ["workout", "week"])
+            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: week, cooldown: []))) as? [String: Any]
+        XCTAssertEqual(Set(full?.keys ?? [:].keys), ["workout", "week", "cooldown"])
 
         let bare = try JSONSerialization.jsonObject(with: try encoder.encode(
-            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: nil))) as? [String: Any]
-        XCTAssertEqual(Set(bare?.keys ?? [:].keys), ["workout"])
+            FinishWorkoutResponseDTO(workout: workout(tree: nil), week: nil, cooldown: []))) as? [String: Any]
+        XCTAssertEqual(Set(bare?.keys ?? [:].keys), ["workout", "cooldown"], "пустая заминка — массив, а не отсутствие")
 
-        let dto = FinishWorkoutResponseDTO(workout: workout(tree: tree), week: week)
+        let dto = FinishWorkoutResponseDTO(workout: workout(tree: tree), week: week,
+                                           cooldown: [CooldownPoseDTO(pose: "pigeon_pose", seconds: 45)])
         XCTAssertEqual(try decoder.decode(FinishWorkoutResponseDTO.self, from: try encoder.encode(dto)), dto)
     }
 

@@ -12,8 +12,14 @@ import {
   alternativesSchema,
   cycleCalendarSchema,
   errorEnvelopeSchema,
+  finishStretchSessionRequestSchema,
   finishWorkoutRequestSchema,
   finishWorkoutResponseSchema,
+  progressSchema,
+  startStretchSessionRequestSchema,
+  stretchContentSchema,
+  stretchHistorySchema,
+  stretchSessionSchema,
   exerciseContentListSchema,
   generateWeekPlanRequestSchema,
   logSetRequestSchema,
@@ -76,6 +82,13 @@ const schemaFor: Record<string, ZodType> = {
   'request_patch_profile_training_split.json': patchProfileRequestSchema,
   // Эталон названий тренажёров (§6.6): его сверяет с MACHINE_LABELS labels.test.ts.
   'equipment_machine_names.json': z.record(z.string(), z.string()),
+  'content_stretches.json': stretchContentSchema,
+  'request_start_stretch_session.json': startStretchSessionRequestSchema,
+  'request_start_cooldown_session.json': startStretchSessionRequestSchema,
+  'request_finish_stretch_session.json': finishStretchSessionRequestSchema,
+  'response_stretch_session.json': stretchSessionSchema,
+  'response_stretch_history.json': stretchHistorySchema,
+  'response_progress.json': progressSchema,
 }
 
 describe('эталонные JSON границы /v1', () => {
@@ -370,6 +383,28 @@ describe('онбординг (срез 5)', () => {
   it('подписи снаряда: массив строк у каждого упражнения, пустой — законен', () => {
     const list = exerciseContentListSchema.parse(load('content_exercises.json'))
     expect(list.map((e) => e.equipment_labels)).toEqual([['Штанга'], ['Гантели', 'Регулируемая скамья'], []])
+  })
+
+  it('заминка в ответе /finish: ключ есть всегда, пустой массив — заминки нет', () => {
+    expect(finishWorkoutResponseSchema.parse(load('response_finish_workout.json')).cooldown).toHaveLength(2)
+    expect(finishWorkoutResponseSchema.parse(load('response_finish_workout_no_week.json')).cooldown).toEqual([])
+    const { cooldown: _c, ...without } = load('response_finish_workout.json') as Record<string, unknown>
+    void _c
+    expect(finishWorkoutResponseSchema.safeParse(without).success).toBe(false)
+  })
+
+  it('прогресс: фаза — одна из четырёх экранных и с названием; вид позы — из словаря', () => {
+    const progress = progressSchema.parse(load('response_progress.json'))
+    expect(progress.days[0]).toMatchObject({ phase: 'follicular', phase_name: 'После месячных' })
+    expect(progressSchema.safeParse({ ...progress, days: [{ ...progress.days[0], phase: 'early_luteal' }] }).success).toBe(false)
+    const content = stretchContentSchema.parse(load('content_stretches.json'))
+    expect(stretchContentSchema.safeParse({ ...content, poses: [{ ...content.poses[0], kind: 'yoga' }] }).success).toBe(false)
+  })
+
+  it('старт заминки — без шаблона; ключа template_slug нет', () => {
+    const body = startStretchSessionRequestSchema.parse(load('request_start_cooldown_session.json'))
+    expect(body.kind).toBe('static_cooldown')
+    expect(body.template_slug).toBeUndefined()
   })
 
   it('пресет «зал»: непрерывный шаг 2.5, все слаги тренажёров, гири включены', () => {

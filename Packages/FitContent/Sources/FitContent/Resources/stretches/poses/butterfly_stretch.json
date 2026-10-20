@@ -1,0 +1,36 @@
+{
+  "slug": "butterfly_stretch",
+  "name": "Растяжка «бабочка» сидя",
+  "kind": "static",
+  "unilateral": false,
+  "default_seconds": 45,
+  "muscles": [
+    "adductors",
+    "glute_med"
+  ],
+  "patterns": [
+    "squat",
+    "lunge"
+  ],
+  "joint_stress": {
+    "knee": "low",
+    "lower_back": "none",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "medium",
+    "ankle": "none"
+  },
+  "cues": [
+    "Спина прямая, тянитесь макушкой вверх",
+    "Колени опускайте весом, не давите руками резко"
+  ],
+  "technique": [
+    "Сядьте на пол и соедините стопы, колени разведены в стороны.",
+    "Возьмитесь руками за стопы и подтяните пятки ближе к себе.",
+    "Выпрямите спину и позвольте коленям опускаться к полу.",
+    "Удерживайте положение, спокойно дыша."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/butterfly_stretch"
+}

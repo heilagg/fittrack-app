@@ -390,5 +390,35 @@
       "id": "Seated_Dumbbell_Palms-Down_Wrist_Curl",
       "match": "exact"
     }
+  },
+  "poses": {
+    "arm_circles": {
+      "id": "Arm_Circles",
+      "match": "exact"
+    },
+    "childs_pose": {
+      "id": "Childs_Pose",
+      "match": "exact"
+    },
+    "hamstring_stretch": {
+      "id": "Hamstring_Stretch",
+      "match": "exact"
+    },
+    "kneeling_hip_flexor_stretch": {
+      "id": "Kneeling_Hip_Flexor",
+      "match": "exact"
+    },
+    "mountain_climber": {
+      "id": "Mountain_Climbers",
+      "match": "exact"
+    },
+    "neck_side_stretch": {
+      "id": "Side_Neck_Stretch",
+      "match": "exact"
+    },
+    "standing_toe_touch": {
+      "id": "Standing_Toe_Touches",
+      "match": "exact"
+    }
   }
 }

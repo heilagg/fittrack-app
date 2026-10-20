@@ -53,6 +53,10 @@
     §7.2): схема тренировок из Профиля, `not null default 'auto'` с закрытым
     check'ом. Умолчание законно, как у `session_minutes`: это настройка, а не
     вопрос онбординга, и прежние строки получают прежнюю сетку
+15. `0015_stretch_sessions_conventions.sql` — `stretch_sessions` под этап В3
+    (§3.1, §12.2, §20.7): `template_slug` nullable для автозаминки,
+    `performed_on` — местный день сессии, как у `sets`; check на `kind`;
+    `updated_at`, `deleted_at`, `sync_seq` с триггером и индекс по соглашениям
 
 Конвенции для каждой таблицы: клиентский UUID в `id`, денормализованный
 `user_id`, `updated_at`, `deleted_at`, индекс `(user_id, updated_at)`.

@@ -26,12 +26,18 @@ struct Test20mWeekDaysByDate {
         Mapping.LocalTime.day(of: Date(), in: TimeZone(identifier: "Europe/Moscow")!)
     }
     private var weekStart: CalendarDay { Mapping.LocalTime.mondayOfWeek(today) }
+    /// Следующая неделя: в ней нет прошедших дней, и проверка «хотя бы один
+    /// день собран» не зависит от того, в какой день недели идёт прогон. По
+    /// воскресеньям все шесть дней текущей недели уже прошли, а прошедший день
+    /// планировщик не собирает (§7.1). `POST` принимает ближайшую следующую
+    /// неделю (§20.3).
+    private var nextWeekStart: CalendarDay { weekStart.adding(days: 7) }
     private var todayISOWeekday: Int { (today.dayNumber + 3) % 7 + 1 }
     private var day: DayContext { DayContext(date: Mapping.LocalTime.iso(today), tz: zone) }
     private var query: String { "date=\(Mapping.LocalTime.iso(today))&tz=Europe%2FMoscow" }
 
-    private func generate(_ app: Application, as user: Live.User) async throws {
-        let body = GenerateWeekPlanRequest(weekStart: Mapping.LocalTime.iso(weekStart), day: day)
+    private func generate(_ app: Application, as user: Live.User, week: CalendarDay? = nil) async throws {
+        let body = GenerateWeekPlanRequest(weekStart: Mapping.LocalTime.iso(week ?? weekStart), day: day)
         try await app.testing().test(.POST, "/v1/week-plans", headers: user.headers,
                                      beforeRequest: { try $0.content.encode(body) }) { response in
             #expect(response.status == .created, Comment(rawValue: String(buffer: response.body)))
@@ -69,12 +75,12 @@ struct Test20mWeekDaysByDate {
 
         try await Live.withServer("20m.week") { app in
             try await Live.seed(app, user, logger: logger, weekdays: [1, 2, 3, 4, 5, 6])
-            try await self.generate(app, as: user)
+            try await self.generate(app, as: user, week: self.nextWeekStart)
 
             var captured: WeekPlanResponseDTO?
             var raw: [[String: Any]] = []
             try await app.testing().test(
-                .GET, "/v1/week-plans/\(Mapping.LocalTime.iso(self.weekStart))?\(self.query)",
+                .GET, "/v1/week-plans/\(Mapping.LocalTime.iso(self.nextWeekStart))?\(self.query)",
                 headers: user.headers
             ) { response in
                 #expect(response.status == .ok, Comment(rawValue: String(buffer: response.body)))

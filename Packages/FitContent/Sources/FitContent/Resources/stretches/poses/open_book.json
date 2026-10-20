@@ -1,0 +1,37 @@
+{
+  "slug": "open_book",
+  "name": "Открытая книга",
+  "kind": "dynamic",
+  "unilateral": true,
+  "default_seconds": 45,
+  "muscles": [
+    "pecs",
+    "obliques",
+    "traps_mid"
+  ],
+  "patterns": [
+    "push_h",
+    "pull_h"
+  ],
+  "joint_stress": {
+    "knee": "none",
+    "lower_back": "low",
+    "shoulder": "low",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Колени остаются вместе и на полу",
+    "Взгляд следует за верхней рукой"
+  ],
+  "technique": [
+    "Лягте на бок, колени согнуты и сложены вместе, руки вытянуты вперёд одна на другой.",
+    "Верхнюю руку медленно отведите дугой назад, раскрывая грудь.",
+    "Позвольте лопатке опуститься к полу, колени не отрываются.",
+    "Вернитесь в исходное положение и повторите, затем смените сторону."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/open_book"
+}

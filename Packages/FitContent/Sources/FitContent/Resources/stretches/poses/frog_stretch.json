@@ -1,0 +1,34 @@
+{
+  "slug": "frog_stretch",
+  "name": "Растяжка «лягушка»",
+  "kind": "static",
+  "unilateral": false,
+  "default_seconds": 45,
+  "muscles": [
+    "adductors"
+  ],
+  "patterns": [
+    "squat"
+  ],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "low",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "medium",
+    "ankle": "none"
+  },
+  "cues": [
+    "Колени разводите до лёгкого натяжения, не до боли",
+    "Под колени можно подложить сложенное полотенце"
+  ],
+  "technique": [
+    "Встаньте на четвереньки, опора на предплечья.",
+    "Разведите колени широко в стороны, голени параллельны, стопы развёрнуты наружу.",
+    "Медленно отводите таз назад, пока не почувствуете растяжение внутренней поверхности бёдер.",
+    "Удерживайте положение и ровно дышите."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/frog_stretch"
+}

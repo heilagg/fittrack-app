@@ -7,7 +7,8 @@ import { useState } from 'react'
 import type { ExerciseContent } from '../../api/schemas'
 import { CLOSE_MATCH_CAPTION, illustrationOf } from '../../content/illustration'
 
-export function ExerciseFrames({ content }: { content: ExerciseContent | undefined }) {
+/** Кадры упражнения или позы растяжки (§6.5, §12.3): нужны только имя и ключ. */
+export function ExerciseFrames({ content }: { content: Pick<ExerciseContent, 'name' | 'illustration'> | undefined }) {
   const [enlarged, setEnlarged] = useState<'start' | 'finish' | null>(null)
   const picture = illustrationOf(content?.illustration)
   if (picture.kind === 'placeholder') {

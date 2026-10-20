@@ -1,0 +1,34 @@
+{
+  "slug": "running_in_place",
+  "name": "Бег на месте",
+  "kind": "cardio",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "quads",
+    "hamstrings",
+    "calves"
+  ],
+  "patterns": [],
+  "joint_stress": {
+    "knee": "medium",
+    "lower_back": "none",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "medium"
+  },
+  "cues": [
+    "Приземляйтесь на переднюю часть стопы",
+    "Руки работают в такт ногам"
+  ],
+  "technique": [
+    "Встаньте прямо, руки согнуты в локтях.",
+    "Начните бег на месте, поочерёдно поднимая колени.",
+    "Приземляйтесь мягко на переднюю часть стопы.",
+    "Держите ровный темп до конца интервала."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/running_in_place"
+}

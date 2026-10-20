@@ -77,7 +77,7 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
       {w.is_calibration && <p className="chip">Калибровочная тренировка: веса занижены намеренно.</p>}
       <WakeLockNote enabled={!isFinished} />
       {isFinished ? (
-        <WorkoutSummary workout={w} week={finished?.week} names={names.data} />
+        <WorkoutSummary workout={w} week={finished?.week} names={names.data} cooldown={finished?.cooldown} />
       ) : swap && swapping ? (
         <AlternativesPanel
           key={`${swapping.id}:${swapping.slug}`}

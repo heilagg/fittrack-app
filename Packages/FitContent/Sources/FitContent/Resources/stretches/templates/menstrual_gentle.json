@@ -1,0 +1,39 @@
+{
+  "slug": "menstrual_gentle",
+  "name": "Для менструальной фазы",
+  "purpose": "Мягкие позы: без наклона головой вниз и без кобры",
+  "items": [
+    {
+      "pose": "childs_pose",
+      "seconds": 120
+    },
+    {
+      "pose": "cat_cow",
+      "seconds": 90
+    },
+    {
+      "pose": "butterfly_stretch",
+      "seconds": 90
+    },
+    {
+      "pose": "pigeon_pose",
+      "seconds": 60
+    },
+    {
+      "pose": "kneeling_hip_flexor_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "neck_side_stretch",
+      "seconds": 30
+    },
+    {
+      "pose": "open_book",
+      "seconds": 45
+    },
+    {
+      "pose": "doorway_chest_stretch",
+      "seconds": 45
+    }
+  ]
+}

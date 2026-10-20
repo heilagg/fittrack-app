@@ -92,9 +92,9 @@ public struct ContentStore: Sendable {
             }
             return ExerciseContentDTO(exercise, candidate: candidate)
         }
-        let stretchDTOs = library.stretches.map(StretchContentDTO.init(_:))
+        let stretchBody = try StretchContentDTO(library: library)
         exercises = ContentPayload(bytes: try encoder.encode(exerciseDTOs))
-        stretches = ContentPayload(bytes: try encoder.encode(stretchDTOs))
+        stretches = ContentPayload(bytes: try encoder.encode(stretchBody))
     }
 
     /// Ответ на условный запрос. `ifNoneMatch` — сырое значение заголовка.
@@ -142,6 +142,7 @@ public enum ContentPath: String, Sendable, CaseIterable {
 /// данных: срез строится из того же файла. Сервер с ним не стартует.
 enum ContentStoreError: Error, Equatable {
     case missingCandidate(String)
+    case templateDuration(String)
 }
 
 extension ExerciseContentDTO {
@@ -155,8 +156,28 @@ extension ExerciseContentDTO {
 }
 
 extension StretchContentDTO {
-    init(_ stretch: StretchSchema) {
-        self.init(slug: stretch.slug, name: stretch.name,
-                  durationMinutes: stretch.durationMinutes, purpose: stretch.purpose)
+    /// Позы и шаблоны одним телом (§12.3, §20.3). Длительность шаблона считает
+    /// сервер из поз (§12.2): клиент формулу не повторяет. Шаблон, чья
+    /// длительность не вычисляется, — брак разметки, его ловит валидатор, и с
+    /// ним сервер не стартует.
+    init(library: ContentLibrary) throws {
+        let templates = try library.templates.map { template -> StretchTemplateDTO in
+            guard let seconds = template.durationSeconds(poses: library.poseBySlug) else {
+                throw ContentStoreError.templateDuration(template.slug)
+            }
+            return StretchTemplateDTO(
+                slug: template.slug, name: template.name, purpose: template.purpose,
+                durationSeconds: seconds, minutes: StretchTemplateSchema.minutes(fromSeconds: seconds),
+                items: template.items.map {
+                    TemplateItemDTO(pose: $0.pose, seconds: $0.seconds, workSeconds: $0.workSeconds,
+                                    restSeconds: $0.restSeconds, rounds: $0.rounds)
+                })
+        }
+        self.init(
+            poses: library.poses.map {
+                PoseDTO(slug: $0.slug, name: $0.name, kind: $0.kind.rawValue, unilateral: $0.unilateral,
+                        defaultSeconds: $0.defaultSeconds, cues: $0.cues, illustration: $0.illustration)
+            },
+            templates: templates)
     }
 }

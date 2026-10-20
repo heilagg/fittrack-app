@@ -1,0 +1,35 @@
+{
+  "slug": "doorway_chest_stretch",
+  "name": "Растяжка груди в дверном проёме",
+  "kind": "static",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "pecs",
+    "front_delts"
+  ],
+  "patterns": [
+    "push_h"
+  ],
+  "joint_stress": {
+    "knee": "none",
+    "lower_back": "none",
+    "shoulder": "medium",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Локти на уровне плеч или чуть ниже",
+    "Шагайте вперёд до лёгкого растяжения груди"
+  ],
+  "technique": [
+    "Встаньте в дверном проёме и поставьте предплечья на косяки, локти на уровне плеч.",
+    "Сделайте небольшой шаг вперёд одной ногой.",
+    "Перенесите вес вперёд, пока не почувствуете растяжение груди.",
+    "Удерживайте положение, спокойно дыша."
+  ],
+  "sources": [],
+  "illustration": "placeholder/stretch/doorway_chest_stretch"
+}

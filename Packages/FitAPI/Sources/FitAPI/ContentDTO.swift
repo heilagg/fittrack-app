@@ -66,28 +66,97 @@ public struct ExerciseContentDTO: Sendable, Equatable, Codable {
     }
 }
 
-/// Шаблон самостоятельной сессии растяжки (§12.2).
-///
-/// До этапа В3 путь отдаёт пустой массив: схема ПОЗЫ не определена
-/// (content-domain §2 п.7), а таблица §12.2 задаёт только эти четыре поля.
-/// Тип существует затем, чтобы пустой ответ был валидным ответом, а не
-/// отсутствием формы.
+/// Тело `GET /v1/content/stretches` (§12.3, §20.3): объект, а не массив —
+/// позы и шаблоны едут одним телом с одним `ETag`, потому что шаблон без своих
+/// поз не проигрывается.
 public struct StretchContentDTO: Sendable, Equatable, Codable {
+    public var poses: [PoseDTO]
+    public var templates: [StretchTemplateDTO]
+
+    public init(poses: [PoseDTO], templates: [StretchTemplateDTO]) {
+        self.poses = poses
+        self.templates = templates
+    }
+}
+
+/// Поза в объёме показа и проигрывателя (§12.3, §20.11). `muscles`,
+/// `patterns` и `joint_stress` — входы подбора, остаются в пакете.
+public struct PoseDTO: Sendable, Equatable, Codable {
     public var slug: String
     public var name: String
-    public var durationMinutes: Int
-    public var purpose: String
+    /// `dynamic` | `static` | `cardio`.
+    public var kind: String
+    public var unilateral: Bool
+    public var defaultSeconds: Int
+    public var cues: [String]
+    public var illustration: String
 
     enum CodingKeys: String, CodingKey {
-        case slug, name
-        case durationMinutes = "duration_minutes"
-        case purpose
+        case slug, name, kind, unilateral
+        case defaultSeconds = "default_seconds"
+        case cues, illustration
     }
 
-    public init(slug: String, name: String, durationMinutes: Int, purpose: String) {
+    public init(slug: String, name: String, kind: String, unilateral: Bool,
+                defaultSeconds: Int, cues: [String], illustration: String) {
         self.slug = slug
         self.name = name
-        self.durationMinutes = durationMinutes
+        self.kind = kind
+        self.unilateral = unilateral
+        self.defaultSeconds = defaultSeconds
+        self.cues = cues
+        self.illustration = illustration
+    }
+}
+
+/// Шаблон с посчитанной длительностью (§12.2): `duration_seconds` и `minutes`
+/// считает сервер из поз — клиент формулу §12.2 у себя не повторяет.
+public struct StretchTemplateDTO: Sendable, Equatable, Codable {
+    public var slug: String
+    public var name: String
+    public var purpose: String
+    public var durationSeconds: Int
+    public var minutes: Int
+    public var items: [TemplateItemDTO]
+
+    enum CodingKeys: String, CodingKey {
+        case slug, name, purpose
+        case durationSeconds = "duration_seconds"
+        case minutes, items
+    }
+
+    public init(slug: String, name: String, purpose: String, durationSeconds: Int,
+                minutes: Int, items: [TemplateItemDTO]) {
+        self.slug = slug
+        self.name = name
         self.purpose = purpose
+        self.durationSeconds = durationSeconds
+        self.minutes = minutes
+        self.items = items
+    }
+}
+
+/// Запись шаблона: у растяжки `seconds`, у кардио интервалы и круги (§12.3).
+public struct TemplateItemDTO: Sendable, Equatable, Codable {
+    public var pose: String
+    public var seconds: Int?
+    public var workSeconds: Int?
+    public var restSeconds: Int?
+    public var rounds: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case pose, seconds
+        case workSeconds = "work_seconds"
+        case restSeconds = "rest_seconds"
+        case rounds
+    }
+
+    public init(pose: String, seconds: Int? = nil, workSeconds: Int? = nil,
+                restSeconds: Int? = nil, rounds: Int? = nil) {
+        self.pose = pose
+        self.seconds = seconds
+        self.workSeconds = workSeconds
+        self.restSeconds = restSeconds
+        self.rounds = rounds
     }
 }

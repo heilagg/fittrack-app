@@ -1,0 +1,31 @@
+{
+  "slug": "cardio_intervals",
+  "name": "Кардио",
+  "purpose": "Интервальная сессия, не силовая",
+  "items": [
+    {
+      "pose": "jumping_jack",
+      "work_seconds": 30,
+      "rest_seconds": 15,
+      "rounds": 3
+    },
+    {
+      "pose": "mountain_climber",
+      "work_seconds": 30,
+      "rest_seconds": 15,
+      "rounds": 3
+    },
+    {
+      "pose": "running_in_place",
+      "work_seconds": 30,
+      "rest_seconds": 15,
+      "rounds": 3
+    },
+    {
+      "pose": "burpee_no_pushup",
+      "work_seconds": 30,
+      "rest_seconds": 15,
+      "rounds": 3
+    }
+  ]
+}

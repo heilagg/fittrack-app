@@ -1,0 +1,42 @@
+{
+  "slug": "standing_toe_touch",
+  "name": "Наклон к носкам стоя",
+  "kind": "static",
+  "unilateral": false,
+  "default_seconds": 30,
+  "muscles": [
+    "hamstrings",
+    "erectors",
+    "calves"
+  ],
+  "patterns": [
+    "hinge"
+  ],
+  "joint_stress": {
+    "knee": "low",
+    "lower_back": "medium",
+    "shoulder": "none",
+    "wrist": "none",
+    "neck": "none",
+    "hip": "none",
+    "ankle": "none"
+  },
+  "cues": [
+    "Наклоняйтесь от таза, а не от поясницы",
+    "Колени слегка мягкие, не в замке",
+    "Голова и руки висят свободно"
+  ],
+  "technique": [
+    "Встаньте прямо, стопы на ширине таза.",
+    "Медленно наклонитесь вперёд от тазобедренных суставов.",
+    "Опустите руки к носкам и расслабьте верх тела.",
+    "Удерживайте положение, затем медленно выпрямитесь, поднимаясь по одному позвонку."
+  ],
+  "sources": [
+    {
+      "catalog": "free-exercise-db",
+      "id": "Standing_Toe_Touches"
+    }
+  ],
+  "illustration": "placeholder/stretch/standing_toe_touch"
+}

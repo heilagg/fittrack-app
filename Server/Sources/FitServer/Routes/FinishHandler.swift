@@ -91,8 +91,23 @@ extension WorkoutRoutes {
                 }
             }
 
+            // Автозаминка (§12.2) — из выполненных подходов этой тренировки и
+            // активных ограничений; считается на каждом ответе, поэтому повтор
+            // `/finish` отдаёт ту же заминку.
+            var setsBySlug: [String: Int] = [:]
+            for set in try await Mapping.readWorkoutSets(tx, workoutID: workoutID).journal.values.joined()
+            where set.isPerformed {
+                setsBySlug[set.exerciseSlug, default: 0] += 1
+            }
+            let cooldown = Stretching.cooldown(
+                setsBySlug: setsBySlug,
+                library: Dictionary(uniqueKeysWithValues: library.candidates.map { ($0.slug, $0) }),
+                poses: library.poses.map(\.stretchPose),
+                restrictions: try await Mapping.readActiveRestrictions(tx))
+
             let dto = FinishWorkoutResponseDTO(
-                workout: try await body(tx, workout: workout, library: library), week: week)
+                workout: try await body(tx, workout: workout, library: library), week: week,
+                cooldown: cooldown.map(CooldownPoseDTO.init))
             return try WeekPlanRoutes.json(dto)
         }
     }

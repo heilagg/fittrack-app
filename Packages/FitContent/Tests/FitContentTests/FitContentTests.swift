@@ -265,8 +265,8 @@ final class FitContentTests: XCTestCase {
         let library = try Content.load(from: root)
 
         XCTAssertTrue(library.exercises.isEmpty)
-        XCTAssertTrue(library.stretches.isEmpty,
-                      "схема позы отложена до В3: раздел пуст, а не сломан (§20.11)")
+        XCTAssertTrue(library.poses.isEmpty && library.templates.isEmpty,
+                      "раздела растяжки нет — он пуст, а не сломан")
         XCTAssertTrue(library.vectors.vectors.isEmpty)
     }
 

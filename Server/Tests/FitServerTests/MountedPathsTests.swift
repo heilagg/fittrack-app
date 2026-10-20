@@ -91,7 +91,7 @@ struct MountedPathsTests {
         }.joined(separator: "/")
     }
 
-    /// Семнадцать путей §20.3 — строки таблицы «Тела успешных ответов», по
+    /// Двадцать один путь §20.3 — строки таблицы «Тела успешных ответов», по
     /// одной на путь. Сверяется МНОЖЕСТВО (метод + путь), а не только число:
     /// одно `== 16` пропустило бы подмену одного пути другим, а прежнее
     /// `>= 8` — и пропажу половины.
@@ -113,10 +113,15 @@ struct MountedPathsTests {
         "POST /v1/workouts/{id}/exercises/{we_id}/sets",
         "POST /v1/workouts/{id}/finish",
         "POST /v1/workouts/{id}/exercises/{we_id}/substitute",
+        // Этап В3 (§12.2, §13.7).
+        "GET /v1/stretch-sessions",
+        "POST /v1/stretch-sessions",
+        "POST /v1/stretch-sessions/{id}/finish",
+        "GET /v1/progress",
     ]
 
-    @Test("смонтированы ровно семнадцать путей §20.3, и именно они")
-    func exactlyTheSeventeenSpecPaths() async throws {
+    @Test("смонтированы ровно двадцать один путь §20.3, и именно они")
+    func exactlyTheSpecPaths() async throws {
         try await Self.withMountedApp { app in
             let mounted = app.routes.all.map { route -> String in
                 let path = route.path.map { component -> String in
@@ -129,7 +134,7 @@ struct MountedPathsTests {
                 }.joined(separator: "/")
                 return "\(route.method.rawValue) /\(path)"
             }
-            #expect(mounted.count == 17, "маршрутов \(mounted.count), а не 17")
+            #expect(mounted.count == 21, "маршрутов \(mounted.count), а не 21")
             #expect(Set(mounted) == Self.specPaths,
                     "лишние: \(Set(mounted).subtracting(Self.specPaths).sorted()), недостающие: \(Self.specPaths.subtracting(mounted).sorted())")
         }

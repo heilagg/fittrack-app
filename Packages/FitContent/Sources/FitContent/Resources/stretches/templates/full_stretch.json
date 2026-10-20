@@ -1,0 +1,63 @@
+{
+  "slug": "full_stretch",
+  "name": "Полная растяжка",
+  "purpose": "Всё тело",
+  "items": [
+    {
+      "pose": "cat_cow",
+      "seconds": 60
+    },
+    {
+      "pose": "arm_circles",
+      "seconds": 45
+    },
+    {
+      "pose": "neck_side_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "open_book",
+      "seconds": 45
+    },
+    {
+      "pose": "wall_angel",
+      "seconds": 60
+    },
+    {
+      "pose": "doorway_chest_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "standing_toe_touch",
+      "seconds": 60
+    },
+    {
+      "pose": "hamstring_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "butterfly_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "frog_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "kneeling_hip_flexor_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "pigeon_pose",
+      "seconds": 90
+    },
+    {
+      "pose": "cobra_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "childs_pose",
+      "seconds": 120
+    }
+  ]
+}

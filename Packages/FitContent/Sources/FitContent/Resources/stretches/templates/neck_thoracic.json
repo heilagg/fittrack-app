@@ -1,0 +1,35 @@
+{
+  "slug": "neck_thoracic",
+  "name": "Шея и грудной отдел",
+  "purpose": "Для сидячей работы",
+  "items": [
+    {
+      "pose": "neck_side_stretch",
+      "seconds": 45
+    },
+    {
+      "pose": "arm_circles",
+      "seconds": 45
+    },
+    {
+      "pose": "open_book",
+      "seconds": 60
+    },
+    {
+      "pose": "wall_angel",
+      "seconds": 60
+    },
+    {
+      "pose": "doorway_chest_stretch",
+      "seconds": 60
+    },
+    {
+      "pose": "cat_cow",
+      "seconds": 60
+    },
+    {
+      "pose": "childs_pose",
+      "seconds": 60
+    }
+  ]
+}

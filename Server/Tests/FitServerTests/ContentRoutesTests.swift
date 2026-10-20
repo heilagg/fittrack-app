@@ -46,9 +46,13 @@ struct ContentRoutesTests {
                 )
             ],
             vectors: DayVectorTable([]),
-            stretches: [
-                StretchSchema(slug: "evening", name: "Вечерняя", durationMinutes: 10,
-                              purpose: "Расслабление")
+            poses: [
+                PoseSchema(slug: "childs_pose", name: "Поза ребёнка", kind: .static, defaultSeconds: 60,
+                           muscles: [.lats], illustration: "placeholder/stretch/childs_pose")
+            ],
+            templates: [
+                StretchTemplateSchema(slug: "evening", name: "Вечерняя", purpose: "Расслабление",
+                                      items: [TemplateItem(pose: "childs_pose", seconds: 120)])
             ]
         )
     }

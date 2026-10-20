@@ -345,9 +345,15 @@ export type FinishWorkoutRequest = z.infer<typeof finishWorkoutRequestSchema>
  * не быть (недели нет, `/finish` её не генерирует); `week.notice` — строка
  * «План обновлён», в повторе `/finish` её нет.
  */
+// Поза автозаминки (§12.2): слаг и секунды на сторону.
+export const cooldownPoseSchema = z.object({ pose: z.string(), seconds: z.number().int() })
+export type CooldownPose = z.infer<typeof cooldownPoseSchema>
+
 export const finishWorkoutResponseSchema = z.object({
   workout: workoutSchema,
   week: weekPlanResponseSchema.optional(),
+  // Пустой массив — заминки нет; ключ есть всегда.
+  cooldown: z.array(cooldownPoseSchema),
 })
 export type FinishWorkoutResponse = z.infer<typeof finishWorkoutResponseSchema>
 
@@ -498,3 +504,108 @@ export const rebuildWeekPlanRequestSchema = z.object({
   tz: z.string(),
 })
 export type RebuildWeekPlanRequest = z.infer<typeof rebuildWeekPlanRequestSchema>
+
+// MARK: - Растяжка (§12.2, §12.3)
+
+export const poseKinds = ['dynamic', 'static', 'cardio'] as const
+export const poseSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  kind: z.enum(poseKinds),
+  unilateral: z.boolean(),
+  default_seconds: z.number().int(),
+  cues: z.array(z.string()),
+  illustration: z.string(),
+})
+export type Pose = z.infer<typeof poseSchema>
+
+export const templateItemSchema = z.object({
+  pose: z.string(),
+  seconds: z.number().int().optional(),
+  work_seconds: z.number().int().optional(),
+  rest_seconds: z.number().int().optional(),
+  rounds: z.number().int().optional(),
+})
+export type TemplateItem = z.infer<typeof templateItemSchema>
+
+export const stretchTemplateSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  purpose: z.string(),
+  // Длительность считает сервер из поз (§12.2): клиент формулу не повторяет.
+  duration_seconds: z.number().int(),
+  minutes: z.number().int(),
+  items: z.array(templateItemSchema),
+})
+export type StretchTemplate = z.infer<typeof stretchTemplateSchema>
+
+export const stretchContentSchema = z.object({
+  poses: z.array(poseSchema),
+  templates: z.array(stretchTemplateSchema),
+})
+export type StretchContent = z.infer<typeof stretchContentSchema>
+
+export const stretchSessionKinds = ['standalone', 'static_cooldown'] as const
+export const startStretchSessionRequestSchema = z.object({
+  id: z.string(),
+  kind: z.enum(stretchSessionKinds),
+  template_slug: z.string().optional(),
+  date: z.string(),
+  tz: z.string(),
+})
+export type StartStretchSessionRequest = z.infer<typeof startStretchSessionRequestSchema>
+export const finishStretchSessionRequestSchema = z.object({ date: z.string(), tz: z.string() })
+
+export const stretchSessionSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['mobility_warmup', 'static_cooldown', 'standalone']),
+  template_slug: z.string().optional(),
+  performed_on: z.string(),
+  started_at: z.string(),
+  finished_at: z.string().optional(),
+  duration_seconds: z.number().int().optional(),
+})
+export type StretchSession = z.infer<typeof stretchSessionSchema>
+
+export const stretchHistorySchema = z.object({
+  sessions: z.array(stretchSessionSchema),
+  suggested_template: z.string(),
+})
+export type StretchHistory = z.infer<typeof stretchHistorySchema>
+
+// MARK: - Прогресс (§13.7)
+
+export const muscleGroups = ['legs_glutes', 'back', 'chest', 'shoulders', 'arms', 'core'] as const
+export type MuscleGroup = (typeof muscleGroups)[number]
+
+export const progressSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  weeks: z.array(z.object({
+    week_start: z.string(),
+    partial: z.boolean(),
+    groups: z.record(z.enum(muscleGroups), z.number()),
+  })),
+  group_norms: z.array(z.object({
+    group: z.enum(muscleGroups),
+    name: z.string(),
+    norm: z.number(),
+    ceiling: z.number(),
+  })),
+  baselines: z.array(z.object({
+    slug: z.string(),
+    points: z.array(z.object({ date: z.string(), kg: z.number() })),
+  })),
+  days: z.array(z.object({
+    date: z.string(),
+    strength: z.boolean(),
+    stretch: z.boolean(),
+    skipped: z.boolean(),
+    // Фаза, как её знали в тот день (§13.7), — четыре экранные (§11.6) и её
+    // название из каталога сервера.
+    phase: z.enum(['menstrual', 'follicular', 'ovulatory', 'luteal']).optional(),
+    phase_name: z.string().optional(),
+  })),
+  streak_weeks: z.number().int(),
+})
+export type Progress = z.infer<typeof progressSchema>

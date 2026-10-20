@@ -130,6 +130,20 @@ extension Mapping {
 
     // MARK: - Безопасность
 
+    /// Активные ограничения §14.4 — без журнала боли и PAR-Q: заминке (§12.2)
+    /// нужны только они.
+    public static func readActiveRestrictions(_ tx: UserTransaction) async throws -> [UserRestriction] {
+        var rows: [RestrictionRow] = []
+        let result = try await tx.query("""
+            select joint, severity from user_restrictions where resolved_at is null
+            """)
+        for try await row in result {
+            let (joint, severity) = try row.decode((String, String).self)
+            rows.append(RestrictionRow(joint: joint, severity: severity))
+        }
+        return restrictions(from: rows)
+    }
+
     public static func readSafety(_ tx: UserTransaction, level: ExperienceLevel,
                                   timeZone: TimeZone) async throws -> SafetyProfile {
         var restrictionRows: [RestrictionRow] = []

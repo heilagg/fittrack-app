@@ -148,6 +148,23 @@ describe('«Начать» на экране «Сегодня»', () => {
     expect(screen.queryByRole('button', { name: /тренировку/ })).toBeNull()
   })
 
+  it('день растяжки — переход к выбору шаблона, без «Начать тренировку» (§12.2)', async () => {
+    mount({
+      getToday: async () => ({
+        ...card,
+        day: {
+          day_id: 'day-1',
+          kind: 'stretching' as const,
+          loses_planned_volume: false,
+          cause: { code: 'grid_stretch' as const, params: {}, message: 'Сегодня растяжка' },
+        },
+      }),
+    })
+    fireEvent.click(await screen.findByTestId('choose-stretch'))
+    expect(at()).toBe('/stretch')
+    expect(screen.queryByRole('button', { name: 'Начать тренировку' })).toBeNull()
+  })
+
   it('кнопки нет, когда у дня нет строки плана', async () => {
     mount({
       getToday: async () => ({

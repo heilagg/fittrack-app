@@ -1,0 +1,106 @@
+{
+  "baselines" : [
+    {
+      "points" : [
+        {
+          "date" : "2026-10-12",
+          "kg" : 40
+        },
+        {
+          "date" : "2026-10-15",
+          "kg" : 42.5
+        }
+      ],
+      "slug" : "squat_barbell"
+    }
+  ],
+  "days" : [
+    {
+      "date" : "2026-10-12",
+      "phase" : "follicular",
+      "phase_name" : "После месячных",
+      "skipped" : false,
+      "strength" : true,
+      "stretch" : false
+    },
+    {
+      "date" : "2026-10-13",
+      "skipped" : false,
+      "strength" : false,
+      "stretch" : true
+    },
+    {
+      "date" : "2026-10-14",
+      "skipped" : true,
+      "strength" : false,
+      "stretch" : false
+    }
+  ],
+  "from" : "2026-09-01",
+  "group_norms" : [
+    {
+      "ceiling" : 96,
+      "group" : "legs_glutes",
+      "name" : "Ноги и ягодицы",
+      "norm" : 60
+    },
+    {
+      "ceiling" : 64,
+      "group" : "back",
+      "name" : "Спина",
+      "norm" : 40
+    },
+    {
+      "ceiling" : 16,
+      "group" : "chest",
+      "name" : "Грудь",
+      "norm" : 10
+    },
+    {
+      "ceiling" : 48,
+      "group" : "shoulders",
+      "name" : "Плечи",
+      "norm" : 30
+    },
+    {
+      "ceiling" : 48,
+      "group" : "arms",
+      "name" : "Руки",
+      "norm" : 30
+    },
+    {
+      "ceiling" : 32,
+      "group" : "core",
+      "name" : "Кор",
+      "norm" : 20
+    }
+  ],
+  "streak_weeks" : 3,
+  "to" : "2026-10-19",
+  "weeks" : [
+    {
+      "groups" : {
+        "arms" : 0,
+        "back" : 6.2,
+        "chest" : 0,
+        "core" : 0,
+        "legs_glutes" : 14.5,
+        "shoulders" : 0
+      },
+      "partial" : false,
+      "week_start" : "2026-10-12"
+    },
+    {
+      "groups" : {
+        "arms" : 0,
+        "back" : 6.2,
+        "chest" : 0,
+        "core" : 0,
+        "legs_glutes" : 14.5,
+        "shoulders" : 0
+      },
+      "partial" : true,
+      "week_start" : "2026-10-19"
+    }
+  ]
+}
