@@ -80,6 +80,9 @@ test.describe('растяжка и прогресс', () => {
     expect((await started).status()).toBe(201)
     await expect(page.getByTestId('stretch-pose')).toHaveText('Кошка-корова')
     await expect(page.getByTestId('stretch-clock')).toHaveText(/^[01]:\d\d$/)
+    // Крупные цифры одной ширины: токен --type-reps-size и tabular-nums.
+    await expect(page.getByTestId('stretch-clock')).toHaveCSS('font-size', '46px')
+    await expect(page.getByTestId('stretch-clock')).toHaveCSS('font-variant-numeric', 'tabular-nums')
     const finished = page.waitForResponse((r) => r.url().endsWith('/finish') && r.request().method() === 'POST')
     await skipThrough(page)
     expect((await finished).status()).toBe(200)
@@ -95,6 +98,25 @@ test.describe('растяжка и прогресс', () => {
     await expect(page.getByTestId('volume-groups')).toHaveCount(0)
     await expect(page.getByTestId('activity-calendar').locator('td[data-stretch="true"]')).toHaveCount(1)
     await checkProgressOnPhone(page)
+  })
+
+  test('плеер по ссылке до онбординга — ссылка на настройку, а не повтор', async ({ page }) => {
+    await page.goto('/stretch/play/morning_mobility')
+    const link = page.getByTestId('stretch-onboarding')
+    await expect(link).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Повторить' })).toHaveCount(0)
+    expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44)
+    // Ссылка выглядит кнопкой: без подчёркивания, текст по центру.
+    await expect(link).toHaveCSS('text-decoration-line', 'none')
+    const offset = await link.evaluate((a) => {
+      const range = document.createRange()
+      range.selectNodeContents(a)
+      const [text, box] = [range.getBoundingClientRect(), a.getBoundingClientRect()]
+      return Math.abs(text.left + text.width / 2 - (box.left + box.width / 2))
+    })
+    expect(offset).toBeLessThan(2)
+    await link.click()
+    await expect(page).toHaveURL(/\/onboarding$/)
   })
 
   test('после тренировки — заминка из ответа /finish, сессия без шаблона', async ({ page }) => {
