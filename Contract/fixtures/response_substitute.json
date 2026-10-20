@@ -27,5 +27,6 @@
   "target_rep_min" : 8,
   "target_rir" : 2,
   "target_sets" : 3,
-  "weight_readiness" : 1
+  "weight_readiness" : 1,
+  "weighted" : true
 }

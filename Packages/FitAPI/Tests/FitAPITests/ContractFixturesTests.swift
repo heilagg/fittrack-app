@@ -229,13 +229,13 @@ final class ContractFixturesTests: XCTestCase {
                     prescribed: PrescribedExercise(
                         slug: "squat_barbell", orderIndex: 0, targetSets: 3, targetRepMin: 6,
                         targetRepMax: 10, targetRIR: 2, prescribedKg: 40, weightReadiness: 1.0),
-                    isCalibration: true, decisionTree: weighted),
+                    isCalibration: true, weighted: true, decisionTree: weighted),
                 WorkoutExerciseDTO(
                     id: "44444444-4444-4444-8444-444444444444",
                     prescribed: PrescribedExercise(
                         slug: "pushup_bw", orderIndex: 1, targetSets: 3, targetRepMin: 8,
                         targetRepMax: 15, targetRIR: 2, prescribedKg: nil, weightReadiness: 1.0),
-                    isCalibration: false, decisionTree: bodyweight),
+                    isCalibration: false, weighted: false, decisionTree: bodyweight),
             ]))
     }
 
@@ -252,7 +252,7 @@ final class ContractFixturesTests: XCTestCase {
                     prescribed: PrescribedExercise(
                         slug: "pushup_bw", orderIndex: 0, targetSets: 3, targetRepMin: 8,
                         targetRepMax: 15, targetRIR: 2, prescribedKg: nil, weightReadiness: 0.95),
-                    isCalibration: false,
+                    isCalibration: false, weighted: false,
                     sets: [
                         SetDTO(id: "55555555-5555-4555-8555-555555555555",
                                exerciseSlug: "pushup_bw", setIndex: 1, prescribedReps: 15,
@@ -294,7 +294,7 @@ final class ContractFixturesTests: XCTestCase {
                     prescribed: PrescribedExercise(
                         slug: "pushup_bw", orderIndex: 0, targetSets: 3, targetRepMin: 8,
                         targetRepMax: 15, targetRIR: 2, prescribedKg: nil, weightReadiness: 0.95),
-                    isCalibration: false,
+                    isCalibration: false, weighted: false,
                     sets: [
                         SetDTO(id: "55555555-5555-4555-8555-555555555555",
                                exerciseSlug: "pushup_bw", setIndex: 1, prescribedReps: 15,
@@ -504,12 +504,42 @@ final class ContractFixturesTests: XCTestCase {
                 ]),
                 "n1": DecisionNode(weightKg: 36, truncated: false, terminates: false, transitions: [:]),
                 "n2": DecisionNode(weightKg: 42.5, truncated: false, terminates: false, transitions: [:]),
-            ])))
+            ]), set: recordedSet(actualKg: 40)))
+    }
+
+    /// Записанный подход ответа `…/sets` (§20.3): вес — ступень, которую
+    /// записал сервер, а не присланное число.
+    private func recordedSet(actualKg: Double?, feedback: Feedback = .ok) -> SetDTO {
+        SetDTO(id: "55555555-5555-4555-8555-555555555555", exerciseSlug: "squat_barbell", setIndex: 1,
+               prescribedKg: 40, prescribedReps: 10, actualKg: actualKg, actualReps: 10, feedback: feedback,
+               restSeconds: 90, completedAt: "2026-10-12T09:36:00Z")
     }
 
     func test_responseLogSetTerminated() throws {
         try check("response_log_set_terminated.json", LogSetResponseDTO(
-            decisionTree: DecisionTree.terminated))
+            decisionTree: DecisionTree.terminated, set: recordedSet(actualKg: 40, feedback: .failed)))
+    }
+
+    /// Первый подход калибровки без базовой линии (§9.8): упражнение весовое,
+    /// а веса ещё нет — `prescribed_kg` пуст, дерево без весов, `weighted`
+    /// говорит клиенту спросить вес.
+    func test_workoutCalibrationWithoutWeight() throws {
+        try check("workout_calibration_no_weight.json", WorkoutDTO(
+            id: "22222222-2222-4222-8222-222222222222",
+            plannedDayID: "11111111-1111-4111-8111-111111111111",
+            sessionKind: .lower, startedAt: "2026-10-12T09:30:00Z", readiness: 1.0, isCalibration: true,
+            exercises: [
+                WorkoutExerciseDTO(
+                    id: "33333333-3333-4333-8333-333333333333",
+                    prescribed: PrescribedExercise(
+                        slug: "squat_barbell", orderIndex: 0, targetSets: 3, targetRepMin: 6,
+                        targetRepMax: 10, targetRIR: 2, prescribedKg: nil, weightReadiness: 1.0),
+                    isCalibration: true, weighted: true,
+                    decisionTree: DecisionTree.build(
+                        weightKg: nil, remainingSets: 3, range: 6...10, isCalibration: true,
+                        previousWasFailed: false, calibrationIncreasesUsed: 0,
+                        ladder: .discrete([20, 22.5, 25, 27.5, 30]))),
+            ]))
     }
 
     func test_requestGenerateWeekPlan() throws {
@@ -555,7 +585,7 @@ final class ContractFixturesTests: XCTestCase {
             prescribed: PrescribedExercise(
                 slug: "hip_thrust_barbell", orderIndex: 0, targetSets: 3, targetRepMin: 8,
                 targetRepMax: 12, targetRIR: 2, prescribedKg: 50, weightReadiness: 1.0),
-            isCalibration: false, substitutedFrom: "squat_barbell", substitutionReason: .pain,
+            isCalibration: false, weighted: true, substitutedFrom: "squat_barbell", substitutionReason: .pain,
             sets: [
                 SetDTO(id: "77777777-7777-4777-8777-777777777777", exerciseSlug: "squat_barbell",
                        setIndex: 1, prescribedKg: 40, prescribedReps: 10, actualKg: 40, actualReps: 6,

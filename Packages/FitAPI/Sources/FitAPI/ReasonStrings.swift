@@ -154,11 +154,19 @@ public enum ReasonStrings {
         switch reason {
         case .phasePeriodization(let phase, let confidence):
             // §14.6: подаём как предположение, не как медицинский факт; при
-            // низкой уверенности фазу не называем вовсе (§11.3).
+            // низкой уверенности фазу не называем вовсе (§11.3). Текст — по
+            // знаку поправки (§11.2): строка объясняет действие, а не фазу.
+            // Нулевой поправки здесь не бывает — причину тогда не прикладывает
+            // `Cycle.periodization`; если всё же пришла, она читается как
+            // прежняя «легче», а не как обещание нагрузки.
+            // ЖДЁТ ЮРИСТА (§14.2, §19.2 п.5).
+            let heavier = Cycle.adjustmentDirection(phase: phase, cycleConfidence: confidence) == .heavier
+            let action = heavier ? "предлагаем чуть больше нагрузки" : "предлагаем работать чуть легче"
             guard confidence >= phaseNamingThreshold else {
-                return "Пока предлагаем работать чуть легче — если чувствуете себя иначе, скажите нам"
+                return "Пока \(action) — если чувствуете себя иначе, скажите нам"
             }
-            return "Многие отмечают спад в \(prepositional(phase)) — предлагаем работать чуть легче. "
+            let observation = heavier ? "прилив сил" : "спад"
+            return "Многие отмечают \(observation) в \(prepositional(phase)) — \(action). "
                 + "Если чувствуете себя иначе, скажите нам"
 
         case .ovulatoryImpactCaution(let confidence):
@@ -326,6 +334,7 @@ public enum ReasonStrings {
         case .weekExists: return "Эта неделя уже сгенерирована"
         case .setIDRequired: return "Подход отправлен без идентификатора"
         case .setImmutable: return "Завершённый подход изменить нельзя"
+        case .setIndexTaken: return "Этот подход уже записан — обновляем тренировку"
         case .workoutNotStarted: return "Тренировка не начата"
         case .workoutFinished: return "Тренировка уже завершена"
         case .dayNotPlanned: return "Этот день уже закрыт"

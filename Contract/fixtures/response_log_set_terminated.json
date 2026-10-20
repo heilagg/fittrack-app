@@ -10,5 +10,22 @@
       }
     },
     "start" : "n0"
+  },
+  "set" : {
+    "actual_kg" : 40,
+    "actual_reps" : 10,
+    "completed_at" : "2026-10-12T09:36:00Z",
+    "exercise_slug" : "squat_barbell",
+    "feedback" : "failed",
+    "id" : "55555555-5555-4555-8555-555555555555",
+    "pain_flag" : false,
+    "pain_joints" : [
+
+    ],
+    "prescribed_kg" : 40,
+    "prescribed_reps" : 10,
+    "rest_seconds" : 90,
+    "set_index" : 1,
+    "skipped" : false
   }
 }

@@ -156,6 +156,35 @@ final class ContractTests: XCTestCase {
         XCTAssertFalse(vague.contains("менструальная"), "вложенная причина обязана молчать так же")
     }
 
+    /// SPEC §11.2 (2026-10-20): текст причины — по знаку поправки. Фаза,
+    /// дающая больше объёма или ниже RIR, не обещает «легче».
+    func test_phaseReasonWordingFollowsAdjustmentSign() {
+        let heavier: [Phase] = [.follicular, .ovulatory, .earlyLuteal]
+        let lighter: [Phase] = [.menstrual, .lateLuteal]
+        for confidence in [0.62, 0.2] {
+            // Овуляторная при 0.2: объём базовый, RIR округлился к нулю — такая
+            // причина не прикладывается вовсе (`Cycle.periodization`).
+            for phase in heavier where Cycle.adjustmentDirection(phase: phase, cycleConfidence: confidence) != nil {
+                let m = ReasonStrings.message(for: .phasePeriodization(phase: phase, cycleConfidence: confidence))
+                XCTAssertTrue(m.contains("чуть больше нагрузки"), "\(phase) \(confidence): «\(m)»")
+                XCTAssertFalse(m.contains("легче"), "\(phase) \(confidence): «\(m)»")
+            }
+            for phase in lighter {
+                let m = ReasonStrings.message(for: .phasePeriodization(phase: phase, cycleConfidence: confidence))
+                XCTAssertTrue(m.contains("чуть легче"), "\(phase) \(confidence): «\(m)»")
+                XCTAssertFalse(m.contains("больше нагрузки"), "\(phase) \(confidence): «\(m)»")
+            }
+        }
+        XCTAssertEqual(ReasonStrings.message(for: .phasePeriodization(phase: .follicular, cycleConfidence: 0.62)),
+                       "Многие отмечают прилив сил в фолликулярной фазе — предлагаем чуть больше нагрузки. "
+                       + "Если чувствуете себя иначе, скажите нам")
+        XCTAssertEqual(ReasonStrings.message(for: .phasePeriodization(phase: .follicular, cycleConfidence: 0.2)),
+                       "Пока предлагаем чуть больше нагрузки — если чувствуете себя иначе, скажите нам")
+        XCTAssertEqual(ReasonStrings.message(for: .phasePeriodization(phase: .menstrual, cycleConfidence: 0.62)),
+                       "Многие отмечают спад в менструальной фазе — предлагаем работать чуть легче. "
+                       + "Если чувствуете себя иначе, скажите нам")
+    }
+
     /// Та же защита на уровне DTO: `phase` в ответе отсутствует, но
     /// `cycle_confidence` остаётся — §14.6 требует машиночитаемой
     /// неопределённости независимо от того, названа фаза или нет.
@@ -318,7 +347,7 @@ final class ContractTests: XCTestCase {
             startedAt: "2026-09-24T19:00:00+03:00", readiness: 1.1, cyclePhase: .lateLuteal,
             cycleConfidence: 0.62, isCalibration: false,
             exercises: [WorkoutExerciseDTO(id: "we1", prescribed: prescribed, isCalibration: false,
-                                           decisionTree: tree,
+                                           weighted: true, decisionTree: tree,
                                            sets: [SetDTO(id: "s1", exerciseSlug: "hip_thrust_barbell",
                                                          setIndex: 1, prescribedKg: 40,
                                                          prescribedReps: 12, actualKg: 40, actualReps: 11,
@@ -375,12 +404,29 @@ final class ContractTests: XCTestCase {
         XCTAssertNil(exercise?["decision_tree"])
     }
 
-    /// §20.3: ответ на лог подхода несёт ТОЛЬКО дерево — второго источника
-    /// того же числа у клиента быть не должно.
-    func test_logSetResponseCarriesOnlyTheTree() throws {
+    /// §20.3: ответ на лог подхода несёт дерево и записанный подход — и ничего
+    /// больше: готового следующего подхода, второго источника того же числа, у
+    /// клиента быть не должно. `set.actual_kg` — записанная ступень (§19.2 п.23).
+    func test_logSetResponseCarriesTheTreeAndTheRecordedSet() throws {
+        let recorded = SetDTO(id: "s1", exerciseSlug: "hip_thrust_barbell", setIndex: 1, prescribedKg: 40,
+                              prescribedReps: 12, actualKg: 42.5, actualReps: 11, feedback: .ok,
+                              completedAt: "2026-09-24T19:04:00+03:00")
         let json = try JSONSerialization.jsonObject(
-            with: try encoder.encode(LogSetResponseDTO(decisionTree: tree))) as? [String: Any]
-        XCTAssertEqual(Set(json?.keys ?? [:].keys), ["decision_tree"])
+            with: try encoder.encode(LogSetResponseDTO(decisionTree: tree, set: recorded))) as? [String: Any]
+        XCTAssertEqual(Set(json?.keys ?? [:].keys), ["decision_tree", "set"])
+        XCTAssertEqual((json?["set"] as? [String: Any])?["actual_kg"] as? Double, 42.5)
+    }
+
+    /// §20.3: `weighted` едет всегда — и `false` тоже, иначе клиент не отличит
+    /// упражнение без веса от весового без известного веса.
+    func test_workoutExerciseCarriesWeighted() throws {
+        let json = try JSONSerialization.jsonObject(
+            with: try encoder.encode(workout(tree: nil))) as? [String: Any]
+        let exercise = (json?["exercises"] as? [[String: Any]])?.first
+        XCTAssertEqual(exercise?["weighted"] as? Bool, true)
+        let bodyweight = WorkoutExerciseDTO(id: "we2", prescribed: prescribed, isCalibration: true, weighted: false)
+        let raw = try JSONSerialization.jsonObject(with: try encoder.encode(bodyweight)) as? [String: Any]
+        XCTAssertEqual(raw?["weighted"] as? Bool, false)
     }
 
     /// §20.3: `/finish` отдаёт `{workout, week}`; без недели ключа `week` нет —
@@ -523,7 +569,9 @@ final class ContractTests: XCTestCase {
         XCTAssertEqual(APIErrorCode.dateSkew.httpStatus, 422)
         XCTAssertEqual(APIErrorCode.setImmutable.httpStatus, 409)
         XCTAssertEqual(APIErrorCode.unlinkedAccount.httpStatus, 403)
-        XCTAssertEqual(APIErrorCode.allCases.count, 16, "словарь §20.3 закрыт")
+        XCTAssertEqual(APIErrorCode.setIndexTaken.httpStatus, 409)
+        XCTAssertEqual(APIErrorCode.setIndexTaken.rawValue, "set_index_taken")
+        XCTAssertEqual(APIErrorCode.allCases.count, 17, "словарь §20.3 закрыт")
     }
 
     func test_errorEnvelopeShape() throws {

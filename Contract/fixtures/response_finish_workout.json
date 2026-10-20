@@ -113,7 +113,8 @@
         "target_rep_min" : 8,
         "target_rir" : 2,
         "target_sets" : 3,
-        "weight_readiness" : 0.95
+        "weight_readiness" : 0.95,
+        "weighted" : false
       }
     ],
     "finished_at" : "2026-10-12T10:15:00Z",
