@@ -463,10 +463,15 @@ extension Mapping {
     /// прочитать, SPEC не задаёт, и придумывать его здесь значило бы менять
     /// веса незаметно. Пока граница не назначена, вызывающая сторона передаёт
     /// `nil`.
+    ///
+    /// `slugs` сужает журнал до этих упражнений (`/v1/progress`, §20.3: базовой
+    /// линии нужна вся история, но только упражнений, попавших в окно); `nil` —
+    /// все упражнения.
     public static func readSets(_ tx: UserTransaction, since: CalendarDay?,
-                                timeZone: TimeZone) async throws -> [SetRow] {
+                                timeZone: TimeZone, slugs: Set<String>? = nil) async throws -> [SetRow] {
         let zone = timeZone.identifier
         let from = since.map(LocalTime.iso) ?? "0001-01-01"
+        let only = slugs.map { Array($0).sorted() }
         let rows = try await tx.query("""
             select s.exercise_slug, s.set_index, s.prescribed_kg::float8, s.actual_kg::float8,
                    s.actual_reps, s.feedback, s.skipped, s.pain_flag, s.is_calibration,
@@ -477,6 +482,7 @@ extension Mapping {
               join workouts w on w.id = we.workout_id
              where s.performed_on >= \(from)::date
                and w.deleted_at is null
+               and (\(only)::text[] is null or s.exercise_slug = any(\(only)::text[]))
              order by w.started_at, we.order_index, s.set_index
             """)
         var result: [SetRow] = []
@@ -492,6 +498,29 @@ extension Mapping {
                                  performedOn: try day(date, column: "sets.performed_on")))
         }
         return result
+    }
+
+    /// Дни выполненных тренировок за всю историю — только даты, для стрика
+    /// §13.7: серия недель не ограничена окном `/v1/progress`, а журнал целиком
+    /// ей не нужен (§20.3). День — то же правило, что у `readCompleted`: самый
+    /// ранний `performed_on` подходов, без подходов — `started_at` в зоне запроса.
+    public static func readStrengthDays(_ tx: UserTransaction,
+                                        timeZone: TimeZone) async throws -> Set<CalendarDay> {
+        let zone = timeZone.identifier
+        let rows = try await tx.query("""
+            select distinct to_char(coalesce(
+                     (select min(s.performed_on) from sets s
+                        join workout_exercises we on we.id = s.workout_exercise_id
+                       where we.workout_id = w.id),
+                     (w.started_at at time zone \(zone))::date), 'YYYY-MM-DD')
+              from workouts w
+             where w.finished_at is not null and w.deleted_at is null
+            """)
+        var days = Set<CalendarDay>()
+        for try await row in rows {
+            days.insert(try day(try row.decode(String.self), column: "sets.performed_on"))
+        }
+        return days
     }
 
     /// Выполненные тренировки и их подходы — вход `неделя[m]` (§7.3).

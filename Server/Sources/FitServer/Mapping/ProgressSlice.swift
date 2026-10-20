@@ -18,8 +18,12 @@ extension Mapping {
         public var goal: Goal
         public var equipment: EquipmentProfile
         public var library: [String: ExerciseCandidate]
-        /// Все завершённые тренировки (стрик смотрит и за окно).
+        /// Завершённые тренировки окна — с понедельника недели `from` (§20.3):
+        /// объём недель считается по ним.
         public var completed: [CompletedWorkout]
+        /// Дни силовых за всю историю — календарь и стрик (§13.7). Отдельно от
+        /// `completed`: серия недель окном не ограничена, а журнал ей не нужен.
+        public var strengthDays: Set<CalendarDay>
         /// Журнал подходов, сгруппированный в сессии по упражнениям (§9).
         public var history: [String: [ExerciseSession]]
         public var stretchDays: Set<CalendarDay>
@@ -28,7 +32,8 @@ extension Mapping {
 
         public init(from: CalendarDay, to: CalendarDay, today: CalendarDay, level: ExperienceLevel,
                     goal: Goal, equipment: EquipmentProfile, library: [String: ExerciseCandidate],
-                    completed: [CompletedWorkout], history: [String: [ExerciseSession]],
+                    completed: [CompletedWorkout], strengthDays: Set<CalendarDay>,
+                    history: [String: [ExerciseSession]],
                     stretchDays: Set<CalendarDay>, skippedDays: Set<CalendarDay>, cycle: CycleInputs) {
             self.from = from
             self.to = to
@@ -38,6 +43,7 @@ extension Mapping {
             self.equipment = equipment
             self.library = library
             self.completed = completed
+            self.strengthDays = strengthDays
             self.history = history
             self.stretchDays = stretchDays
             self.skippedDays = skippedDays
@@ -73,7 +79,7 @@ extension Mapping {
                 slug: slug, points: points.map { BaselinePointDTO(date: iso($0.date), kg: $0.kg) }))
         }
 
-        let strengthDays = Set(input.completed.map(\.date))
+        let strengthDays = input.strengthDays
         var days: [ProgressDayDTO] = []
         var day = input.from
         while day <= input.to {

@@ -49,8 +49,24 @@ enum ProgressRoutes {
                 ])
             }
             let equipment = try await Mapping.readEquipment(tx, id: nil)
-            let completed = try await Mapping.readCompleted(tx, since: nil, timeZone: day.timeZone)
-            let journal = try await Mapping.readSets(tx, since: nil, timeZone: day.timeZone)
+            // Журнал — не дальше окна (§20.3): объём недель — с понедельника
+            // недели `from`, календарь и стрик — по датам дней, не по подходам.
+            // Исключение — базовая линия: `rebuildStates` восстанавливает её по
+            // префиксам журнала с первой сессии, и от начала окна числа вышли бы
+            // другими. Поэтому подходы целиком — но только упражнений, попавших
+            // в окно.
+            let since = window.from.mondayOfWeek
+            let completed = try await Mapping.readCompleted(tx, since: since, timeZone: day.timeZone)
+            let bySlug = Dictionary(library.candidates.map { ($0.slug, $0) }, uniquingKeysWith: { first, _ in first })
+            let inWindow = Set(try await Mapping.readSets(tx, since: window.from, timeZone: day.timeZone)
+                .map(\.exerciseSlug)
+                .filter { slug in
+                    bySlug[slug].map { WeightLadder.build(loadType: $0.loadType, profile: equipment.profile) != .none }
+                        ?? false
+                })
+            let journal = inWindow.isEmpty ? [] : try await Mapping.readSets(
+                tx, since: nil, timeZone: day.timeZone, slugs: inWindow)
+            let strengthDays = try await Mapping.readStrengthDays(tx, timeZone: day.timeZone)
             let cycle = try await Mapping.readCycle(
                 tx, tracking: profile.cycleTracking, asOf: day.date, persist: false).inputs
             let body = Mapping.progress(Mapping.ProgressInputs(
@@ -58,6 +74,7 @@ enum ProgressRoutes {
                 equipment: equipment.profile,
                 library: Dictionary(uniqueKeysWithValues: library.candidates.map { ($0.slug, $0) }),
                 completed: Mapping.completedWorkouts(rows: completed.rows, sets: completed.sets),
+                strengthDays: strengthDays,
                 history: Mapping.exerciseHistory(from: journal),
                 stretchDays: try await Mapping.readStretchDays(tx),
                 skippedDays: try await Mapping.readSkippedDays(tx, from: window.from, to: window.to),

@@ -95,6 +95,17 @@ enum ProfileRoutes {
         }
     }
 
+    /// Словарь `sex_at_birth` (§3.1).
+    static let sexValues: Set<String> = ["female", "male", "undisclosed"]
+
+    /// Год по часам сервера в UTC: граница «текущий минус 14» на полуночи
+    /// Нового года сдвигается на часы, и точнее её держать незачем.
+    static func currentYear(_ now: Date) -> Int {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar.component(.year, from: now)
+    }
+
     /// Что проверяется до записи.
     ///
     /// Набор дней — единственное поле, у которого форма сложнее значения: схема
@@ -104,7 +115,19 @@ enum ProfileRoutes {
     /// делает сам (она канонизация, а не требование к клиенту), а вот повторы и
     /// диапазон — отказ: `Planner.weekGrid` схлопывает дубликаты МОЛЧА, и набор
     /// `{2,2,4}` дал бы два дня вместо трёх (§7.2).
-    static func validate(_ body: PatchProfileRequest) throws {
+    ///
+    /// Диапазоны полей (§20.3, миграция 0016) — до набора дней: у того ранние
+    /// выходы. Явный `null` диапазоном не проверяется: это «снять ответ», и
+    /// check схемы на `NULL` тоже молчит (§3.1).
+    static func validate(_ body: PatchProfileRequest, now: Date = Date()) throws {
+        func field(_ name: String) -> APIError { APIError(.validationFailed, details: ["field": .string(name)]) }
+        if case .some(.some(let sex)) = body.sexAtBirth, !sexValues.contains(sex) { throw field("sex_at_birth") }
+        if case .some(.some(let year)) = body.birthYear, !(1936...(currentYear(now) - 14)).contains(year) {
+            throw field("birth_year")
+        }
+        if case .some(.some(let height)) = body.heightCm, !(100...250).contains(height) { throw field("height_cm") }
+        if let minutes = body.sessionMinutes, !(10...180).contains(minutes) { throw field("session_minutes") }
+
         guard let outer = body.trainingWeekdays else {
             // Набор не трогают. Тогда и число дней прислать нельзя: пара
             // пишется целиком (§3.1, `profiles_weekdays_paired`).

@@ -108,6 +108,9 @@ enum WorkoutRoutes {
                     targetRIR: row.targetRIR, prescribedKg: row.prescribedKg,
                     weightReadiness: row.weightReadiness),
                 isCalibration: row.isCalibration,
+                // Весовое — по лестнице, как у дерева (§20.9): пустой
+                // `prescribed_kg` есть и у калибровки без базовой линии (§9.8).
+                weighted: ladder != .none,
                 substitutedFrom: row.substitutedFrom,
                 substitutionReason: row.substitutionReason.flatMap(SubstitutionReason.init(rawValue:)),
                 decisionTree: tree,

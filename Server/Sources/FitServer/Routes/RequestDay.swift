@@ -54,6 +54,10 @@ public struct RequestDay: Sendable, Equatable {
 
 extension RequestDay {
 
+    /// Символы, из которых состоят имена зон IANA.
+    static let zoneAlphabet: Set<Unicode.Scalar> = Set(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/_+-".unicodeScalars)
+
     /// Допуск §20.7, в днях. Расхождение больше него — `date_skew` и 422.
     public static let maxSkewDays = 1
 
@@ -63,12 +67,24 @@ extension RequestDay {
     /// — это `validation_failed` с полем в `details`, то есть тело не прошло
     /// схему; расхождение с серверной датой — `date_skew`, тело верное, а часы
     /// нет.
-    public static func validated(date: String, tz: String, at instant: Date = Date()) throws -> RequestDay {
+    ///
+    /// `skewDays` — допуск этого пути. Общий — сутки; старт сессии растяжки
+    /// задаёт ноль (§20.3): сессия стартует сейчас, и вчерашняя или завтрашняя
+    /// дата переносила бы её `performed_on` в чужой день стрика.
+    public static func validated(date: String, tz: String, at instant: Date = Date(),
+                                 skewDays: Int = maxSkewDays) throws -> RequestDay {
         // Зона разбирается первой: без неё «дата по часам сервера» не
         // существует, и сравнивать было бы не с чем. Аббревиатуры (`MSK`,
         // `PST`) идентификаторами не являются и сюда не проходят — §20.7
         // говорит именно про IANA-зону.
-        guard let zone = TimeZone(identifier: tz) else {
+        // Алфавит имён IANA (§20.7): латиница, цифры, `/ _ + -`. Foundation
+        // принимает `Europe/Moscow\0` за Москву и сохраняет NUL в `identifier`,
+        // а падает уже запрос к базе — ответом 500. Совпадения с разобранным
+        // именем не требуется: `UTC` Foundation переписывает в `GMT`, а браузер
+        // в зоне UTC присылает именно `UTC`. Дальше в запросы идёт
+        // `zone.identifier`, а не присланная строка.
+        guard !tz.isEmpty, tz.unicodeScalars.allSatisfy(Self.zoneAlphabet.contains),
+              let zone = TimeZone(identifier: tz) else {
             throw APIError(.validationFailed, details: ["field": .string("tz")])
         }
         guard let sent = Mapping.LocalTime.day(iso: date) else {
@@ -77,7 +93,7 @@ extension RequestDay {
 
         let server = Mapping.LocalTime.day(of: instant, in: zone)
         let skew = sent.days(until: server)
-        guard abs(skew) <= maxSkewDays else {
+        guard abs(skew) <= skewDays else {
             // `details` машинный и клиенту показывается только машиной:
             // обе даты и зона — то, из чего клиент может понять, чьи часы
             // сбиты, не показывая пользовательнице ни одного из этих чисел.

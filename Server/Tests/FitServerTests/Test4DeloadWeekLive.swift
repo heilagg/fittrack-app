@@ -64,7 +64,7 @@ struct Test4DeloadWeekLive {
                 _ = try await client.query("""
                     insert into sets (id, workout_exercise_id, set_index, prescribed_reps,
                                       exercise_slug, is_calibration, weight_readiness, performed_on)
-                    values (\(UUID()), \(exerciseID), 0, 12, 'goblet-squat', false, 1.0, \(iso)::date)
+                    values (\(UUID()), \(exerciseID), 1, 12, 'goblet-squat', false, 1.0, \(iso)::date)
                     """, logger: logger)
             }
             try await group.next()

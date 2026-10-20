@@ -23,7 +23,8 @@ struct MappingProgressTests {
     private func input(cycle: CycleInputs = CycleInputs(events: [], profile: CycleProfile(phaseMode: .noPhases,
                                                                                           noPhaseReason: .userChoice)),
                        history: [String: [ExerciseSession]] = [:],
-                       stretch: Set<CalendarDay> = [], skipped: Set<CalendarDay> = []) -> Mapping.ProgressInputs {
+                       stretch: Set<CalendarDay> = [], skipped: Set<CalendarDay> = [],
+                       strengthBefore: Set<CalendarDay> = []) -> Mapping.ProgressInputs {
         let completed = [
             CompletedWorkout(id: "w1", plannedDayID: nil, date: monday, performedAt: Timestamp(hoursSinceEpoch: 1),
                              setsBySlug: ["squat": 4, "pushup": 3]),
@@ -33,7 +34,9 @@ struct MappingProgressTests {
         return Mapping.ProgressInputs(
             from: monday, to: monday.adding(days: 9), today: monday.adding(days: 9), level: .intermediate,
             goal: .hypertrophy, equipment: EquipmentProfile(platesKg: [1.25, 2.5, 5, 10], barbellKg: 20),
-            library: library, completed: completed, history: history, stretchDays: stretch, skippedDays: skipped,
+            library: library, completed: completed,
+            strengthDays: Set(completed.map(\.date)).union(strengthBefore),
+            history: history, stretchDays: stretch, skippedDays: skipped,
             cycle: cycle)
     }
 
