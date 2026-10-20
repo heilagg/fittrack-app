@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cycleNo, disclaimer, trainingDays, verifyLink } from './helpers'
+import { cycleNo, disclaimer, trainingDays, verifyLink, tapFeedback, finishWorkout } from './helpers'
 
 const dir = fileURLToPath(new URL('../design-screens', import.meta.url))
 const shot = (page: Page, name: string) => page.screenshot({ path: join(dir, `${name}.png`), fullPage: true, animations: 'disabled' })
@@ -105,7 +105,7 @@ test('онбординг, Сегодня, привязка, тренировка
     await new Promise((resolve) => setTimeout(resolve, 4000))
     await route.continue()
   })
-  await page.getByRole('button', { name: 'Нормально' }).click()
+  await tapFeedback(page, 'ok')
   await expect(page.getByTestId('rest-clock')).toBeVisible()
   await shot(page, '15-workout-set-pending')
   // Подтверждён: кнопки фидбэка снова доступны. Перехват снимается после
@@ -119,7 +119,7 @@ test('онбординг, Сегодня, привязка, тренировка
     await route.fetch()
     await route.abort('failed')
   })
-  await page.getByRole('button', { name: 'Нормально' }).click()
+  await tapFeedback(page, 'ok')
   await expect(page.getByTestId('log-failure')).toBeVisible()
   await shot(page, '17-workout-log-failure')
   await page.unroute('**/exercises/*/sets')
@@ -143,7 +143,7 @@ test('онбординг, Сегодня, привязка, тренировка
   await shot(page, '18-workout-rest-next-set-staged')
   await page.unroute('**/exercises/*/sets')
 
-  await page.getByRole('button', { name: 'Завершить тренировку' }).click()
+  await finishWorkout(page)
   await expect(page.getByTestId('summary')).toBeVisible()
   await shot(page, '19-workout-summary')
 

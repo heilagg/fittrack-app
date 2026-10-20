@@ -139,3 +139,24 @@ export async function startLinkedWorkout(page: Page): Promise<string> {
   await expect(page).toHaveURL(/\/workout\/[0-9a-f-]{36}$/)
   return page.url()
 }
+
+/**
+ * Тап по кнопке фидбэка (§13.2). Весовое упражнение в калибровке без базовой
+ * линии спрашивает вес первого подхода (§9.8), и кнопки до ввода закрыты:
+ * пустое поле заполняется 20 кг — ступень и гантелей, и грифа посева.
+ */
+export async function tapFeedback(page: Page, value: 'easy' | 'ok' | 'hard' | 'failed') {
+  const weight = page.getByTestId('weight-input')
+  if ((await weight.count()) > 0 && (await weight.inputValue()) === '') await weight.fill('20')
+  await page.locator(`[data-feedback="${value}"]`).click()
+}
+
+/**
+ * «Завершить тренировку»: при невыполненных подходах экран переспрашивает
+ * (§13.2) — подтверждаем. Без остатка вопроса нет, и клик один.
+ */
+export async function finishWorkout(page: Page) {
+  await page.getByRole('button', { name: 'Завершить тренировку' }).click()
+  const confirm = page.getByTestId('finish-confirm')
+  if (await confirm.isVisible()) await confirm.getByRole('button', { name: 'Завершить', exact: true }).click()
+}

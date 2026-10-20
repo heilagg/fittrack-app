@@ -99,8 +99,12 @@ test.describe('календарь цикла', () => {
   })
 
   test('правка последнего события: перенос даты переносит отметку', async ({ page }) => {
-    const first = moscow(-20)
-    const moved = moscow(-19)
+    // Обе даты — в одном месяце: календарь открыт на месяце `first`, и дата в
+    // соседнем месяце в его сетке не появится. Прежние −20 и −19 расходились
+    // по месяцам, когда сегодня — 19-е или 20-е.
+    const [first, moved] = moscow(-20).slice(0, 7) === moscow(-19).slice(0, 7)
+      ? [moscow(-20), moscow(-19)]
+      : [moscow(-21), moscow(-20)]
     await onboard(page, { kind: 'phases', periodStart: first })
     await openCalendar(page)
     const panel = await openDay(page, first)

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { startLinkedWorkout } from './helpers'
+import { startLinkedWorkout, tapFeedback } from './helpers'
 
 // Срез 3: экран упражнения. Всё — против настоящего сервера и базы.
 
@@ -31,12 +31,13 @@ test.describe('экран упражнения', () => {
     expect(labels, 'упражнение есть в /v1/content/exercises').toBeDefined()
     if (labels!.length > 0) await expect(page.getByTestId('equipment-line')).toHaveText(labels!.join(', '))
     else await expect(page.getByTestId('equipment-line')).toHaveCount(0)
-    await expect(page.getByTestId('weight')).toHaveText(/кг|Без веса/)
+    // Весовое упражнение в калибровке без базовой линии спрашивает вес (§9.8).
+    await expect(page.getByTestId('weight')).toHaveText(/кг|Без веса|Введите вес/)
     expect(await counterText(page)).toMatchObject({ n: 1 })
     await expect(page.getByTestId('wake-lock')).toBeVisible()
 
     const saved = page.waitForResponse((r) => r.url().includes('/sets') && r.request().method() === 'POST')
-    await feedback(page, 'ok').click()
+    await tapFeedback(page, 'ok')
     // Мгновенно: счётчик и таймер видны сразу, без ожидания ответа.
     await expect(counter(page)).toContainText('Подход 2 из')
     await expect(page.getByTestId('rest-clock')).toContainText('Отдых')
@@ -68,7 +69,7 @@ test.describe('экран упражнения', () => {
       await route.fetch()
       await route.abort('failed')
     })
-    await feedback(page, 'ok').click()
+    await tapFeedback(page, 'ok')
     await expect(page.getByTestId('log-failure')).toContainText('Нет связи')
     // Очереди нет: следующий подход ввести нельзя.
     await expect(feedback(page, 'ok')).toBeDisabled()
@@ -95,7 +96,7 @@ test.describe('экран упражнения', () => {
     // Первое упражнение — все подходы «нормально».
     const { total } = await counterText(page)
     for (let i = 0; i < total; i++) {
-      await feedback(page, 'ok').click()
+      await tapFeedback(page, 'ok')
       await expect(page.getByTestId('log-failure')).toHaveCount(0)
       if (i < total - 1) await expect(counter(page)).toContainText(`Подход ${i + 2} из`)
     }
@@ -104,9 +105,26 @@ test.describe('экран упражнения', () => {
 
     // Второе: «не смог» дважды подряд — досрочное завершение (§9.3).
     const second = await page.getByTestId('current-exercise').textContent()
-    await feedback(page, 'failed').click()
+    await tapFeedback(page, 'failed')
     await expect(counter(page)).toContainText('Подход 2 из')
-    await feedback(page, 'failed').click()
+    await tapFeedback(page, 'failed')
     await expect(page.getByTestId('current-exercise')).not.toHaveText(second ?? '')
   })
+
+  test('вес числом: вне лестницы сервер пишет ближайшую ступень, и экран показывает записанное', async ({ page }) => {
+    await startLinkedWorkout(page)
+    const input = page.getByTestId('weight-input')
+    test.skip((await input.count()) === 0, 'первое упражнение без веса — проверять нечего')
+    // 21 кг нет ни у гантелей посева (20, 24), ни у штанги (20 + пары блинов от 1.25):
+    // ближайшая ступень — 20.
+    await input.fill('21')
+    const saved = page.waitForResponse((r) => r.url().includes('/sets') && r.request().method() === 'POST')
+    await page.locator('[data-feedback="ok"]').click()
+    const response = await saved
+    expect(response.status()).toBe(200)
+    const body = (await response.json()) as { set: { actual_kg: number } }
+    expect(body.set.actual_kg).toBe(20)
+    await expect(page.getByTestId('recorded-weight')).toContainText('Записано 20 кг')
+  })
 })
+

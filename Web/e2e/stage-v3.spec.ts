@@ -4,7 +4,7 @@
 // Vitest на поддельном времени, а здесь проверяется путь до базы и обратно.
 
 import { expect, test, type Page } from '@playwright/test'
-import { completeOnboarding, startLinkedWorkout } from './helpers'
+import { completeOnboarding, startLinkedWorkout, tapFeedback, finishWorkout } from './helpers'
 
 const nav = (page: Page, name: string) =>
   page.getByRole('navigation', { name: 'Разделы' }).getByRole('link', { name }).click()
@@ -75,8 +75,18 @@ test.describe('растяжка и прогресс', () => {
       expect(link!.width).toBeGreaterThanOrEqual(li!.width - 1)
     }
 
-    const started = page.waitForResponse((r) => r.url().endsWith('/v1/stretch-sessions') && r.request().method() === 'POST')
+    // Открытие проигрывателя сессию не начинает (§12.2): старт — кнопкой.
+    const posts: string[] = []
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && r.url().endsWith('/v1/stretch-sessions')) posts.push(r.url())
+    })
     await templates.getByText('Утренняя мобильность').click()
+    await expect(page.getByTestId('stretch-intro')).toBeVisible()
+    await page.reload()
+    await expect(page.getByTestId('stretch-intro')).toBeVisible()
+    expect(posts, 'открытие и перезагрузка не шлют старт').toEqual([])
+    const started = page.waitForResponse((r) => r.url().endsWith('/v1/stretch-sessions') && r.request().method() === 'POST')
+    await page.getByTestId('stretch-start').click()
     expect((await started).status()).toBe(201)
     await expect(page.getByTestId('stretch-pose')).toHaveText('Кошка-корова')
     await expect(page.getByTestId('stretch-clock')).toHaveText(/^[01]:\d\d$/)
@@ -102,6 +112,7 @@ test.describe('растяжка и прогресс', () => {
 
   test('плеер по ссылке до онбординга — ссылка на настройку, а не повтор', async ({ page }) => {
     await page.goto('/stretch/play/morning_mobility')
+    await page.getByTestId('stretch-start').click()
     const link = page.getByTestId('stretch-onboarding')
     await expect(link).toBeVisible()
     await expect(page.getByRole('button', { name: 'Повторить' })).toHaveCount(0)
@@ -121,9 +132,9 @@ test.describe('растяжка и прогресс', () => {
 
   test('после тренировки — заминка из ответа /finish, сессия без шаблона', async ({ page }) => {
     await startLinkedWorkout(page)
-    await page.locator('[data-feedback="ok"]').click()
+    await tapFeedback(page, 'ok')
     const finished = page.waitForResponse((r) => r.url().includes('/v1/workouts/') && r.url().endsWith('/finish'))
-    await page.getByRole('button', { name: 'Завершить тренировку' }).click()
+    await finishWorkout(page)
     const body = (await (await finished).json()) as { cooldown: { pose: string; seconds: number }[] }
     test.info().annotations.push({ type: 'cooldown', description: String(body.cooldown.length) })
     if (body.cooldown.length === 0) {
@@ -134,6 +145,7 @@ test.describe('растяжка и прогресс', () => {
     expect((await offer.boundingBox())!.height).toBeGreaterThanOrEqual(44)
     const started = page.waitForRequest((r) => r.url().endsWith('/v1/stretch-sessions') && r.method() === 'POST')
     await page.getByRole('link', { name: 'Начать заминку' }).click()
+    await page.getByTestId('stretch-start').click()
     const sent = (await started).postDataJSON() as { kind: string; template_slug?: string }
     expect(sent.kind).toBe('static_cooldown')
     expect(sent.template_slug).toBeUndefined()
