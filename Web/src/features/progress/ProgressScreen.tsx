@@ -12,6 +12,7 @@ import type { ApiClient } from '../../api/client'
 import type { Progress } from '../../api/schemas'
 import { useExerciseNames } from '../../content/useExercises'
 import { DEFAULT_WEEKS, lastWeeks, monthGrid, progressWindow, scaleTop, WEEK_WINDOWS, type WeekWindow } from '../../progress/view'
+import { formatShortDate } from '../../ui/format'
 import { ErrorBlock } from '../today/TodayScreen'
 
 export function ProgressScreen({ api }: { api: ApiClient }) {
@@ -35,14 +36,21 @@ export function ProgressScreen({ api }: { api: ApiClient }) {
       </p>
       <section aria-label="Объём по неделям" className="card">
         <h2 className="section-title">Объём по неделям</h2>
-        <div className="option-row" role="group" aria-label="Окно">
+        <div className="option-grid" role="group" aria-label="Окно">
           {WEEK_WINDOWS.map((w) => (
             <button key={w} type="button" className="chip" aria-pressed={w === weeks} onClick={() => setWeeks(w)}>
               {w} нед.
             </button>
           ))}
         </div>
-        <VolumeChart data={data} weeks={weeks} />
+        {hasVolume(data) ? (
+          <VolumeChart data={data} weeks={weeks} />
+        ) : (
+          <p className="caption" data-testid="volume-empty">
+            Объём появится после первых рабочих подходов — калибровочные в него не входят. Здесь будут эффективные
+            подходы по группам мышц за каждую неделю.
+          </p>
+        )}
       </section>
       <section aria-label="Базовая линия" className="card">
         <h2 className="section-title">Базовая линия</h2>
@@ -55,6 +63,28 @@ export function ProgressScreen({ api }: { api: ApiClient }) {
     </main>
   )
 }
+
+/**
+ * Хоть один подход в объёме за двенадцать недель: иначе шесть нулевых графиков
+ * ничего не говорят. Калибровочные подходы объёма не несут (§3.1, §7.3), и
+ * после первой тренировки он тоже может быть нулевым.
+ */
+function hasVolume(data: Progress): boolean {
+  return data.weeks.some((w) => Object.values(w.groups).some((v) => v > 0))
+}
+
+/**
+ * Подписывается ли `i`-я из `count` клеток оси: при густой оси — через одну,
+ * считая от последней, чтобы текущая неделя была подписана всегда.
+ */
+export function axisLabelShown(i: number, count: number, maxDense: number): boolean {
+  return count <= maxDense || (count - 1 - i) % 2 === 0
+}
+
+/** Недели подписываются все только при четырёх: на восьми подписи уже смыкаются. */
+const WEEK_LABELS_DENSE = 4
+/** Значения короче дат и помещаются все до восьми недель. */
+const BAR_VALUES_DENSE = 8
 
 function VolumeChart({ data, weeks }: { data: Progress; weeks: WeekWindow }) {
   const shown = lastWeeks(data.weeks, weeks)
@@ -75,7 +105,7 @@ function VolumeChart({ data, weeks }: { data: Progress; weeks: WeekWindow }) {
                 там шрифт масштабировался бы вместе с viewBox. */}
             <ol className="chart-axis caption" aria-hidden="true" data-testid="bar-values">
               {values.map((v, i) => (
-                <li key={shown[i]!.week_start}>{formatSets(v)}</li>
+                <li key={shown[i]!.week_start}>{axisLabelShown(i, values.length, BAR_VALUES_DENSE) ? formatSets(v) : ''}</li>
               ))}
             </ol>
             <svg viewBox="0 0 100 40" className="chart" role="img"
@@ -92,8 +122,8 @@ function VolumeChart({ data, weeks }: { data: Progress; weeks: WeekWindow }) {
               <line x1="0" x2="100" y1={40 - (g.ceiling / top) * 40} y2={40 - (g.ceiling / top) * 40} className="chart-ceiling" />
             </svg>
             <ol className="chart-axis caption" aria-hidden="true" data-testid="week-labels">
-              {shown.map((w) => (
-                <li key={w.week_start}>{weekLabel(w.week_start)}</li>
+              {shown.map((w, i) => (
+                <li key={w.week_start}>{axisLabelShown(i, shown.length, WEEK_LABELS_DENSE) ? weekLabel(w.week_start) : ''}</li>
               ))}
             </ol>
           </li>
@@ -116,9 +146,12 @@ function weekLabel(weekStart: string): string {
 }
 
 function BaselineChart({ data, names }: { data: Progress; names: Map<string, { name: string }> | undefined }) {
-  const [slug, setSlug] = useState(data.baselines[0]?.slug)
-  const series = data.baselines.find((b) => b.slug === slug)
-  if (data.baselines.length === 0 || !series) {
+  // Выбор — только то, что выбрала пользовательница; без выбора или когда
+  // выбранное упражнение выпало из окна — первое из пришедших. Иначе ряд,
+  // пришедший после повторной загрузки, не показался бы никогда.
+  const [slug, setSlug] = useState<string>()
+  const series = data.baselines.find((b) => b.slug === slug) ?? data.baselines[0]
+  if (!series) {
     return <p className="caption" data-testid="baseline-empty">Упражнений с весом за это время нет.</p>
   }
   const days = data.days.map((d) => d.date)
@@ -133,7 +166,7 @@ function BaselineChart({ data, names }: { data: Progress; names: Map<string, { n
     <>
       <label className="field">
         Упражнение{' '}
-        <select value={slug} onChange={(e) => setSlug(e.target.value)} data-testid="baseline-select">
+        <select value={series.slug} onChange={(e) => setSlug(e.target.value)} data-testid="baseline-select">
           {data.baselines.map((b) => (
             <option key={b.slug} value={b.slug}>
               {names?.get(b.slug)?.name ?? b.slug}
@@ -142,7 +175,7 @@ function BaselineChart({ data, names }: { data: Progress; names: Map<string, { n
         </select>
       </label>
       <svg viewBox="0 0 100 40" className="chart" role="img" data-testid="baseline-chart"
-        aria-label={series.points.map((p) => `${p.date}: ${p.kg} кг`).join('; ')}>
+        aria-label={series.points.map((p) => `${formatShortDate(p.date)}: ${p.kg} кг`).join('; ')}>
         <polyline className="chart-line" fill="none"
           points={series.points.map((p) => `${(index(p.date) / span) * 100},${y(p.kg)}`).join(' ')} />
         {series.points.map((p) => (
@@ -152,16 +185,21 @@ function BaselineChart({ data, names }: { data: Progress; names: Map<string, { n
       <p className="caption">
         {lo} – {hi} кг
       </p>
-      {phases.length > 0 && (
-        <ul className="caption phase-strip" data-testid="phase-strip" aria-label="Фазы цикла">
-          {phases.map((run) => (
-            <li key={run.from}>
-              {run.from === run.to ? run.from : `${run.from} – ${run.to}`}: {run.name}
-            </li>
-          ))}
-        </ul>
-      )}
+      <PhaseList runs={phases} testId="phase-strip" />
     </>
+  )
+}
+
+function PhaseList({ runs, testId }: { runs: ReturnType<typeof phaseRuns>; testId: string }) {
+  if (runs.length === 0) return null
+  return (
+    <ul className="caption phase-strip" data-testid={testId} aria-label="Фазы цикла">
+      {runs.map((run) => (
+        <li key={run.from}>
+          {run.from === run.to ? formatShortDate(run.from) : `${formatShortDate(run.from)} – ${formatShortDate(run.to)}`}: {run.name}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -177,8 +215,15 @@ function phaseRuns(days: Progress['days']): { from: string; to: string; name: st
   return runs
 }
 
+const MARKS = [
+  { key: 'strength', mark: 'С', name: 'силовая' },
+  { key: 'stretch', mark: 'Р', name: 'растяжка или кардио' },
+  { key: 'skipped', mark: '×', name: 'пропуск' },
+] as const
+
 function Calendar({ data, today }: { data: Progress; today: string }) {
   const byDate = new Map(data.days.map((d) => [d.date, d]))
+  const month = today.slice(0, 7)
   return (
     <>
       <table className="calendar" data-testid="activity-calendar">
@@ -194,15 +239,22 @@ function Calendar({ data, today }: { data: Progress; today: string }) {
             <tr key={i}>
               {row.map((date, j) => {
                 const day = date ? byDate.get(date) : undefined
-                const marks = [day?.strength ? 'С' : '', day?.stretch ? 'Р' : '', day?.skipped ? '×' : ''].join('')
+                const marks = MARKS.filter((m) => day?.[m.key])
                 return (
                   <td key={j} data-date={date ?? undefined}
                     data-strength={day?.strength || undefined} data-stretch={day?.stretch || undefined}
                     data-skipped={day?.skipped || undefined}
                     title={day?.phase_name}
+                    aria-current={date === today ? 'date' : undefined}
                     className={date === today ? 'calendar-day calendar-day--today' : 'calendar-day'}>
                     {date ? Number(date.slice(8)) : ''}
-                    {marks && <span className="caption calendar-mark">{marks}</span>}
+                    {date === today && <span className="visually-hidden">, сегодня</span>}
+                    {marks.length > 0 && (
+                      <span className="caption calendar-mark" aria-hidden="true">{marks.map((m) => m.mark).join('')}</span>
+                    )}
+                    {/* Отметки и фаза — словами для экранного диктора: буквы и цвет ему не видны. */}
+                    {marks.length > 0 && <span className="visually-hidden">, {marks.map((m) => m.name).join(', ')}</span>}
+                    {day?.phase_name && <span className="visually-hidden">, {day.phase_name}</span>}
                   </td>
                 )
               })}
@@ -210,7 +262,9 @@ function Calendar({ data, today }: { data: Progress; today: string }) {
           ))}
         </tbody>
       </table>
-      <p className="caption">С — силовая, Р — растяжка или кардио, × — пропуск.</p>
+      <p className="caption">С — силовая, Р — растяжка или кардио, × — пропуск. Сегодня — в рамке.</p>
+      {/* Фаза — текстом под календарём: подсказка `title` на телефоне не видна. */}
+      <PhaseList runs={phaseRuns(data.days.filter((d) => d.date.startsWith(month)))} testId="calendar-phases" />
     </>
   )
 }

@@ -955,6 +955,10 @@ input[type='checkbox'] {
 
 .calendar-day--today {
   color: var(--color-accent);
+  font-weight: var(--font-weight-bold);
+  outline: var(--size-border) solid var(--color-accent);
+  outline-offset: calc(-1 * var(--size-border));
+  border-radius: var(--radius-control);
 }
 
 .calendar-mark {
@@ -973,5 +977,20 @@ input[type='checkbox'] {
 
 .chart-axis > li {
   flex: 1;
+  min-width: 0;
   text-align: center;
+  white-space: nowrap;
+}
+
+/* Переключатель окна: выбранный чип залит, как любой `aria-pressed`, а не
+   только обведён, — правило `.chip` ниже по каскаду иначе перекрыло бы его. */
+button.chip {
+  min-height: var(--size-touch-target-min);
+  border: var(--size-border) solid var(--color-accent-chip-bg);
+}
+
+button.chip[aria-pressed='true'] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
 }

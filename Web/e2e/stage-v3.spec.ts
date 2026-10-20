@@ -9,6 +9,32 @@ import { completeOnboarding, startLinkedWorkout } from './helpers'
 const nav = (page: Page, name: string) =>
   page.getByRole('navigation', { name: 'Разделы' }).getByRole('link', { name }).click()
 
+/**
+ * Телефон: на двенадцати неделях страница не шире экрана, три кнопки окна — в
+ * одном ряду. Объём у нового пользователя нулевой (калибровочные подходы в
+ * `неделя[m]` не входят, §3.1), поэтому настоящий ответ `/v1/progress`
+ * дополняется в браузере самыми длинными подписями — «13,5» в каждой клетке.
+ */
+async function checkProgressOnPhone(page: Page) {
+  await page.route('**/v1/progress?*', async (route) => {
+    const response = await route.fetch()
+    const body = (await response.json()) as { weeks: { groups: Record<string, number> }[] }
+    for (const week of body.weeks) for (const group of Object.keys(week.groups)) week.groups[group] = 13.5
+    await route.fulfill({ response, json: body })
+  })
+  await page.setViewportSize({ width: 393, height: 852 })
+  await page.goto('/progress')
+  await expect(page.getByTestId('volume-groups').locator('li[data-group]')).toHaveCount(6)
+  await page.getByRole('button', { name: '4 нед.' }).click()
+  await expect(page.getByTestId('volume-groups').locator('li[data-group="back"] rect')).toHaveCount(4)
+  await page.getByRole('button', { name: '12 нед.' }).click()
+  await expect(page.getByTestId('volume-groups').locator('li[data-group="back"] rect')).toHaveCount(12)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(393)
+  const tops = await page.getByRole('group', { name: 'Окно' }).getByRole('button').evaluateAll(
+    (buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)))
+  expect(new Set(tops).size).toBe(1)
+}
+
 async function skipThrough(page: Page) {
   const done = page.getByTestId('stretch-done')
   // После последнего «Пропустить» кнопка исчезает, пока идёт `finish`: клик с
@@ -43,10 +69,11 @@ test.describe('растяжка и прогресс', () => {
 
     await nav(page, 'Прогресс')
     await expect(page.getByTestId('streak')).toContainText('1')
-    await expect(page.getByTestId('volume-groups').locator('li[data-group]')).toHaveCount(6)
+    // Силовых нет — вместо шести нулевых графиков пояснение.
+    await expect(page.getByTestId('volume-empty')).toBeVisible()
+    await expect(page.getByTestId('volume-groups')).toHaveCount(0)
     await expect(page.getByTestId('activity-calendar').locator('td[data-stretch="true"]')).toHaveCount(1)
-    await page.getByRole('button', { name: '4 нед.' }).click()
-    await expect(page.getByTestId('volume-groups').locator('li[data-group="back"] rect')).toHaveCount(4)
+    await checkProgressOnPhone(page)
   })
 
   test('после тренировки — заминка из ответа /finish, сессия без шаблона', async ({ page }) => {
