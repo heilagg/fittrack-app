@@ -23,6 +23,8 @@ async function checkProgressOnPhone(page: Page) {
     await route.fulfill({ response, json: body })
   })
   await page.setViewportSize({ width: 393, height: 852 })
+  // Без анимации смены фона: стили сравниваются сразу после клика.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/progress')
   await expect(page.getByTestId('volume-groups').locator('li[data-group]')).toHaveCount(6)
   await page.getByRole('button', { name: '4 нед.' }).click()
@@ -30,9 +32,23 @@ async function checkProgressOnPhone(page: Page) {
   await page.getByRole('button', { name: '12 нед.' }).click()
   await expect(page.getByTestId('volume-groups').locator('li[data-group="back"] rect')).toHaveCount(12)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(393)
+  // Клетка подписи — ровно под своим столбцом: ширины клеток равны, сколько бы ни занимал текст.
+  const widths = await page.getByTestId('volume-groups').locator('li[data-group="back"] [data-testid="week-labels"] li')
+    .evaluateAll((cells) => cells.map((c) => c.getBoundingClientRect().width))
+  expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1)
   const tops = await page.getByRole('group', { name: 'Окно' }).getByRole('button').evaluateAll(
     (buttons) => buttons.map((b) => Math.round(b.getBoundingClientRect().top)))
   expect(new Set(tops).size).toBe(1)
+  // Выбранное окно залито: фон кнопки не тот, что у невыбранных.
+  const window = page.getByRole('group', { name: 'Окно' })
+  const unpressed = await window.getByRole('button', { name: '8 нед.' }).evaluate((b) => getComputedStyle(b).backgroundColor)
+  await expect(window.getByRole('button', { name: '4 нед.' })).toHaveCSS('background-color', unpressed)
+  await expect(window.getByRole('button', { name: '12 нед.' })).not.toHaveCSS('background-color', unpressed)
+  // Сегодня — в рамке, а не только другим цветом.
+  const today = page.getByTestId('activity-calendar').locator('td[aria-current="date"]')
+  expect(await today.evaluate((td) => getComputedStyle(td).outlineStyle)).toBe('solid')
+  expect(await page.getByTestId('activity-calendar').locator('td:not([aria-current])').first()
+    .evaluate((td) => getComputedStyle(td).outlineStyle)).toBe('none')
 }
 
 async function skipThrough(page: Page) {
