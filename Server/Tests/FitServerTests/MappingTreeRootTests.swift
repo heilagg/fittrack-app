@@ -45,6 +45,23 @@ struct MappingTreeRootTests {
         #expect(!r.terminated)
     }
 
+    // MARK: - Весовое упражнение без известного веса (§9.8, 2026-10-20)
+
+    @Test("подход без веса у весового упражнения не превращает неизвестный вес в нижнюю ступень")
+    func unknownWeightStaysUnknown() {
+        // Калибровка без базовой линии и подход, записанный до правила «вес
+        // обязателен»: раньше ноль × 1.15 округлялся вверх к 2.5 кг, и эта
+        // ступень становилась весом следующего подхода и базовой линией недели.
+        let r = root([set(1, "easy", reps: 12, actual: nil)], start: nil, calibration: true)
+        #expect(r.weightKg == nil)
+        #expect(r.calibrationIncreasesUsed == 1, "счётчик идёт по фидбэку, а не по весу")
+
+        // Первый подход с весом — и дальше вес считается от него.
+        let next = root([set(1, "easy", reps: 12, actual: nil), set(2, "ok", reps: 10, actual: 30)],
+                        start: nil, calibration: true)
+        #expect(next.weightKg == 30)
+    }
+
     // MARK: - Вес: current = actual_kg
 
     @Test("следующий вес считается от ФАКТИЧЕСКОГО, а не от показанного (§20.9)")
