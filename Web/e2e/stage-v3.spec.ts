@@ -60,6 +60,8 @@ test.describe('растяжка и прогресс', () => {
       await expect(page.getByTestId('cooldown-offer')).toHaveCount(0)
       return
     }
+    const offer = page.getByRole('link', { name: 'Начать заминку' })
+    expect((await offer.boundingBox())!.height).toBeGreaterThanOrEqual(44)
     const started = page.waitForRequest((r) => r.url().endsWith('/v1/stretch-sessions') && r.method() === 'POST')
     await page.getByRole('link', { name: 'Начать заминку' }).click()
     const sent = (await started).postDataJSON() as { kind: string; template_slug?: string }

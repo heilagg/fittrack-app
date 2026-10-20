@@ -145,6 +145,13 @@ a.button-primary {
   font-weight: var(--font-weight-bold);
 }
 
+/* Текстовая ссылка-действие: цель нажатия не меньше минимума даже внутри абзаца. */
+a.button-text {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target-min);
+}
+
 .link-back {
   display: inline-flex;
   align-items: center;
