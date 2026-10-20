@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import type { ApiClient } from '../../api/client'
+import { ApiError, type ApiClient } from '../../api/client'
 import type { StretchContent, StretchHistory, StretchSession } from '../../api/schemas'
 import { StretchPlayer } from './StretchPlayer'
 import { StretchScreen } from './StretchScreen'
@@ -128,6 +128,76 @@ describe('проигрыватель (§12.2)', () => {
     expect(await screen.findByTestId('stretch-pose')).toHaveTextContent('Поза ребёнка')
     await waitFor(() => expect(start).toHaveBeenCalled())
     expect(start.mock.calls[0]!.slice(1)).toEqual(['static_cooldown', undefined])
+  })
+
+  it('завершение уходит один раз: пока ответа нет, отсчёт стоит, кнопки заблокированы', async () => {
+    let resolve: (v: StretchSession) => void = () => {}
+    const finish = vi.fn<ApiClient['finishStretchSession']>(() => new Promise((r) => { resolve = r }))
+    mount('/stretch/play/hip_opening', { getStretchContent: async () => content,
+      startStretchSession: async (id: string) => session(id), finishStretchSession: finish }, now)
+    await screen.findByTestId('stretch-pose')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Пропустить' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
+    await advance(20)
+    await advance(1)
+    await advance(1)
+    expect(finish).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('stretch-saving')).toHaveTextContent('Записываем')
+    expect(screen.getByRole('button', { name: 'Пропустить' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '+15 сек' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
+    expect(finish).toHaveBeenCalledTimes(1)
+    await act(async () => resolve(session('x')))
+    expect(await screen.findByTestId('stretch-done')).toBeInTheDocument()
+    expect(finish).toHaveBeenCalledTimes(1)
+  })
+
+  it('обрыв завершения — «Повторить» шлёт его снова, и только тогда', async () => {
+    const finish = vi.fn<ApiClient['finishStretchSession']>()
+      .mockRejectedValueOnce(new Error('сеть')).mockImplementation(async (id) => session(id))
+    mount('/stretch/play/hip_opening', { getStretchContent: async () => content,
+      startStretchSession: async (id: string) => session(id), finishStretchSession: finish }, now)
+    await screen.findByTestId('stretch-pose')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Пропустить' })).toBeEnabled())
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
+    expect(await screen.findByTestId('stretch-failure')).toBeInTheDocument()
+    expect(screen.queryByTestId('stretch-saving')).toBeNull()
+    await advance(5)
+    expect(finish).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
+    expect(await screen.findByTestId('stretch-done')).toBeInTheDocument()
+    expect(finish).toHaveBeenCalledTimes(2)
+  })
+
+  it('профиль не настроен — ссылка на онбординг вместо «Повторить»', async () => {
+    const start = vi.fn<ApiClient['startStretchSession']>(async () => {
+      throw new ApiError(422, 'profile_incomplete', 'Закончите настройку профиля')
+    })
+    mount('/stretch/play/hip_opening', { getStretchContent: async () => content, startStretchSession: start,
+      finishStretchSession: async (id: string) => session(id) }, now)
+    expect(await screen.findByTestId('stretch-failure')).toHaveTextContent('Закончите настройку')
+    expect(screen.getByTestId('stretch-onboarding')).toHaveAttribute('href', '/onboarding')
+    expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull()
+  })
+
+  it('выход посреди сессии, h1 — поза, часы крупные и не читаются каждую секунду', async () => {
+    mount('/stretch/play/hip_opening', { getStretchContent: async () => content,
+      startStretchSession: async (id: string) => session(id), finishStretchSession: async (id: string) => session(id) }, now)
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Поза голубя')
+    expect(screen.getByTestId('stretch-exit')).toHaveAttribute('href', '/stretch')
+    const clock = screen.getByTestId('stretch-clock')
+    expect(clock).toHaveClass('stretch-clock')
+    expect(clock).toHaveAttribute('role', 'timer')
+    expect(clock).not.toHaveAttribute('aria-live')
+    expect(screen.getByTestId('stretch-progress')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByTestId('stretch-progress')).toHaveTextContent('Раскрытие бёдер · 1 из 3 · Поза голубя')
+  })
+
+  it('выход из заминки ведёт на «Сегодня»', async () => {
+    mount('/stretch/cooldown', { getStretchContent: async () => content, startStretchSession: async (id: string) => session(id),
+      finishStretchSession: async (id: string) => session(id) }, now, { cooldown: [{ pose: 'childs_pose', seconds: 60 }] })
+    expect(await screen.findByTestId('stretch-exit')).toHaveAttribute('href', '/')
   })
 
   it('обрыв старта — явное состояние, повтор с тем же id', async () => {

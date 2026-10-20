@@ -4,7 +4,11 @@
 //
 // Сессия пишется на сервер дважды: старт при открытии и завершение в конце.
 // `id` создаётся до первой отправки и повторяется при повторе (§20.3). Очереди
-// нет (§20.10): обрыв — явное состояние с кнопкой «Повторить».
+// нет (§20.10): обрыв — явное состояние с кнопкой «Повторить». Профиль не
+// настроен — повтор не поможет, вместо него ссылка на онбординг.
+//
+// Завершение уходит ровно один раз: пока ответа нет, отсчёт стоит, кнопки
+// заблокированы, а на экране сказано, что идёт запись.
 
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -76,7 +80,9 @@ function Player({
   const [endAt, setEndAt] = useState(() => now() + steps[0]!.seconds * 1000)
   const [left, setLeft] = useState(steps[0]!.seconds)
   const [finished, setFinished] = useState(false)
-  const wakeLock = useWakeLock(!finished)
+  // Ref — защита от второго вызова в том же такте, state — для экрана.
+  const finishing = useRef(false)
+  const [saving, setSaving] = useState(false)
 
   // Старт — мутация: повтор после обрыва идёт с тем же `id` (§20.3), а отсчёт
   // первой позы начинается, когда сервер сессию принял.
@@ -86,15 +92,24 @@ function Player({
   })
   const started = startSession.isSuccess
   const failure = startSession.error ?? finishFailure
+  const needsSetup = failure instanceof ApiError && failure.code === 'profile_incomplete'
+  const wakeLock = useWakeLock(started && !finished)
 
   async function finish() {
+    if (finishing.current) return
+    finishing.current = true
+    setSaving(true)
+    setFinishFailure(null)
     try {
       await api.finishStretchSession(id.current)
       setFinished(true)
       await queryClient.invalidateQueries({ queryKey: ['stretch-history'] })
       await queryClient.invalidateQueries({ queryKey: ['progress'] })
     } catch (e) {
+      finishing.current = false
       setFinishFailure(e)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -114,7 +129,7 @@ function Player({
   }, [])
 
   useEffect(() => {
-    if (!started || finished || failure !== null) return
+    if (!started || finished || saving || failure !== null) return
     const tick = () => {
       const remaining = secondsLeft(endAt, now())
       setLeft(remaining)
@@ -124,7 +139,7 @@ function Player({
     const timer = setInterval(tick, 250)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [started, finished, failure, endAt, index])
+  }, [started, finished, saving, failure, endAt, index])
 
   if (finished) {
     return (
@@ -145,20 +160,28 @@ function Player({
   const caption = stepCaption(step)
   return (
     <main>
+      <p>
+        {/* Выход посреди сессии: незавершённая сессия на сервере остаётся без
+            `finished_at` и в историю не попадает (§12.2). */}
+        <Link to={kind === 'standalone' ? '/stretch' : '/'} className="link-back" data-testid="stretch-exit">
+          Выйти
+        </Link>
+      </p>
       <section className="exercise" aria-label="Сессия растяжки" data-testid="stretch-player">
-        <p className="caption" data-testid="stretch-progress">
-          {title} · {index + 1} из {steps.length}
+        {/* Смена позы объявляется здесь; часы — `timer`, вслух каждую секунду не читаются. */}
+        <p className="caption" data-testid="stretch-progress" aria-live="polite">
+          {title} · {index + 1} из {steps.length} · {pose?.name ?? step.pose}
         </p>
-        <h2 className="exercise-title" data-testid="stretch-pose">
+        <h1 className="exercise-title" data-testid="stretch-pose">
           {pose?.name ?? step.pose}
-        </h2>
+        </h1>
         {caption && (
           <p className="chip" data-testid="stretch-caption">
             {caption}
           </p>
         )}
         <ExerciseFrames content={pose} />
-        <p className="reps" data-testid="stretch-clock" aria-live="polite">
+        <p className="stretch-clock" data-testid="stretch-clock" role="timer">
           {formatClock(left)}
         </p>
         {pose && pose.cues.length > 0 && step.phase !== 'rest' && (
@@ -169,28 +192,28 @@ function Player({
           </ul>
         )}
         <div className="button-row">
-          <button type="button" className="button-text" disabled={!started}
+          <button type="button" className="button-text" disabled={!started || saving}
             onClick={() => setEndAt((e) => e + EXTEND_STEP_SECONDS * 1000)}>
             +15 сек
           </button>
-          <button type="button" className="button-text" disabled={!started} onClick={() => goTo(index + 1)}>
+          <button type="button" className="button-text" disabled={!started || saving} onClick={() => goTo(index + 1)}>
             Пропустить
           </button>
         </div>
+        {saving && <p role="status" className="caption" data-testid="stretch-saving">Записываем сессию…</p>}
         {wakeLock === 'active' && <p className="caption" data-testid="wake-lock">Экран не погаснет</p>}
         {failure !== null && (
           <div role="alert" data-testid="stretch-failure">
             <p>{failureText(failure)}</p>
-            <button type="button" className="button-primary" onClick={() => {
-              if (started) {
-                setFinishFailure(null)
-                void finish()
-              } else {
-                startSession.mutate()
-              }
-            }}>
-              Повторить
-            </button>
+            {needsSetup ? (
+              <Link to="/onboarding" className="button-primary" data-testid="stretch-onboarding">
+                Перейти к настройке
+              </Link>
+            ) : (
+              <button type="button" className="button-primary" onClick={() => (started ? void finish() : startSession.mutate())}>
+                Повторить
+              </button>
+            )}
           </div>
         )}
       </section>

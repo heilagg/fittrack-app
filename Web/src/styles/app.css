@@ -129,6 +129,14 @@ button:disabled {
   font-weight: var(--font-weight-bold);
 }
 
+/* Ссылка в виде основной кнопки: у строчного `a` min-height не действует. */
+a.button-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .button-text {
   padding: 0;
   border: 0;
@@ -377,7 +385,8 @@ button:disabled {
 }
 
 .reps-value,
-.rest-clock {
+.rest-clock,
+.stretch-clock {
   font-size: var(--type-reps-size);
   font-weight: var(--type-reps-weight);
   letter-spacing: var(--type-reps-tracking);
