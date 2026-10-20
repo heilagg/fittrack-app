@@ -69,6 +69,11 @@ test.describe('растяжка и прогресс', () => {
     await expect(templates.locator('li')).toHaveCount(8)
     await expect(page.getByTestId('suggested')).toHaveCount(1)
     await expect(page.getByTestId('stretch-history-empty')).toBeVisible()
+    // Нажимается вся строка шаблона, а не только текст.
+    for (const row of await templates.locator('li').all()) {
+      const [li, link] = [await row.boundingBox(), await row.getByRole('link').boundingBox()]
+      expect(link!.width).toBeGreaterThanOrEqual(li!.width - 1)
+    }
 
     const started = page.waitForResponse((r) => r.url().endsWith('/v1/stretch-sessions') && r.request().method() === 'POST')
     await templates.getByText('Утренняя мобильность').click()

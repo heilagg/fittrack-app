@@ -5,6 +5,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
+import { formatShortDate } from '../../ui/format'
 import { ErrorBlock } from '../today/TodayScreen'
 import { useStretchContent } from './useStretchContent'
 
@@ -32,17 +33,20 @@ export function StretchScreen({ api }: { api: ApiClient }) {
       <ul className="rows card" aria-label="Шаблоны" data-testid="stretch-templates">
         {content.data.templates.map((t) => (
           <li key={t.slug} data-slug={t.slug} data-suggested={t.slug === suggested || undefined}>
+            {/* Ссылка — вся строка, вместе с отметкой предложенного. */}
             <Link to={`/stretch/play/${encodeURIComponent(t.slug)}`} className="template-link">
-              <span>{t.name}</span>
-              <span className="caption">
-                {t.minutes} мин · {t.purpose}
+              <span className="template-text">
+                <span>{t.name}</span>
+                <span className="caption">
+                  {t.minutes} мин · {t.purpose}
+                </span>
               </span>
+              {t.slug === suggested && (
+                <span className="chip" data-testid="suggested">
+                  Предложено
+                </span>
+              )}
             </Link>
-            {t.slug === suggested && (
-              <span className="chip" data-testid="suggested">
-                Предложено
-              </span>
-            )}
           </li>
         ))}
       </ul>
@@ -58,7 +62,7 @@ export function StretchScreen({ api }: { api: ApiClient }) {
               <li key={s.id}>
                 <span>{s.template_slug ? (names.get(s.template_slug) ?? s.template_slug) : KIND_LABEL[s.kind]}</span>
                 <span className="caption">
-                  {s.performed_on}
+                  {formatShortDate(s.performed_on)}
                   {s.duration_seconds !== undefined ? ` · ${Math.max(1, Math.round(s.duration_seconds / 60))} мин` : ''}
                 </span>
               </li>

@@ -55,10 +55,13 @@ describe('раздел «Растяжка» (§12.2, §13.1)', () => {
     expect(list.querySelector('[data-slug="cardio_intervals"]')).toHaveAttribute('data-suggested', 'true')
     expect(list.querySelector('[data-slug="hip_opening"]')).not.toHaveAttribute('data-suggested')
     expect(screen.getAllByTestId('suggested')).toHaveLength(1)
+    // Отметка — внутри ссылки: нажимается вся строка.
+    expect(screen.getByTestId('suggested').closest('a')).toHaveAttribute('href', '/stretch/play/cardio_intervals')
     expect(list).toHaveTextContent('1 мин · Приводящие')
     const items = screen.getByTestId('stretch-history').querySelectorAll('li')
     expect(items[0]).toHaveTextContent('Раскрытие бёдер')
-    expect(items[0]).toHaveTextContent('12 мин')
+    expect(items[0]).toHaveTextContent('19 октября · 12 мин')
+    expect(items[1]).toHaveTextContent('19 октября · 2 мин')
     expect(items[1]).toHaveTextContent('Заминка')
   })
 
