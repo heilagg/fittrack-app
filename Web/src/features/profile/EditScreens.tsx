@@ -29,6 +29,7 @@ import { EXPERIENCE_OPTIONS, EXPERIENCE_QUESTION, TRAINING_SPLIT_OPTIONS, traini
 import { personalPatch } from '../../profile/personal'
 import { levelsOf, restrictionChanges } from '../../profile/restrictions'
 import { BirthYearField } from '../onboarding/BirthYearField'
+import { birthYearProblem, bodyWeightProblem, heightProblem, sessionMinutesProblem } from '../../profile/ranges'
 import { ErrorBlock } from '../today/TodayScreen'
 import { EquipmentForm, RestrictionsForm } from './forms'
 
@@ -94,13 +95,12 @@ function PersonalForm({ api, profile, weight }: { api: ApiClient; profile: Profi
     const h = Number(height.replace(',', '.'))
     const w = bodyWeight.trim() === '' ? null : Number(bodyWeight.replace(',', '.'))
     const m = Number(minutes)
-    const thisYear = new Date().getFullYear()
-    // Пределы — те же, что у шага 3 онбординга.
-    if (!Number.isInteger(year) || year < 1900 || year > thisYear) return setProblem('Проверьте год рождения')
-    if (!(h >= 100 && h <= 250)) return setProblem('Рост — от 100 до 250 см')
-    if (w !== null && !(w >= 30 && w <= 400)) return setProblem('Вес — от 30 до 400 кг')
+    // Пределы — те же, что у шага 3 онбординга, и те же, что у сервера (§20.3).
+    const rangeProblem = birthYearProblem(year) ?? heightProblem(h) ?? (w !== null ? bodyWeightProblem(w) : null)
+    if (rangeProblem) return setProblem(rangeProblem)
     if (days.length === 0) return setProblem('Выберите хотя бы один день')
-    if (!Number.isInteger(m) || m <= 0) return setProblem('Длительность — целое число минут')
+    const minutesProblem = sessionMinutesProblem(m)
+    if (minutesProblem) return setProblem(minutesProblem)
     setProblem(null)
     setBusy(true)
     setError(null)

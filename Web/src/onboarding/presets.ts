@@ -62,13 +62,30 @@ export const PRESETS: Record<PresetId, EquipmentRow> = {
  * Разделители — пробел, точка с запятой и запятая перед пробелом; запятая
  * внутри числа — десятичная.
  */
+/** Верх веса инвентаря (§20.3): тот же check стоит в схеме (§3.1). */
+export const EQUIPMENT_MAX_KG = 500
+const RANGE_MESSAGE = `Вес — число больше 0 и не больше ${EQUIPMENT_MAX_KG} кг`
+
 export function parseKgList(text: string): number[] {
   const values = text
     .split(/;|,(?=\s|$)|\s+/)
     .filter((t) => t !== '')
     .map((t) => Number(t.replace(',', '.')))
-  if (values.some((v) => !Number.isFinite(v) || v <= 0)) throw new Error('Вес — положительное число')
+  if (values.some((v) => !Number.isFinite(v) || v <= 0 || v > EQUIPMENT_MAX_KG)) throw new Error(RANGE_MESSAGE)
   return [...new Set(values)].sort((a, b) => a - b)
+}
+
+/**
+ * Один вес поля (гриф, шаг стека): пустое — колонки нет (`undefined`), иначе
+ * число в диапазоне §20.3 или ошибка. Не `Number(text)` молча: «двадцать» давал
+ * `NaN`, JSON писал его как `null`, и гриф пропадал без единого слова.
+ */
+export function parseKgField(text: string, label: string): number | undefined {
+  const trimmed = text.trim()
+  if (trimmed === '') return undefined
+  const value = Number(trimmed.replace(',', '.'))
+  if (!Number.isFinite(value) || value <= 0 || value > EQUIPMENT_MAX_KG) throw new Error(`${label}: ${RANGE_MESSAGE.toLowerCase()}`)
+  return value
 }
 
 /**

@@ -7,7 +7,7 @@ import type { EquipmentRow } from '../../direct/equipmentRow'
 import type { Joint } from '../../direct/onboarding'
 import { MACHINE_LABELS } from '../../onboarding/labels'
 import type { Levels } from '../../profile/restrictions'
-import { MACHINE_SLUGS, normalizeEquipment, parseKgList, PRESETS, type PresetId } from '../../onboarding/presets'
+import { MACHINE_SLUGS, normalizeEquipment, parseKgField, parseKgList, PRESETS, type PresetId } from '../../onboarding/presets'
 import { ErrorBlock } from '../today/TodayScreen'
 
 function useAction() {
@@ -44,6 +44,10 @@ export function EquipmentForm({
   const [dumbbells, setDumbbells] = useState(initial ? initial.dumbbells_kg.join(', ') : '')
   const [plates, setPlates] = useState(initial ? initial.plates_kg.join(', ') : '')
   const [kettlebells, setKettlebells] = useState(initial ? initial.kettlebells_kg.join(', ') : '')
+  // Гриф и шаг стека — текстом до отправки, как списки: разбор на сабмите
+  // показывает ошибку поля, а не теряет набранное.
+  const [barbell, setBarbell] = useState(initial?.barbell_kg?.toString() ?? '')
+  const [machineStep, setMachineStep] = useState(initial?.machine_step_kg?.toString() ?? '')
   const [problem, setProblem] = useState<string | null>(null)
   const { busy, error, run } = useAction()
 
@@ -54,6 +58,8 @@ export function EquipmentForm({
     setDumbbells(row.dumbbells_kg.join(', '))
     setPlates(row.plates_kg.join(', '))
     setKettlebells(row.kettlebells_kg.join(', '))
+    setBarbell(row.barbell_kg?.toString() ?? '')
+    setMachineStep(row.machine_step_kg?.toString() ?? '')
   }
   const set = <K extends keyof EquipmentRow>(key: K, value: EquipmentRow[K]) => setForm((f) => ({ ...f, [key]: value }))
 
@@ -61,11 +67,18 @@ export function EquipmentForm({
     event.preventDefault()
     let row: EquipmentRow
     try {
+      const { barbell_kg: _barbell, machine_step_kg: _step, ...rest } = form
+      void _barbell
+      void _step
+      const barbellKg = parseKgField(barbell, 'Гриф')
+      const machineStepKg = parseKgField(machineStep, 'Шаг стека')
       row = normalizeEquipment({
-        ...form,
+        ...rest,
         dumbbells_kg: parseKgList(dumbbells),
         plates_kg: parseKgList(plates),
         kettlebells_kg: parseKgList(kettlebells),
+        ...(barbellKg !== undefined ? { barbell_kg: barbellKg } : {}),
+        ...(machineStepKg !== undefined ? { machine_step_kg: machineStepKg } : {}),
       })
     } catch (e) {
       return setProblem(e instanceof Error ? e.message : 'Проверьте веса')
@@ -100,35 +113,13 @@ export function EquipmentForm({
         <p>
           <label className="field">
             Гриф, кг{' '}
-            <input
-              inputMode="decimal"
-              value={form.barbell_kg ?? ''}
-              onChange={(e) => {
-                const v = e.target.value.trim()
-                setForm((f) => {
-                  const { barbell_kg: _drop, ...rest } = f
-                  void _drop
-                  return v === '' ? rest : { ...rest, barbell_kg: Number(v.replace(',', '.')) }
-                })
-              }}
-            />
+            <input inputMode="decimal" value={barbell} onChange={(e) => setBarbell(e.target.value)} />
           </label>
         </p>
         <p>
           <label className="field">
             Шаг стека тренажёров, кг{' '}
-            <input
-              inputMode="decimal"
-              value={form.machine_step_kg ?? ''}
-              onChange={(e) => {
-                const v = e.target.value.trim()
-                setForm((f) => {
-                  const { machine_step_kg: _drop, ...rest } = f
-                  void _drop
-                  return v === '' ? rest : { ...rest, machine_step_kg: Number(v.replace(',', '.')) }
-                })
-              }}
-            />
+            <input inputMode="decimal" value={machineStep} onChange={(e) => setMachineStep(e.target.value)} />
           </label>
         </p>
         <p className="option-grid">
