@@ -883,6 +883,7 @@ input[type='checkbox'] {
 
 .chart {
   display: block;
+  align-self: stretch;
   width: 100%;
   height: auto;
   margin-top: var(--space-sm);
@@ -943,4 +944,18 @@ input[type='checkbox'] {
 .calendar-mark {
   display: block;
   color: var(--color-accent);
+}
+
+/* Подписи столбцов прогресса (§13.7): по клетке на неделю, в ширину столбца. */
+.chart-axis {
+  display: flex;
+  align-self: stretch;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.chart-axis > li {
+  flex: 1;
+  text-align: center;
 }

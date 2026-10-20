@@ -59,16 +59,25 @@ export function ProgressScreen({ api }: { api: ApiClient }) {
 function VolumeChart({ data, weeks }: { data: Progress; weeks: WeekWindow }) {
   const shown = lastWeeks(data.weeks, weeks)
   return (
-    <ul className="rows" data-testid="volume-groups">
+    // `rows--stacked` — на списке: правило стека действует на его `li`, и
+    // подпись группы стоит над своим графиком, а не сбоку от него.
+    <ul className="rows rows--stacked" data-testid="volume-groups">
       {data.group_norms.map((g) => {
         const values = shown.map((w) => w.groups[g.group] ?? 0)
         const top = scaleTop(values, [g.ceiling])
         const width = 100 / Math.max(1, shown.length)
         return (
-          <li key={g.group} data-group={g.group} className="rows--stacked">
-            <span>
+          <li key={g.group} data-group={g.group}>
+            <span data-testid="group-label">
               {g.name} <span className="caption">норма {g.norm}, потолок {g.ceiling}</span>
             </span>
+            {/* Значения и недели — текстом над и под столбцами, а не внутри SVG:
+                там шрифт масштабировался бы вместе с viewBox. */}
+            <ol className="chart-axis caption" aria-hidden="true" data-testid="bar-values">
+              {values.map((v, i) => (
+                <li key={shown[i]!.week_start}>{formatSets(v)}</li>
+              ))}
+            </ol>
             <svg viewBox="0 0 100 40" className="chart" role="img"
               aria-label={`${g.name}: ${values.map((v) => v.toFixed(1)).join(', ')} эффективных подходов по неделям`}>
               {shown.map((w, i) => {
@@ -82,12 +91,28 @@ function VolumeChart({ data, weeks }: { data: Progress; weeks: WeekWindow }) {
               <line x1="0" x2="100" y1={40 - (g.norm / top) * 40} y2={40 - (g.norm / top) * 40} className="chart-norm" />
               <line x1="0" x2="100" y1={40 - (g.ceiling / top) * 40} y2={40 - (g.ceiling / top) * 40} className="chart-ceiling" />
             </svg>
+            <ol className="chart-axis caption" aria-hidden="true" data-testid="week-labels">
+              {shown.map((w) => (
+                <li key={w.week_start}>{weekLabel(w.week_start)}</li>
+              ))}
+            </ol>
           </li>
         )
       })}
       <li className="caption">Текущая неделя — неполная. Линии: норма и потолок недели.</li>
     </ul>
   )
+}
+
+/** Эффективные подходы: целое — без дробной части, иначе одна цифра после запятой. */
+function formatSets(value: number): string {
+  const rounded = Math.round(value * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1).replace('.', ',')
+}
+
+/** Подпись недели — день и месяц её понедельника: «12.10». */
+function weekLabel(weekStart: string): string {
+  return `${weekStart.slice(8, 10)}.${weekStart.slice(5, 7)}`
 }
 
 function BaselineChart({ data, names }: { data: Progress; names: Map<string, { name: string }> | undefined }) {
