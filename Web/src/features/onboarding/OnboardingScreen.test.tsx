@@ -160,6 +160,27 @@ describe('шаги после PAR-Q', () => {
     expect(direct.upsertBodyWeight).toHaveBeenCalledWith('user-1', 82.5, expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
   })
 
+  it('шаг 3: значения вне диапазонов §20.3 не уходят, а называются', async () => {
+    direct.hasParq.mockResolvedValue(true)
+    const api = mount({ session_minutes: 45, training_split: 'auto', cycle_tracking: 'off', is_complete: false })
+    await step(3)
+    fireEvent.change(screen.getByLabelText('Пол при рождении'), { target: { value: 'female' } })
+    fireEvent.change(screen.getByLabelText('Рост, см'), { target: { value: '170' } })
+    fireEvent.change(screen.getByLabelText('Вес, кг'), { target: { value: '60' } })
+    const thisYear = new Date().getFullYear()
+    for (const [year, weight, text] of [
+      ['1935', '60', 'Год рождения — от 1936'], [String(thisYear - 13), '60', 'Год рождения'],
+      ['1990', '19', 'Вес — от 20 до 300 кг'], ['1990', '301', 'Вес — от 20 до 300 кг'],
+    ] as const) {
+      fireEvent.change(screen.getByLabelText('Год рождения'), { target: { value: year } })
+      fireEvent.change(screen.getByLabelText('Вес, кг'), { target: { value: weight } })
+      click('Далее')
+      expect((await screen.findByRole('alert')).textContent).toContain(text)
+    }
+    expect(api.patchProfile).not.toHaveBeenCalled()
+    expect(direct.upsertBodyWeight).not.toHaveBeenCalled()
+  })
+
   it('шаг 4: подписи с порогами из §5 и вопрос про становую тягу', async () => {
     direct.hasParq.mockResolvedValue(true)
     const { experience_level: _e, goal: _g, training_weekdays: _t, days_per_week: _d, ...rest } = full
