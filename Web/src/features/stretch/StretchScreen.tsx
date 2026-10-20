@@ -15,6 +15,15 @@ const KIND_LABEL: Record<string, string> = {
   mobility_warmup: 'Разминка',
 }
 
+/**
+ * Длительность сессии в истории (§12.2): короче минуты — «меньше минуты», а не
+ * «1 мин». Засчитывается любая завершённая сессия, но выдавать короткую за
+ * минутную история не вправе.
+ */
+export function sessionLength(seconds: number): string {
+  return seconds < 60 ? 'меньше минуты' : `${Math.round(seconds / 60)} мин`
+}
+
 export function StretchScreen({ api }: { api: ApiClient }) {
   const content = useStretchContent(api)
   const history = useQuery({ queryKey: ['stretch-history'], queryFn: () => api.getStretchHistory() })
@@ -63,7 +72,7 @@ export function StretchScreen({ api }: { api: ApiClient }) {
                 <span>{s.template_slug ? (names.get(s.template_slug) ?? s.template_slug) : KIND_LABEL[s.kind]}</span>
                 <span className="caption">
                   {formatShortDate(s.performed_on)}
-                  {s.duration_seconds !== undefined ? ` · ${Math.max(1, Math.round(s.duration_seconds / 60))} мин` : ''}
+                  {s.duration_seconds !== undefined ? ` · ${sessionLength(s.duration_seconds)}` : ''}
                 </span>
               </li>
             ))}
