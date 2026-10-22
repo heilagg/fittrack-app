@@ -84,15 +84,35 @@ extension WorkoutRoutes {
                     "status": .string(location.day.status)
                 ])
             }
+            // §7.1 (2026-10-22): начать можно любой день ТЕКУЩЕЙ недели — другой
+            // недели нет на ленте, и догон через её границу запрещён.
+            guard location.weekStart == Mapping.LocalTime.mondayOfWeek(day.date) else {
+                throw APIError(.dayNotPlanned, details: [
+                    "planned_day_id": .string(plannedDayID.uuidString),
+                    "reason": .string("other_week")
+                ])
+            }
+            // Одна идущая тренировка за раз (§7.1): две перемешали бы подходы во
+            // времени. `workout_id` — чтобы клиент довёл до идущей.
+            if let running = try await Mapping.readRunningWorkout(tx) {
+                throw APIError(.dayNotPlanned, details: [
+                    "planned_day_id": .string(plannedDayID.uuidString),
+                    "workout_id": .string(running.id),
+                    "reason": .string("workout_running")
+                ])
+            }
 
             // План недели целиком: `S_эфф` считается по неделе (§7.3), и день в
-            // отрыве от неё собирается не тем объёмом.
+            // отрыве от неё собирается не тем объёмом. День, который начинают,
+            // ставится на сегодня (§7.1): тренировка идёт в день старта, и
+            // утомление, check-in, оверрайд, цикл и «прошедший ли» берутся от
+            // него. Сегодняшний день и сам на сегодня — для него это тождество.
             let inputs = try await WeekPlanRoutes.inputs(tx, on: day)
             let days = try await Mapping.readPlannedDays(tx, weekPlanID: location.weekPlanID)
-            let context = WeekPlanRoutes.context(
+            let context = Planner.startingToday(WeekPlanRoutes.context(
                 inputs, weekStart: location.weekStart, today: day.date, days: days,
                 isDeload: location.isDeload, library: library,
-                userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
+                userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject)), dayID: location.day.id)
             let plan = Planner.planRemainingDays(context)
 
             guard let outcome = plan.days[location.day.id] else { throw APIError(.internal) }
@@ -108,8 +128,9 @@ extension WorkoutRoutes {
                 ])
             }
 
-            guard let plannedDay = Mapping.plannedDays(from: days, vectors: library.vectors)
-                .first(where: { $0.id == location.day.id })
+            // Тот же день из контекста — уже на дате старта: по ней считаются
+            // готовность, цикл и веса момента старта.
+            guard let plannedDay = context.week.first(where: { $0.id == location.day.id })
             else { throw APIError(.internal) }
 
             // Инвентарь момента (§20.3). Разрешённый `id` пишется в строку, а не

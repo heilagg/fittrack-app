@@ -52,6 +52,7 @@
         "day_id" : "00000000-0000-4000-8000-000000000000",
         "kind" : "not_built",
         "loses_planned_volume" : false,
+        "performed_on" : "2026-10-12",
         "session_kind" : "upper",
         "session_kind_name" : "Верх тела"
       }

@@ -44,7 +44,7 @@ describe('calendarDays', () => {
     expect(days.map((d) => d.status)).toEqual(['none', 'planned', 'none', 'none', 'planned', 'none', 'none'])
   })
 
-  it('выполненный — done; пропущенный, заменённый и прошедший — none; начатый — planned', () => {
+  it('выполненный — done; пропущенный и заменённый — none; прошедший — missed; начатый — planned', () => {
     const days = calendarDays(week, '2026-10-18', [
       day('2026-10-12', 'done'),
       day('2026-10-13', 'skipped'),
@@ -53,11 +53,23 @@ describe('calendarDays', () => {
       day('2026-10-16', 'started'),
       day('2026-10-17', 'rest_override'),
     ])
-    expect(days.map((d) => d.status)).toEqual(['done', 'none', 'none', 'none', 'planned', 'planned', 'none'])
+    expect(days.map((d) => d.status)).toEqual(['done', 'none', 'none', 'missed', 'planned', 'planned', 'none'])
   })
 
   it('сегодня — признак поверх статуса: выполненный сегодня остаётся сегодняшним', () => {
     const [monday] = calendarDays(week, '2026-10-12', [day('2026-10-12', 'done')])
     expect(monday).toEqual({ date: '2026-10-12', today: true, status: 'done' })
+  })
+
+  it('тренировка, сделанная в другой день, — done на фактической дате, moved на своей (§7.1)', () => {
+    const friday = { ...day('2026-10-16', 'done'), performed_on: '2026-10-14' }
+    const days = calendarDays(week, '2026-10-14', [day('2026-10-14'), friday])
+    expect(days[2]).toEqual({ date: '2026-10-14', today: true, status: 'done' })
+    expect(days[4]).toEqual({ date: '2026-10-16', today: false, status: 'moved', performedOn: '2026-10-14' })
+  })
+
+  it('выполненный в свою дату — done без performedOn', () => {
+    const own = { ...day('2026-10-13', 'done'), performed_on: '2026-10-13' }
+    expect(calendarDays(week, '2026-10-14', [own])[1]).toEqual({ date: '2026-10-13', today: false, status: 'done' })
   })
 })

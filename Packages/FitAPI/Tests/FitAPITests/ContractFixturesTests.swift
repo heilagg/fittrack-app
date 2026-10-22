@@ -278,8 +278,10 @@ final class ContractFixturesTests: XCTestCase {
         func day(_ id: String, _ kind: SessionKind) -> PlannedDay {
             PlannedDay(id: id, date: CalendarDay(dayNumber: 0), kind: kind, accent: nil, vector: [:])
         }
+        // День 14-го выполнен 12-го (§7.1): `performed_on` — фактическая дата.
         return WeekPlanDTO(plan, week: [(day: day(later, .upper), isoDate: "2026-10-14"),
-                                        (day: day(today, .lower), isoDate: "2026-10-12")])
+                                        (day: day(today, .lower), isoDate: "2026-10-12")],
+                           performedOn: [later: "2026-10-12"])
     }
 
     private var finishedWorkout: WorkoutDTO {
