@@ -1526,4 +1526,44 @@ final class PlannerTests: XCTestCase {
             XCTAssertGreaterThanOrEqual(lastBaseline[slug] ?? 0, first * 0.8, "\(slug): базовая линия просела за шесть недель")
         }
     }
+
+    // MARK: - Старт любого дня недели сегодня (§7.1, 2026-10-22)
+
+    func test_startingToday_pastUnmarkedDayIsBuiltAsToday() {
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes),
+                           (.lower, .gluteMax, F.lowerGlutes)])
+        let ctx = F.context(week: week, today: F.day(1))
+        let before = Planner.planRemainingDays(ctx).days["day0"]
+        XCTAssertEqual(before?.kind, .notBuilt)
+        XCTAssertEqual(before?.cause, .past, "без старта прошедший день не собирается")
+
+        let moved = Planner.startingToday(ctx, dayID: "day0")
+        XCTAssertEqual(moved.week.first { $0.id == "day0" }?.date, F.day(1))
+        XCTAssertEqual(moved.week.first { $0.id == "day2" }?.date, F.day(2), "остальные дни на своих датах")
+        let after = Planner.planRemainingDays(moved).days["day0"]
+        XCTAssertEqual(after?.kind, .session)
+        XCTAssertNotNil(after?.session)
+    }
+
+    func test_startingToday_futureDayTakesTodaysOverride() {
+        let week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes)])
+        let ctx = F.context(week: week, today: F.day(0), override: .rest)
+        XCTAssertEqual(Planner.planRemainingDays(ctx).days["day1"]?.kind, .session,
+                       "на своей дате будущий день оверрайда сегодняшнего не видит")
+        let moved = Planner.planRemainingDays(Planner.startingToday(ctx, dayID: "day1")).days["day1"]
+        XCTAssertEqual(moved?.kind, .stretching, "начатый сегодня — день сегодняшнего оверрайда")
+        XCTAssertEqual(moved?.cause, .restOverride)
+    }
+
+    func test_startingToday_movesOnlyPlannedDays() {
+        var week = F.week([(.lower, .gluteMax, F.lowerGlutes), (.lower, .gluteMax, F.lowerGlutes),
+                           (.lower, .gluteMax, F.lowerGlutes)])
+        week[0].status = .done
+        week[2].status = .skipped
+        let ctx = F.context(week: week, today: F.day(1))
+        for id in ["day0", "day2"] {
+            XCTAssertEqual(Planner.startingToday(ctx, dayID: id).week.map(\.date), ctx.week.map(\.date), id)
+        }
+        XCTAssertEqual(Planner.startingToday(ctx, dayID: "nope").week.map(\.date), ctx.week.map(\.date))
+    }
 }
