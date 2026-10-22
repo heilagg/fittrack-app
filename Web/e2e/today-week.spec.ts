@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { completeOnboarding, startLinkedWorkout, todayIsoWeekday, trainingDays, tapFeedback, finishWorkout } from './helpers'
+import { completeOnboarding, linkAfterOnboarding, startLinkedWorkout, todayIsoWeekday, trainingDays, tapFeedback, finishWorkout } from './helpers'
 
 // «Сегодня»: календарь недели и чип типа дня против настоящих Supabase и
 // Server. Онбординг ставит три дня, первый из которых сегодняшний, средний
@@ -30,8 +30,9 @@ test('календарь: сегодня залито, будущие дни т�
     const wd = weekdayOf(date)
     await expect(li).toHaveAttribute('data-today', String(wd === today))
     // Все три дня тренировок — дни этой недели: те, что раньше сегодняшнего,
-    // уже прошли (итог `past`) и не обводятся, остальные запланированы.
-    await expect(li).toHaveAttribute('data-status', days.includes(wd) && wd >= today ? 'planned' : 'none')
+    // прошли не сделанными (итог `past`) и их можно сделать сегодня (§7.1),
+    // остальные запланированы.
+    await expect(li).toHaveAttribute('data-status', days.includes(wd) ? (wd >= today ? 'planned' : 'missed') : 'none')
   }
 
   // Сетка назначает типы дням недели по порядку: тип сегодняшнего — по его месту.
@@ -53,4 +54,32 @@ test('после завершённой тренировки сегодняшн�
   await expect(todayLi).toHaveAttribute('data-status', 'done')
   // Имя дня — у кнопки внутри колонки: с среза 6 день нажимается (`/preview`).
   await expect(todayLi.getByRole('button')).toHaveAccessibleName(/сегодня, тренировка выполнена/)
+})
+
+test('другой день недели начинается сегодня; галочка — на сегодняшней дате, у дня плана — «выполнена» (§7.1)', async ({ page }) => {
+  await linkAfterOnboarding(page)
+  const today = todayIsoWeekday()
+  const other = trainingDays().find((d) => d !== today)!
+  const li = page.locator('[data-testid="week-calendar"] > li').nth(other - 1)
+  const date = (await li.getAttribute('data-date'))!
+  await li.getByRole('button').click()
+  await expect(page.getByTestId('day-preview')).toHaveAttribute('data-date', date)
+  const start = page.getByTestId('preview-start')
+  await expect(start).toHaveText(other < today ? 'Сделать сегодня' : 'Начать сегодня')
+  await start.click()
+  await expect(page).toHaveURL(/\/workout\/[0-9a-f-]{36}$/)
+
+  await tapFeedback(page, 'ok')
+  await expect(page.getByTestId('log-failure')).toHaveCount(0)
+  await expect(page.getByTestId('set-counter')).toContainText('Подход 2 из')
+  await finishWorkout(page)
+  await expect(page.getByTestId('summary')).toBeVisible()
+  await page.getByRole('link', { name: 'Сегодня' }).click()
+
+  const todayLi = page.locator('[data-testid="week-calendar"] > li[data-today="true"]')
+  await expect(todayLi).toHaveAttribute('data-status', 'done')
+  await expect(li).toHaveAttribute('data-status', 'moved')
+  await expect(li.getByRole('button')).toHaveAccessibleName(/тренировка выполнена \d+ [а-я]+/)
+  // Сегодняшний день плана остался: его можно сделать тоже (§7.1).
+  await expect(page.getByRole('button', { name: 'Начать тренировку' })).toBeVisible()
 })
