@@ -432,7 +432,7 @@ final class ContractTests: XCTestCase {
     /// §20.3: `/finish` отдаёт `{workout, week}`; без недели ключа `week` нет —
     /// общее правило FitAPI опускать отсутствующее, а не слать `null`.
     func test_finishResponseCarriesWorkoutAndOptionalWeek() throws {
-        let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: []))
+        let week = WeekPlanResponseDTO(plan: WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: [], performedOn: [:]))
         let full = try JSONSerialization.jsonObject(with: try encoder.encode(
             FinishWorkoutResponseDTO(workout: workout(tree: nil), week: week, cooldown: []))) as? [String: Any]
         XCTAssertEqual(Set(full?.keys ?? [:].keys), ["workout", "week", "cooldown"])
@@ -448,7 +448,7 @@ final class ContractTests: XCTestCase {
 
     /// Один тип на четыре недельных пути, `notice` необязателен.
     func test_weekPlanResponseCarriesOptionalNotice() throws {
-        let plan = WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: [])
+        let plan = WeekPlanDTO(WeekPlan(days: [:], statusLines: []), week: [], performedOn: [:])
         let silent = WeekPlanResponseDTO(plan: plan)
         XCTAssertNil(try decoder.decode(WeekPlanResponseDTO.self, from: try encoder.encode(silent)).notice)
 
@@ -490,7 +490,7 @@ final class ContractTests: XCTestCase {
                     (plannedDay("c", 1, .lower), "2026-10-12")]
         let plan = WeekPlan(days: ["a": outcome("a"), "b": outcome("b", session: true), "c": outcome("c")],
                             statusLines: [])
-        let dto = WeekPlanDTO(plan, week: week.map { (day: $0.0, isoDate: $0.1) })
+        let dto = WeekPlanDTO(plan, week: week.map { (day: $0.0, isoDate: $0.1) }, performedOn: [:])
         XCTAssertEqual(dto.days.map(\.date), ["2026-10-12", "2026-10-14", "2026-10-16"])
         XCTAssertEqual(dto.days.map(\.dayID), ["c", "b", "a"])
         XCTAssertEqual(dto.days.map(\.sessionKind), ["lower", "pull", "full_body"])
@@ -507,8 +507,28 @@ final class ContractTests: XCTestCase {
     func test_weekDaysWithoutOutcomeAreLeftOut() {
         let plan = WeekPlan(days: ["b": outcome("b")], statusLines: [])
         let dto = WeekPlanDTO(plan, week: [(day: plannedDay("a", 1, .lower), isoDate: "2026-10-12"),
-                                           (day: plannedDay("b", 3, .upper), isoDate: "2026-10-14")])
+                                           (day: plannedDay("b", 3, .upper), isoDate: "2026-10-14")],
+                              performedOn: [:])
         XCTAssertEqual(dto.days.map(\.dayID), ["b"])
+    }
+
+    /// §7.1, §20.3 (2026-10-22): `performed_on` — у дня с тренировкой, и только
+    /// у него; у остальных ключа нет, даже если дата передана.
+    func test_weekDayPerformedOnOnlyWithAWorkout() throws {
+        func day(_ id: String, _ cause: DayOutcome.Cause?) -> DayOutcome {
+            DayOutcome(dayID: id, kind: cause == nil ? .session : .notBuilt, cause: cause,
+                       losesPlannedVolume: false, session: nil)
+        }
+        let plan = WeekPlan(days: ["done": day("done", .done), "started": day("started", .started),
+                                   "past": day("past", .past), "open": day("open", nil)], statusLines: [])
+        let dto = WeekPlanDTO(plan, week: ["done", "started", "past", "open"].enumerated().map {
+            (day: plannedDay($0.element, $0.offset, .lower), isoDate: "2026-10-1\($0.offset)")
+        }, performedOn: ["done": "2026-10-11", "started": "2026-10-12", "past": "2026-10-12", "open": "2026-10-12"])
+        XCTAssertEqual(dto.days.map(\.performedOn), ["2026-10-11", "2026-10-12", nil, nil])
+        let json = try JSONSerialization.jsonObject(with: try encoder.encode(dto)) as? [String: Any]
+        let days = json?["days"] as? [[String: Any]]
+        XCTAssertEqual(days?[0]["performed_on"] as? String, "2026-10-11")
+        XCTAssertNil(days?[2]["performed_on"], "без тренировки ключа нет")
     }
 
     /// Сессия `/today` несёт тип своего дня и его название.
