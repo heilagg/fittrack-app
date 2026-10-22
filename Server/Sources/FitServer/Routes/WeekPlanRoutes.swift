@@ -57,6 +57,8 @@ struct WeekPlanInputs: Sendable {
     var completed: [Mapping.CompletedWorkoutRow]
     var completedSets: [String: [Mapping.SetRow]]
     var startedDayIDs: Set<String>
+    /// Фактические даты тренировок по `planned_day_id` (§20.3 `performed_on`).
+    var workoutDays: [String: CalendarDay]
 }
 
 enum WeekPlanRoutes {
@@ -107,12 +109,13 @@ enum WeekPlanRoutes {
         let journal = try await Mapping.readSets(tx, since: nil, timeZone: day.timeZone)
         let completed = try await Mapping.readCompleted(tx, since: nil, timeZone: day.timeZone)
         let started = try await Mapping.readStartedDayIDs(tx)
+        let workoutDays = try await Mapping.readWorkoutDays(tx, timeZone: day.timeZone)
 
         return WeekPlanInputs(
             complete: complete, sessionMinutes: profile.sessionMinutes, equipment: equipment,
             safety: safety, cycle: cycle.inputs, storedCycle: cycle.stored, cycleApplies: cycle.applies, checkin: checkin, override: override, fatigue: fatigue,
             journal: journal, completed: completed.rows, completedSets: completed.sets,
-            startedDayIDs: started)
+            startedDayIDs: started, workoutDays: workoutDays)
     }
 
     /// Контекст планировщика из входа и строк недели.
@@ -160,9 +163,13 @@ enum WeekPlanRoutes {
     /// `week` — строки недели, из которых посчитан `plan`: у каждого дня ответа
     /// дата и тип (§20.3, `WeekDay`). Дата переводится в ISO здесь, в `Mapping/`
     /// (§20.7), а не в `FitAPI`.
-    static func response(_ plan: WeekPlan, week: [PlannedDay], notice: ReasonCode?) -> WeekPlanResponseDTO {
+    ///
+    /// `workoutDays` — фактические даты тренировок (§20.3 `performed_on`).
+    static func response(_ plan: WeekPlan, week: [PlannedDay], notice: ReasonCode?,
+                         workoutDays: [String: CalendarDay]) -> WeekPlanResponseDTO {
         WeekPlanResponseDTO(
-            plan: WeekPlanDTO(plan, week: week.map { (day: $0, isoDate: Mapping.LocalTime.iso($0.date)) }),
+            plan: WeekPlanDTO(plan, week: week.map { (day: $0, isoDate: Mapping.LocalTime.iso($0.date)) },
+                              performedOn: workoutDays.mapValues(Mapping.LocalTime.iso)),
             notice: notice.map { ReasonDTO($0) })
     }
 }

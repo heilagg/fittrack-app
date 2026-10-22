@@ -420,6 +420,44 @@ extension Mapping {
         return result
     }
 
+    /// Фактическая дата тренировки каждого дня плана, у которого она есть
+    /// (§7.1, §20.3 `WeekDay.performed_on`): самый ранний `performed_on` её
+    /// подходов, без подходов — `started_at` в зоне запроса. Правило то же, что
+    /// у `readCompleted` (§20.7), и начатая тренировка входит сюда тоже.
+    public static func readWorkoutDays(_ tx: UserTransaction,
+                                       timeZone: TimeZone) async throws -> [String: CalendarDay] {
+        let zone = timeZone.identifier
+        let rows = try await tx.query("""
+            select w.planned_day_id::text, to_char(coalesce(
+                     (select min(s.performed_on) from sets s
+                        join workout_exercises we on we.id = s.workout_exercise_id
+                       where we.workout_id = w.id),
+                     (w.started_at at time zone \(zone))::date), 'YYYY-MM-DD')
+              from workouts w
+             where w.deleted_at is null and w.planned_day_id is not null
+            """)
+        var result: [String: CalendarDay] = [:]
+        for try await row in rows {
+            let (dayID, date) = try row.decode((String, String).self)
+            result[dayID] = try day(date, column: "sets.performed_on")
+        }
+        return result
+    }
+
+    /// Идущая тренировка — начата, не закрыта, не удалена (§7.1: одна за раз).
+    public static func readRunningWorkout(_ tx: UserTransaction) async throws -> (id: String, plannedDayID: String?)? {
+        let rows = try await tx.query("""
+            select id::text, planned_day_id::text from workouts
+             where finished_at is null and deleted_at is null
+             order by started_at desc limit 1
+            """)
+        for try await row in rows {
+            let (id, dayID) = try row.decode((String, String?).self)
+            return (id, dayID)
+        }
+        return nil
+    }
+
     // MARK: - Состояния упражнений
 
     /// Снимок `exercise_states.in_calibration` по слагам (§20.6).
