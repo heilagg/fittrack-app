@@ -16,7 +16,7 @@ import type { DayOutcome, ExerciseContent, WeekDay } from '../../api/schemas'
 import { mondayOf } from '../../api/day'
 import { useExerciseNames } from '../../content/useExercises'
 import { calendarDays } from '../../today/calendar'
-import { formatDayHeading, formatMinutes } from '../../ui/format'
+import { formatDayHeading, formatMinutes, formatShortDate } from '../../ui/format'
 import { cycleVisibility } from '../../cycle/visibility'
 import { OverdueQuestion } from '../cycle/OverdueQuestion'
 import { PhaseCard } from '../cycle/PhaseCard'
@@ -127,6 +127,9 @@ export function TodayScreen({ api }: { api: ApiClient }) {
           error={preview.isError ? preview.error : null}
           day={preview.data?.plan.days.find((d) => d.date === previewDay)}
           names={names.data}
+          today={card.date}
+          starting={starting}
+          onStart={(dayId) => void start(dayId)}
           onBack={() => setPicked(null)}
         />
       )}
@@ -177,6 +180,11 @@ export function TodayScreen({ api }: { api: ApiClient }) {
 /**
  * Состав другого дня недели (срез 6): проекция `/preview` на дату (§20.3),
  * ничего не пишет. Правка дня (`PATCH …/days`) в срез не входит.
+ *
+ * Любой день недели можно начать сегодня (§7.1): будущий — «Начать сегодня»,
+ * прошедший и не отмеченный — «Сделать сегодня». Состав предпросмотра
+ * будущего дня посчитан на его дату, а старт — на сегодня, и это сказано под
+ * кнопкой: иначе разница читалась бы как молчаливая пересборка.
  */
 function DayPreview({
   date,
@@ -184,6 +192,9 @@ function DayPreview({
   error,
   day,
   names,
+  today,
+  starting,
+  onStart,
   onBack,
 }: {
   date: string
@@ -191,6 +202,9 @@ function DayPreview({
   error: unknown
   day: WeekDay | undefined
   names: Map<string, ExerciseContent> | undefined
+  today: string
+  starting: boolean
+  onStart: (dayId: string) => void
   onBack: () => void
 }) {
   return (
@@ -201,6 +215,26 @@ function DayPreview({
       {!loading && error === null && (day ? <DayBlock day={day} names={names} /> : (
         <p className="card" data-testid="preview-rest">Тренировки в этот день нет</p>
       ))}
+      {day?.cause?.code === 'done' && day.performed_on !== undefined && day.performed_on !== date && (
+        <p className="caption" data-testid="preview-performed">
+          Выполнена {formatShortDate(day.performed_on)}
+        </p>
+      )}
+      {day?.kind === 'session' && (
+        <>
+          <button type="button" className="button-primary" data-testid="preview-start" disabled={starting}
+            onClick={() => onStart(day.day_id)}>
+            {date < today ? 'Сделать сегодня' : 'Начать сегодня'}
+          </button>
+          <p className="caption">Состав пересчитаем на сегодняшнее самочувствие.</p>
+        </>
+      )}
+      {day?.kind === 'not_built' && day.cause?.code === 'started' && (
+        <button type="button" className="button-primary" data-testid="preview-continue" disabled={starting}
+          onClick={() => onStart(day.day_id)}>
+          Продолжить тренировку
+        </button>
+      )}
       <button type="button" className="button-text" onClick={onBack}>
         К сегодняшнему дню
       </button>
