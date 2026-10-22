@@ -206,4 +206,63 @@ struct Test20vStartAnyDay {
             #expect(try self.error(raw).details?["reason"] == .string("other_week"))
         }
     }
+
+    @Test("20v: предпросмотр будущего дня — на его дату, без сегодняшнего оверрайда",
+          .enabled(if: Test20vStartAnyDay.weekday < 7))
+    func futurePreviewStaysOnItsDate() async throws {
+        let user = try await Live.signUpLinked()
+        let logger = Live.quietLogger("20v.future")
+        try await Live.withServer("20v.future") { app in
+            let plan = try await self.week(app, user, other: Self.weekday + 1, logger: logger).plan
+            let future = try #require(plan.days.first { $0.date > Live.today.date })
+            try await Live.setOverride(user, on: Self.today, value: "rest", logger: logger)
+            var preview: WeekPlanResponseDTO?
+            try await app.testing().test(
+                .GET, "/v1/week-plans/\(self.iso(Self.today.mondayOfWeek))/preview?\(self.query)&day=\(future.date)",
+                headers: user.headers
+            ) { response in
+                preview = try JSONDecoder().decode(WeekPlanResponseDTO.self, from: Data(buffer: response.body))
+            }
+            #expect(preview?.plan.days.first?.kind == "session",
+                    "оверрайд живёт один день: на своей дате будущий день его не видит (§7.1)")
+        }
+    }
+
+    @Test("20v: фаза тренировки — дня старта, а не дня плана",
+          .enabled(if: Test20vStartAnyDay.weekday < 7))
+    func cyclePhaseIsTheStartDays() async throws {
+        let user = try await Live.signUpLinked()
+        let logger = Live.quietLogger("20v.phase")
+        try await Live.withServer("20v.phase") { app in
+            let plan = try await self.week(app, user, other: Self.weekday + 1, logger: logger).plan
+            let tomorrow = try #require(plan.days.first { $0.date > Live.today.date })
+            let cycle = PatchProfileRequest(
+                cycleTracking: .manual,
+                cycle: CycleProfileDTO(typicalCycleLengthDays: 28, typicalPeriodLengthDays: 5,
+                                       declaredRegularity: .regular, phaseMode: .phases))
+            try await app.testing().test(.PATCH, "/v1/profile", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(cycle) }) { response in
+                #expect(response.status == .ok, Comment(rawValue: String(buffer: response.body)))
+            }
+            // Сегодня — пятый день месячных, завтра — уже фолликулярная.
+            let client = Live.ownerClient(logger)
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                group.addTask { await client.run() }
+                group.addTask {
+                    _ = try await client.query("""
+                        insert into cycle_events (id, user_id, kind, occurred_on)
+                        values (\(UUID()), \(user.id), 'period_start',
+                                \(self.iso(Self.today.adding(days: -4)))::date)
+                        """, logger: logger)
+                }
+                try await group.next()
+                group.cancelAll()
+            }
+            let (status, raw) = try await self.start(app, user, dayID: tomorrow.dayID)
+            #expect(status == 201, Comment(rawValue: String(decoding: raw, as: UTF8.self)))
+            let workout = try JSONDecoder().decode(WorkoutDTO.self, from: raw)
+            #expect(workout.cyclePhase == .menstrual, "фаза — на день старта, завтрашняя была бы фолликулярной")
+        }
+    }
 }
+
