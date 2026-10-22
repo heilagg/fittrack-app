@@ -117,9 +117,10 @@ public struct PhasePeriodization: Sendable, Equatable {
     public var volumeMultiplier: Double
     public var rirShift: Int
     public var blockType: BlockType
-    public var reason: ReasonCode
+    /// `nil` при нулевой поправке объёма и RIR (SPEC §11.2): объяснять нечего.
+    public var reason: ReasonCode?
 
-    public init(volumeMultiplier: Double, rirShift: Int, blockType: BlockType, reason: ReasonCode) {
+    public init(volumeMultiplier: Double, rirShift: Int, blockType: BlockType, reason: ReasonCode?) {
         self.volumeMultiplier = volumeMultiplier
         self.rirShift = rirShift
         self.blockType = blockType

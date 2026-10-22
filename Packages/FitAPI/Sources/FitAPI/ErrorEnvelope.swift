@@ -14,6 +14,10 @@ public enum APIErrorCode: String, Sendable, Equatable, Hashable, CaseIterable, C
     case weekExists = "week_exists"
     case setIDRequired = "set_id_required"
     case setImmutable = "set_immutable"
+    /// Номер подхода уже занят другим `id` в том же упражнении (§20.3).
+    /// Отдельный код, а не `validationFailed`: клиент не показывает ошибку
+    /// поля, а перечитывает тренировку — подход с этим номером уже есть.
+    case setIndexTaken = "set_index_taken"
     case workoutNotStarted = "workout_not_started"
     case workoutFinished = "workout_finished"
     case dayNotPlanned = "day_not_planned"
@@ -34,7 +38,7 @@ public enum APIErrorCode: String, Sendable, Equatable, Hashable, CaseIterable, C
         case .forbidden, .unlinkedAccount: return 403
         case .notFound: return 404
         case .dateSkew, .validationFailed, .setIDRequired: return 422
-        case .weekExists, .setImmutable, .workoutNotStarted, .workoutFinished,
+        case .weekExists, .setImmutable, .setIndexTaken, .workoutNotStarted, .workoutFinished,
              .dayNotPlanned, .profileIncomplete, .generatorDisabled: return 409
         case .internal: return 500
         }

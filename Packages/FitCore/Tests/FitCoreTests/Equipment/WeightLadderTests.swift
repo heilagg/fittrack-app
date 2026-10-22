@@ -390,4 +390,28 @@ final class WeightLadderTests: XCTestCase {
         XCTAssertEqual(ladder.roundToAchievable(0, direction: .up), 2.5)
         XCTAssertEqual(ladder.roundToAchievable(-100, direction: .down), 2.5)
     }
+
+    // MARK: - .nearest — вес, введённый руками (SPEC §20.3, §19.2 п.23)
+
+    func test_roundToAchievable_nearestDiscreteTiesGoDown() {
+        let ladder = WeightLadder.discrete([2, 4, 6, 8])
+        XCTAssertEqual(ladder.roundToAchievable(5, direction: .nearest), 4, "ровно посередине — вниз")
+        XCTAssertEqual(ladder.roundToAchievable(5.1, direction: .nearest), 6)
+        XCTAssertEqual(ladder.roundToAchievable(4.9, direction: .nearest), 4)
+        XCTAssertEqual(ladder.roundToAchievable(6, direction: .nearest), 6, "ступень — сама ступень")
+        XCTAssertEqual(ladder.roundToAchievable(30, direction: .nearest), 8, "выше лестницы — верх")
+        XCTAssertEqual(ladder.roundToAchievable(0.5, direction: .nearest), 2, "ниже лестницы — низ")
+    }
+
+    func test_roundToAchievable_nearestArithmetic() {
+        let ladder = WeightLadder.arithmetic(step: 2.5)
+        XCTAssertEqual(ladder.roundToAchievable(23.75, direction: .nearest), 22.5, "ровно посередине — вниз")
+        XCTAssertEqual(ladder.roundToAchievable(24, direction: .nearest), 25)
+        XCTAssertEqual(ladder.roundToAchievable(23, direction: .nearest), 22.5)
+        XCTAssertEqual(ladder.roundToAchievable(0.3, direction: .nearest), 2.5, "ниже первой ступени — первая")
+    }
+
+    func test_roundToAchievable_nearestNoneKeepsValue() {
+        XCTAssertEqual(WeightLadder.none.roundToAchievable(23.4, direction: .nearest), 23.4)
+    }
 }

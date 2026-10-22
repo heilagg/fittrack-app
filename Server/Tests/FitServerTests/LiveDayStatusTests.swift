@@ -107,7 +107,7 @@ struct LiveDayStatusTests {
             let exercise = try #require(workout.exercises.first)
             let set = LogSetRequest(id: UUID().uuidString, setIndex: 1,
                                     prescribedKg: exercise.prescribedKg,
-                                    actualKg: exercise.prescribedKg,
+                                    actualKg: exercise.prescribedKg ?? (exercise.weighted ? 20 : nil),
                                     actualReps: exercise.targetRepMin, feedback: .ok,
                                     completedAt: "2026-10-08T10:00:00Z", day: Live.today)
             try await app.testing().test(

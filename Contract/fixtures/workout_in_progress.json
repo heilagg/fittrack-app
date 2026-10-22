@@ -26,7 +26,8 @@
       "target_rep_min" : 8,
       "target_rir" : 2,
       "target_sets" : 3,
-      "weight_readiness" : 0.95
+      "weight_readiness" : 0.95,
+      "weighted" : false
     }
   ],
   "id" : "22222222-2222-4222-8222-222222222222",

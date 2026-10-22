@@ -4,7 +4,8 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
-import type { ExerciseAlternative, LogSetRequest, Workout, WorkoutExercise } from '../../api/schemas'
+import type { ExerciseAlternative, Workout, WorkoutExercise } from '../../api/schemas'
+import { answer } from './logSetTesting'
 import { WorkoutScreen } from './WorkoutScreen'
 
 // Экран тренировки тянет ErrorBlock из «Сегодня», а та — supabase-js.
@@ -30,7 +31,7 @@ const tree = {
 function exercise(id: string, slug: string, order: number, extra: Partial<WorkoutExercise> = {}): WorkoutExercise {
   return {
     id, slug, order_index: order, target_sets: 3, target_rep_min: 6, target_rep_max: 10, target_rir: 2,
-    prescribed_kg: 40, weight_readiness: 1, is_calibration: false, decision_tree: tree, sets: [], ...extra,
+    prescribed_kg: 40, weight_readiness: 1, is_calibration: false, weighted: true, decision_tree: tree, sets: [], ...extra,
   }
 }
 
@@ -60,9 +61,7 @@ const alternatives: ExerciseAlternative[] = [
 ]
 
 function mount(overrides: Partial<ApiClient> = {}) {
-  const logSet = vi.fn<(w: string, e: string, b: Omit<LogSetRequest, 'date' | 'tz'>) => Promise<{ decision_tree: typeof tree }>>(
-    async () => ({ decision_tree: tree }),
-  )
+  const logSet = vi.fn<ApiClient['logSet']>(answer({ decision_tree: tree }))
   const getAlternatives = vi.fn(async () => alternatives)
   const substitute = vi.fn(async () =>
     exercise('we-1', 'hip_thrust_barbell', 0, {

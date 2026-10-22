@@ -1,20 +1,19 @@
 import { expect, test, type Page } from '@playwright/test'
-import { startLinkedWorkout } from './helpers'
+import { startLinkedWorkout, tapFeedback, finishWorkout } from './helpers'
 
 // Срез 4: завершение тренировки. Всё — против настоящего сервера и базы.
 
-const feedback = (page: Page, value: 'easy' | 'ok' | 'hard' | 'failed') => page.locator(`[data-feedback="${value}"]`)
 const finish = (page: Page) => page.getByRole('button', { name: 'Завершить тренировку' })
 
 test.describe('завершение тренировки', () => {
   test('после подхода: /finish закрывает тренировку, сводка показывает подход', async ({ page }) => {
     await startLinkedWorkout(page)
-    await feedback(page, 'ok').click()
+    await tapFeedback(page, 'ok')
     await expect(page.getByTestId('log-failure')).toHaveCount(0)
     await expect(page.getByTestId('set-counter')).toContainText('Подход 2 из')
 
     const finished = page.waitForResponse((r) => r.url().endsWith('/finish') && r.request().method() === 'POST')
-    await finish(page).click()
+    await finishWorkout(page)
     const response = await finished
     expect(response.status()).toBe(200)
     const body = (await response.json()) as { workout: { finished_at?: string }; week?: { notice?: { message: string } } }
@@ -39,9 +38,9 @@ test.describe('завершение тренировки', () => {
 
   test('«Сегодня» после завершения: день больше не предлагает начать тренировку', async ({ page }) => {
     await startLinkedWorkout(page)
-    await feedback(page, 'ok').click()
+    await tapFeedback(page, 'ok')
     await expect(page.getByTestId('set-counter')).toContainText('Подход 2 из')
-    await finish(page).click()
+    await finishWorkout(page)
     await expect(page.getByTestId('summary')).toBeVisible()
 
     await page.getByRole('link', { name: 'Сегодня' }).click()
@@ -53,7 +52,7 @@ test.describe('завершение тренировки', () => {
 
   test('обрыв ответа /finish: повтор даёт то же завершение, а не 409', async ({ page }) => {
     await startLinkedWorkout(page)
-    await feedback(page, 'ok').click()
+    await tapFeedback(page, 'ok')
     await expect(page.getByTestId('set-counter')).toContainText('Подход 2 из')
 
     // Запрос доходит и закрывает тренировку, а ответ теряется.
@@ -61,7 +60,7 @@ test.describe('завершение тренировки', () => {
       await route.fetch()
       await route.abort('failed')
     })
-    await finish(page).click()
+    await finishWorkout(page)
     await expect(page.getByTestId('finish-failure')).toContainText('Нет связи')
     await expect(page.getByTestId('summary')).toHaveCount(0)
 
@@ -77,7 +76,7 @@ test.describe('завершение тренировки', () => {
 
   test('без единого подхода: тренировка закрывается, сводка говорит, что подходов нет', async ({ page }) => {
     await startLinkedWorkout(page)
-    await finish(page).click()
+    await finishWorkout(page)
     await expect(page.getByTestId('summary')).toBeVisible()
     await expect(page.getByTestId('summary-total')).toHaveText('Ни одного подхода не выполнено.')
   })

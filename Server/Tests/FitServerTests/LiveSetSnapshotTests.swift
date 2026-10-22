@@ -34,7 +34,7 @@ struct LiveSetSnapshotTests {
             let weID = try #require(UUID(uuidString: exercise.id))
             let setID = UUID().uuidString
             let body = LogSetRequest(id: setID, setIndex: 1, prescribedKg: exercise.prescribedKg,
-                                     actualKg: exercise.prescribedKg,
+                                     actualKg: exercise.prescribedKg ?? (exercise.weighted ? 20 : nil),
                                      actualReps: exercise.targetRepMin, feedback: .ok,
                                      completedAt: "2026-10-08T10:00:00Z", day: Live.today)
             let post = { @Sendable () async throws in

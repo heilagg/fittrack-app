@@ -65,6 +65,18 @@ describe('раздел «Растяжка» (§12.2, §13.1)', () => {
     expect(items[1]).toHaveTextContent('Заминка')
   })
 
+  it('сессия короче минуты — «меньше минуты», а не «1 мин»', async () => {
+    const history: StretchHistory = {
+      sessions: [session('s1', { finished_at: 'x', duration_seconds: 0 }), session('s2', { finished_at: 'x', duration_seconds: 59 }),
+        session('s3', { finished_at: 'x', duration_seconds: 60 }), session('s4', { finished_at: 'x', duration_seconds: 150 })],
+      suggested_template: 'hip_opening',
+    }
+    mount('/stretch', { getStretchContent: async () => content, getStretchHistory: async () => history })
+    const items = (await screen.findByTestId('stretch-history')).querySelectorAll('li')
+    expect([...items].map((li) => li.querySelector('.caption')?.textContent))
+      .toEqual(['19 октября · меньше минуты', '19 октября · меньше минуты', '19 октября · 1 мин', '19 октября · 3 мин'])
+  })
+
   it('пустая история — сказано прямо', async () => {
     mount('/stretch', { getStretchContent: async () => content, getStretchHistory: async () => ({ sessions: [], suggested_template: 'hip_opening' }) })
     expect(await screen.findByTestId('stretch-history-empty')).toBeInTheDocument()
@@ -80,6 +92,11 @@ describe('проигрыватель (§12.2)', () => {
   })
   afterEach(() => vi.useRealTimers())
 
+  /** Старт — кнопкой (§12.2): открытие проигрывателя запроса не шлёт. */
+  async function begin() {
+    fireEvent.click(await screen.findByTestId('stretch-start'))
+  }
+
   async function advance(seconds: number) {
     clock += seconds * 1000
     await act(async () => { vi.advanceTimersByTime(300) })
@@ -89,6 +106,7 @@ describe('проигрыватель (§12.2)', () => {
     const start = vi.fn<ApiClient['startStretchSession']>(async (id) => session(id))
     const finish = vi.fn<ApiClient['finishStretchSession']>(async (id) => session(id, { finished_at: 'x' }))
     mount('/stretch/play/hip_opening', { getStretchContent: async () => content, startStretchSession: start, finishStretchSession: finish }, now)
+    await begin()
     expect(await screen.findByTestId('stretch-pose')).toHaveTextContent('Поза голубя')
     await waitFor(() => expect(start).toHaveBeenCalledTimes(1))
     const [id, kind, template] = start.mock.calls[0]!
@@ -117,6 +135,7 @@ describe('проигрыватель (§12.2)', () => {
       startStretchSession: async (id: string) => session(id),
       finishStretchSession: async (id: string) => session(id),
     }, now)
+    await begin()
     expect(await screen.findByTestId('stretch-caption')).toHaveTextContent('Работа · круг 1 из 2')
     await advance(30)
     expect(screen.getByTestId('stretch-caption')).toHaveTextContent('Отдых · круг 1 из 2')
@@ -128,6 +147,7 @@ describe('проигрыватель (§12.2)', () => {
     const start = vi.fn<ApiClient['startStretchSession']>(async (id) => session(id))
     mount('/stretch/cooldown', { getStretchContent: async () => content, startStretchSession: start,
       finishStretchSession: async (id: string) => session(id) }, now, { cooldown: [{ pose: 'childs_pose', seconds: 60 }] })
+    await begin()
     expect(await screen.findByTestId('stretch-pose')).toHaveTextContent('Поза ребёнка')
     await waitFor(() => expect(start).toHaveBeenCalled())
     expect(start.mock.calls[0]!.slice(1)).toEqual(['static_cooldown', undefined])
@@ -138,6 +158,7 @@ describe('проигрыватель (§12.2)', () => {
     const finish = vi.fn<ApiClient['finishStretchSession']>(() => new Promise((r) => { resolve = r }))
     mount('/stretch/play/hip_opening', { getStretchContent: async () => content,
       startStretchSession: async (id: string) => session(id), finishStretchSession: finish }, now)
+    await begin()
     await screen.findByTestId('stretch-pose')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Пропустить' })).toBeEnabled())
     fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
@@ -161,6 +182,7 @@ describe('проигрыватель (§12.2)', () => {
       .mockRejectedValueOnce(new Error('сеть')).mockImplementation(async (id) => session(id))
     mount('/stretch/play/hip_opening', { getStretchContent: async () => content,
       startStretchSession: async (id: string) => session(id), finishStretchSession: finish }, now)
+    await begin()
     await screen.findByTestId('stretch-pose')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Пропустить' })).toBeEnabled())
     for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'Пропустить' }))
@@ -179,6 +201,7 @@ describe('проигрыватель (§12.2)', () => {
     })
     mount('/stretch/play/hip_opening', { getStretchContent: async () => content, startStretchSession: start,
       finishStretchSession: async (id: string) => session(id) }, now)
+    await begin()
     expect(await screen.findByTestId('stretch-failure')).toHaveTextContent('Закончите настройку')
     expect(screen.getByTestId('stretch-onboarding')).toHaveAttribute('href', '/onboarding')
     expect(screen.queryByRole('button', { name: 'Повторить' })).toBeNull()
@@ -187,7 +210,9 @@ describe('проигрыватель (§12.2)', () => {
   it('выход посреди сессии, h1 — поза, часы крупные и не читаются каждую секунду', async () => {
     mount('/stretch/play/hip_opening', { getStretchContent: async () => content,
       startStretchSession: async (id: string) => session(id), finishStretchSession: async (id: string) => session(id) }, now)
-    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Поза голубя')
+    await begin()
+    await screen.findByTestId('stretch-pose')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Поза голубя')
     expect(screen.getByTestId('stretch-exit')).toHaveAttribute('href', '/stretch')
     const clock = screen.getByTestId('stretch-clock')
     expect(clock).toHaveClass('stretch-clock')
@@ -197,9 +222,28 @@ describe('проигрыватель (§12.2)', () => {
     expect(screen.getByTestId('stretch-progress')).toHaveTextContent('Раскрытие бёдер · 1 из 3 · Поза голубя')
   })
 
+  it('открытие не стартует сессию: состав и «Начать», старт — только кнопкой', async () => {
+    const start = vi.fn<ApiClient['startStretchSession']>(async (id) => session(id))
+    mount('/stretch/play/hip_opening', { getStretchContent: async () => content, startStretchSession: start,
+      finishStretchSession: async (id: string) => session(id) }, now)
+    const intro = await screen.findByTestId('stretch-intro')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Раскрытие бёдер')
+    expect(intro).toHaveTextContent('2 позы · 1 мин')
+    expect([...screen.getByTestId('stretch-intro-poses').querySelectorAll('li')].map((li) => li.textContent))
+      .toEqual(['Поза голубя', 'Поза ребёнка'])
+    expect(screen.getByTestId('stretch-exit')).toHaveAttribute('href', '/stretch')
+    await advance(5)
+    expect(start).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('stretch-player')).toBeNull()
+    await begin()
+    await waitFor(() => expect(start).toHaveBeenCalledTimes(1))
+    expect(await screen.findByTestId('stretch-player')).toBeInTheDocument()
+  })
+
   it('выход из заминки ведёт на «Сегодня»', async () => {
     mount('/stretch/cooldown', { getStretchContent: async () => content, startStretchSession: async (id: string) => session(id),
       finishStretchSession: async (id: string) => session(id) }, now, { cooldown: [{ pose: 'childs_pose', seconds: 60 }] })
+    await begin()
     expect(await screen.findByTestId('stretch-exit')).toHaveAttribute('href', '/')
   })
 
@@ -207,6 +251,7 @@ describe('проигрыватель (§12.2)', () => {
     const start = vi.fn<ApiClient['startStretchSession']>().mockRejectedValueOnce(new Error('сеть')).mockImplementation(async (id) => session(id))
     mount('/stretch/play/hip_opening', { getStretchContent: async () => content, startStretchSession: start,
       finishStretchSession: async (id: string) => session(id) }, now)
+    await begin()
     expect(await screen.findByTestId('stretch-failure')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Повторить' }))
     await waitFor(() => expect(start).toHaveBeenCalledTimes(2))

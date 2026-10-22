@@ -126,17 +126,27 @@ struct Test20pStretchSessions {
         }
     }
 
+    /// Старт допуска не имеет (§20.3), поэтому «другой день» даёт не дата, а
+    /// зона: из двух крайних зон в любой момент хотя бы в одной местная дата не
+    /// совпадает с датой UTC (Киритимати +14 — с 10:00 UTC, Паго-Паго −11 — до
+    /// 11:00 UTC), и проверка не зависит от часа прогона.
     @Test("20p: performed_on — присланный день, а не день базы (§20.7)")
     func performedOnIsTheSentDay() async throws {
         let user = try await Live.signUpAnonymous()
         try await Live.withServer("20p.day") { app in
             try await Live.seedProfile(app, user)
-            let zone = TimeZone(identifier: "Europe/Moscow")!
-            let yesterday = Mapping.LocalTime.iso(Mapping.LocalTime.day(of: Date(), in: zone).adding(days: -1))
+            let now = Date()
+            let utc = Mapping.LocalTime.day(of: now, in: TimeZone(identifier: "UTC")!)
+            let zone = try #require(["Pacific/Kiritimati", "Pacific/Pago_Pago"]
+                .compactMap(TimeZone.init(identifier:))
+                .first { Mapping.LocalTime.day(of: now, in: $0) != utc })
+            let local = Mapping.LocalTime.iso(Mapping.LocalTime.day(of: now, in: zone))
             let result = try await self.start(app, user, id: UUID().uuidString,
-                                              day: DayContext(date: yesterday, tz: zone.identifier))
+                                              day: DayContext(date: local, tz: zone.identifier))
             #expect(result.0 == 201, Comment(rawValue: String(decoding: result.1, as: UTF8.self)))
-            #expect(try JSONDecoder().decode(StretchSessionDTO.self, from: result.1).performedOn == yesterday)
+            let performed = try JSONDecoder().decode(StretchSessionDTO.self, from: result.1).performedOn
+            #expect(performed == local)
+            #expect(performed != Mapping.LocalTime.iso(utc), "день базы (UTC) совпал бы и с ошибочной реализацией")
         }
     }
 

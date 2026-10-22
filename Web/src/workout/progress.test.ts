@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { workoutSchema, type WorkoutExercise } from '../api/schemas'
-import { currentSets, isExerciseOpen, progressSegments, stoppedByPain } from './progress'
+import { currentSets, isExerciseOpen, progressSegments, remainingSets, stoppedByPain } from './progress'
 
 const fixture = workoutSchema.parse(
   JSON.parse(readFileSync(join(__dirname, '../../../Contract/fixtures/workout_in_progress.json'), 'utf-8')),
@@ -73,3 +73,12 @@ describe('progressSegments', () => {
     expect(progressSegments([exercise(3), exercise(2, 3, true)])).toEqual(['done', 'done'])
   })
 })
+
+describe('remainingSets (§13.2: подтверждение «Завершить»)', () => {
+  it('считает только открытые упражнения: досрочно завершённое и выполненное не в счёт', () => {
+    expect(remainingSets([exercise(1, 3), exercise(0, 4)])).toBe(6)
+    expect(remainingSets([exercise(1, 3), exercise(1, 3, true), exercise(3, 3)])).toBe(2)
+    expect(remainingSets([exercise(3, 3)])).toBe(0)
+  })
+})
+

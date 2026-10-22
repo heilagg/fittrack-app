@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { FinishWorkoutResponse, LogSetResponse, Workout } from '../../api/schemas'
+import { setsWord } from './FinishPanel'
+import { answer, echo } from './logSetTesting'
 import { WorkoutScreen } from './WorkoutScreen'
 
 // «Сегодня» тянет за собой запись событий цикла (`direct/cycle`), а с ней
@@ -39,6 +41,7 @@ const running: Workout = {
       prescribed_kg: 40,
       weight_readiness: 1,
       is_calibration: false,
+      weighted: true,
       decision_tree: tree,
       sets: [],
     },
@@ -84,7 +87,7 @@ function mount(overrides: Partial<Api>) {
     getWorkout: vi.fn(async () => running),
     getExercises: vi.fn(async () => []),
     finishWorkout: vi.fn(async () => ({ workout: closed, week, cooldown: [{ pose: 'pigeon_pose', seconds: 45 }] })),
-    logSet: vi.fn(async (): Promise<LogSetResponse> => ({ decision_tree: tree })),
+    logSet: vi.fn(answer({ decision_tree: tree })),
     ...overrides,
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -104,6 +107,12 @@ const flush = () => act(async () => {})
 /** Экран загружается через react-query: ждём кнопку, а не считаем микрозадачи. */
 const ready = () => waitFor(() => expect(finishButton()).toBeTruthy())
 const finishButton = () => screen.getByRole('button', { name: 'Завершить тренировку' })
+/** «Завершить» с невыполненными подходами переспрашивает (§13.2): подтверждаем. */
+const finish = () => {
+  fireEvent.click(finishButton())
+  const confirm = screen.queryByTestId('finish-confirm')
+  if (confirm) fireEvent.click(within(confirm).getByRole('button', { name: 'Завершить' }))
+}
 
 describe('положение в тренировке', () => {
   const second = { ...running.exercises[0]!, id: 'we-2', slug: 'pushup_bw', order_index: 1 }
@@ -144,7 +153,7 @@ describe('завершение тренировки', () => {
   it('«Завершить» зовёт /finish один раз и показывает сводку со строкой «План обновлён»', async () => {
     const { api } = mount({})
     await ready()
-    fireEvent.click(finishButton())
+    finish()
     await flush()
     expect(api.finishWorkout).toHaveBeenCalledTimes(1)
     expect(api.finishWorkout).toHaveBeenCalledWith('w-1')
@@ -161,7 +170,7 @@ describe('завершение тренировки', () => {
   it('ответ без notice или без недели: сводка есть, строки «План обновлён» нет', async () => {
     mount({ finishWorkout: vi.fn(async (): Promise<FinishWorkoutResponse> => ({ workout: closed, cooldown: [] })) })
     await ready()
-    fireEvent.click(finishButton())
+    finish()
     await flush()
     expect(screen.getByTestId('summary')).toBeTruthy()
     expect(screen.queryByTestId('plan-notice')).toBeNull()
@@ -175,7 +184,7 @@ describe('завершение тренировки', () => {
       .mockResolvedValueOnce({ workout: closed, week: { plan: week.plan }, cooldown: [] })
     mount({ finishWorkout })
     await ready()
-    fireEvent.click(finishButton())
+    finish()
     await flush()
     expect(screen.getByTestId('finish-failure').textContent).toContain('Нет связи')
     expect(screen.queryByTestId('summary')).toBeNull()
@@ -193,7 +202,7 @@ describe('завершение тренировки', () => {
       }),
     })
     await ready()
-    fireEvent.click(finishButton())
+    finish()
     await flush()
     const text = screen.getByTestId('finish-failure').textContent ?? ''
     expect(text).toContain('Часы расходятся с сервером')
@@ -202,13 +211,13 @@ describe('завершение тренировки', () => {
 
   it('пока подход не подтверждён сервером, завершить нельзя', async () => {
     let resolve!: (r: LogSetResponse) => void
-    mount({ logSet: vi.fn(() => new Promise<LogSetResponse>((r) => (resolve = r))) })
+    const { api } = mount({ logSet: vi.fn(() => new Promise<LogSetResponse>((r) => (resolve = r))) })
     await ready()
     expect((finishButton() as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(document.querySelector('[data-feedback="ok"]') as HTMLElement)
     await flush()
     expect((finishButton() as HTMLButtonElement).disabled).toBe(true)
-    await act(async () => resolve({ decision_tree: tree }))
+    await act(async () => resolve(echo({ decision_tree: tree }, api.logSet as unknown as Parameters<typeof echo>[1])))
     // Подтверждение приходит через кеш, а он оповещает позже ответа.
     await waitFor(() => expect((finishButton() as HTMLButtonElement).disabled).toBe(false))
   })
@@ -218,5 +227,58 @@ describe('завершение тренировки', () => {
     await waitFor(() => expect(screen.getByTestId('summary')).toBeTruthy())
     expect(screen.queryByTestId('plan-notice')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Завершить тренировку' })).toBeNull()
+  })
+})
+
+describe('подтверждение «Завершить» (§13.2) и экран после завершения', () => {
+  it('остались подходы — «Завершить» переспрашивает; «Продолжить» не завершает', async () => {
+    const { api } = mount({})
+    await ready()
+    fireEvent.click(finishButton())
+    const confirm = screen.getByTestId('finish-confirm')
+    expect(confirm.textContent).toContain('Осталось 3 подхода. Завершить тренировку?')
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Продолжить тренировку' }))
+    expect(screen.queryByTestId('finish-confirm')).toBeNull()
+    expect(api.finishWorkout).not.toHaveBeenCalled()
+    fireEvent.click(finishButton())
+    fireEvent.click(within(screen.getByTestId('finish-confirm')).getByRole('button', { name: 'Завершить' }))
+    await flush()
+    expect(api.finishWorkout).toHaveBeenCalledTimes(1)
+  })
+
+  it('подходов не осталось — завершение сразу, без вопроса', async () => {
+    const done = { ...closed.exercises[0]!, target_sets: 1 }
+    const { api } = mount({ getWorkout: vi.fn(async () => ({ ...running, exercises: [done] })) })
+    await ready()
+    fireEvent.click(finishButton())
+    expect(screen.queryByTestId('finish-confirm')).toBeNull()
+    await flush()
+    expect(api.finishWorkout).toHaveBeenCalledTimes(1)
+  })
+
+  it('после завершения: без плашки калибровки, без второго списка состава, повторы — «повт.»', async () => {
+    const calibrating = { ...closed, is_calibration: true }
+    mount({ getWorkout: vi.fn(async () => calibrating) })
+    await waitFor(() => expect(screen.getByTestId('summary')).toBeTruthy())
+    expect(screen.queryByTestId('calibration-chip')).toBeNull()
+    expect(screen.queryByTestId('workout-exercises')).toBeNull()
+    expect(screen.getByTestId('summary-exercises').textContent).toContain('40 кг × 9 повт.')
+    expect(screen.queryByTestId('wake-lock')).toBeNull()
+  })
+
+  it('до завершения плашка калибровки и состав на месте', async () => {
+    mount({ getWorkout: vi.fn(async () => ({ ...running, is_calibration: true })) })
+    await ready()
+    expect(screen.getByTestId('calibration-chip')).toBeTruthy()
+    expect(screen.getByTestId('workout-exercises')).toBeTruthy()
+  })
+})
+
+describe('склонение «подходов»', () => {
+  it('1, 2–4, 5–20, 11–14, 21', () => {
+    expect([1, 2, 4, 5, 11, 12, 14, 21, 22, 25, 101, 111].map(setsWord)).toEqual([
+      '1 подход', '2 подхода', '4 подхода', '5 подходов', '11 подходов', '12 подходов', '14 подходов',
+      '21 подход', '22 подхода', '25 подходов', '101 подход', '111 подходов',
+    ])
   })
 })

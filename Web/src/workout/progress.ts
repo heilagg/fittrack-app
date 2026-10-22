@@ -33,3 +33,11 @@ export function progressSegments(ordered: WorkoutExercise[]): SegmentState[] {
   const current = ordered.findIndex(isExerciseOpen)
   return ordered.map((e, i) => (i === current ? 'current' : isExerciseOpen(e) ? 'upcoming' : 'done'))
 }
+
+/**
+ * Сколько подходов осталось в открытых упражнениях — для подтверждения
+ * «Завершить» (§13.2): закрытые болью, досрочно или выполненные не считаются.
+ */
+export function remainingSets(exercises: WorkoutExercise[]): number {
+  return exercises.filter(isExerciseOpen).reduce((n, e) => n + e.target_sets - currentSets(e).length, 0)
+}

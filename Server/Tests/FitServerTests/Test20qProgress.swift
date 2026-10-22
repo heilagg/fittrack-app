@@ -47,9 +47,14 @@ struct Test20qProgress {
     /// Клон тренировки на `weeks` недель назад: строки `workouts`,
     /// `workout_exercises` и `sets` с новыми `id`, сдвинутыми моментами и днём.
     private func cloneWorkout(_ database: Database, _ user: Live.User, id: String, weeks: Int) async throws {
+        try await cloneWorkout(database, user, id: id, days: weeks * 7)
+    }
+
+    private func cloneWorkout(_ database: Database, _ user: Live.User, id: String, days: Int,
+                              kg: Double? = nil) async throws {
         try await tx(database, user) { tx -> Void in
             let newWorkout = UUID()
-            let shift = "\(weeks * 7) days"
+            let shift = "\(days) days"
             _ = try await tx.query("""
                 insert into workouts
                 select (jsonb_populate_record(null::workouts, to_jsonb(w) || jsonb_build_object(
@@ -76,9 +81,16 @@ struct Test20qProgress {
                     select (jsonb_populate_record(null::sets, to_jsonb(s) || jsonb_build_object(
                       'id', gen_random_uuid(), 'workout_exercise_id', \(newExercise),
                       'completed_at', s.completed_at - \(shift)::interval,
-                      'performed_on', s.performed_on - (\(weeks * 7))::int))).*
+                      'performed_on', s.performed_on - (\(days))::int))).*
                       from sets s where s.workout_exercise_id = \(UUID(uuidString: exercise)!)
                     """)
+                // Другой вес у клона — чтобы история до окна отличалась от окна.
+                if let kg {
+                    _ = try await tx.query("""
+                        update sets set actual_kg = \(kg), prescribed_kg = \(kg)
+                         where workout_exercise_id = \(newExercise) and actual_kg is not null
+                        """)
+                }
             }
         }
     }
@@ -92,7 +104,8 @@ struct Test20qProgress {
             for exercise in workout.exercises {
                 for index in 1...2 {
                     let body = LogSetRequest(id: UUID().uuidString, setIndex: index, prescribedKg: exercise.prescribedKg,
-                                             actualKg: exercise.prescribedKg, actualReps: exercise.targetRepMin,
+                                             actualKg: exercise.prescribedKg ?? (exercise.weighted ? 20 : nil),
+                                             actualReps: exercise.targetRepMin,
                                              feedback: .ok, completedAt: ISO8601DateFormatter().string(from: Date()),
                                              day: Live.today)
                     try await app.testing().test(.POST, "/v1/workouts/\(workout.id)/exercises/\(exercise.id)/sets",
@@ -211,6 +224,63 @@ struct Test20qProgress {
             let earlierAfter = after.days.filter { $0.date < cutoff }.map(\.phase)
             #expect(earlierBefore == earlierAfter, "прошлое не перекрашено")
             #expect(after.days.first { $0.date == cutoff }?.phase == "menstrual", "с дня отметки — новая фаза")
+        }
+    }
+
+    /// Окно чтения §20.3 (2026-10-20): журнал — с понедельника недели `from`,
+    /// базовая линия — по всей истории весовых упражнений окна, стрик — по
+    /// датам всей истории. Каждое из трёх утверждений ловит своё сужение.
+    @Test("20q: окно чтения — неделя до from, базовая линия с историей до окна, стрик длиннее окна")
+    func windowBoundaries() async throws {
+        let user = try await Live.signUpLinked()
+        let logger = Live.quietLogger("20q.window")
+        try await Live.withServer("20q.window") { app, database in
+            let workout = try await Live.startedWorkout(app, user, logger: logger)
+            for exercise in workout.exercises {
+                let body = LogSetRequest(id: UUID().uuidString, setIndex: 1, prescribedKg: exercise.prescribedKg,
+                                         actualKg: exercise.prescribedKg ?? (exercise.weighted ? 20 : nil),
+                                         actualReps: exercise.targetRepMin, feedback: .ok,
+                                         completedAt: ISO8601DateFormatter().string(from: Date()), day: Live.today)
+                try await app.testing().test(.POST, "/v1/workouts/\(workout.id)/exercises/\(exercise.id)/sets",
+                                             headers: user.headers, beforeRequest: { try $0.content.encode(body) }) { response in
+                    #expect(response.status == .ok, Comment(rawValue: String(buffer: response.body)))
+                }
+            }
+            try await self.tx(database, user) { tx -> Void in
+                _ = try await tx.query("""
+                    update sets set is_calibration = false
+                     where workout_exercise_id in (select id from workout_exercises
+                                                    where workout_id = \(UUID(uuidString: workout.id)!))
+                    """)
+            }
+            try await app.testing().test(.POST, "/v1/workouts/\(workout.id)/finish", headers: user.headers,
+                                         beforeRequest: { try $0.content.encode(FinishWorkoutRequest(day: Live.today)) }) { _ in }
+
+            // Окно начинается в среду, а в понедельник той же недели — тренировка.
+            let monday = self.today.mondayOfWeek.adding(days: -56)
+            let from = monday.adding(days: 2)
+            try await self.cloneWorkout(database, user, id: workout.id, days: monday.days(until: self.today))
+            // Ещё по тренировке в каждую неделю, всего пятнадцать подряд — длиннее окна;
+            // до окна — с другим весом, чтобы история базовой линии отличалась.
+            for weeks in 1...14 where weeks != 8 {
+                try await self.cloneWorkout(database, user, id: workout.id, days: weeks * 7,
+                                            kg: weeks > 8 ? 40 : nil)
+            }
+
+            let narrow = try await self.progress(app, user, from: from)
+            let first = try #require(narrow.weeks.first)
+            #expect(first.weekStart == Mapping.LocalTime.iso(monday))
+            #expect(first.groups.values.reduce(0, +) > 0, "тренировка понедельника до from входит в объём своей недели")
+            #expect(narrow.streakWeeks == 15, "стрик считается по всей истории, а не по окну")
+
+            // Точка базовой линии не зависит от того, где начинается окно.
+            let wide = try await self.progress(app, user, from: self.today.adding(days: -120))
+            let start = Mapping.LocalTime.iso(from)
+            #expect(!narrow.baselines.isEmpty, "фикстура: базовые линии в окне есть")
+            for series in narrow.baselines {
+                let reference = try #require(wide.baselines.first { $0.slug == series.slug })
+                #expect(series.points == reference.points.filter { $0.date >= start }, "\(series.slug)")
+            }
         }
     }
 }

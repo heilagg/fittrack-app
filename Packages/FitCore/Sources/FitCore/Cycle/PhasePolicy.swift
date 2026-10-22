@@ -7,6 +7,12 @@
 //  обнуляются скачком (SPEC §11.2, §11.3). Категориальные (тип блока) —
 //  умножить не на что, поэтому гейтятся порогом `categoricalConfidenceThreshold`
 //  (SPEC §11.2, §11.3): тот же порог, что разрешает интерфейсу назвать фазу.
+/// Направление фазовой поправки — для формулировки причины (SPEC §11.2).
+public enum PhaseAdjustment: Sendable, Equatable {
+    case lighter
+    case heavier
+}
+
 extension Cycle {
 
     /// SPEC §11.3: порог, ниже которого категориальные решения нейтральны, а
@@ -89,13 +95,30 @@ extension Cycle {
     /// независимо от порога — решение «показывать ли фазу утвердительно»
     /// остаётся за слоем представления, а не зашивается здесь в отсутствие
     /// значения.
+    ///
+    /// Причина прикладывается только при ненулевой поправке (SPEC §11.2):
+    /// строка §7.1 объясняет действие, а при нулевых объёме и RIR действия нет.
     public static func periodization(phase: Phase, cycleConfidence: Double) -> PhasePeriodization {
         PhasePeriodization(
             volumeMultiplier: 1.0 + effectiveVolumeShift(phase: phase, cycleConfidence: cycleConfidence),
             rirShift: effectiveRIRShift(phase: phase, cycleConfidence: cycleConfidence),
             blockType: effectiveBlockType(phase: phase, cycleConfidence: cycleConfidence),
-            reason: .phasePeriodization(phase: phase, cycleConfidence: cycleConfidence)
+            reason: adjustmentDirection(phase: phase, cycleConfidence: cycleConfidence) == nil
+                ? nil : .phasePeriodization(phase: phase, cycleConfidence: cycleConfidence)
         )
+    }
+
+    /// Знак фазовой поправки (SPEC §11.2) по эффективным значениям: меньше
+    /// объёма или выше RIR — легче, больше объёма или ниже RIR — тяжелее;
+    /// обе нулевые — `nil`. Смешанного знака таблица не даёт, и
+    /// `PhasePolicyTests` держит это свойство: правка таблицы, давшая его,
+    /// обязана сначала получить правило в SPEC.
+    public static func adjustmentDirection(phase: Phase, cycleConfidence: Double) -> PhaseAdjustment? {
+        let volume = effectiveVolumeShift(phase: phase, cycleConfidence: cycleConfidence)
+        let rir = effectiveRIRShift(phase: phase, cycleConfidence: cycleConfidence)
+        if volume < 0 || rir > 0 { return .lighter }
+        if volume > 0 || rir < 0 { return .heavier }
+        return nil
     }
 
     /// SPEC §11.2: «Осторожность в овуляторную фазу» — мягкий штраф в целевую

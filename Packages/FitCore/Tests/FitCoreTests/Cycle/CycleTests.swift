@@ -1036,4 +1036,42 @@ final class CycleTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - Знак фазовой поправки и причина (SPEC §11.2, 2026-10-20)
+
+    func test_phaseAdjustmentDirection_byEffectiveShifts() {
+        XCTAssertEqual(Cycle.adjustmentDirection(phase: .menstrual, cycleConfidence: 1), .lighter)
+        XCTAssertEqual(Cycle.adjustmentDirection(phase: .lateLuteal, cycleConfidence: 1), .lighter)
+        XCTAssertEqual(Cycle.adjustmentDirection(phase: .follicular, cycleConfidence: 1), .heavier)
+        XCTAssertEqual(Cycle.adjustmentDirection(phase: .earlyLuteal, cycleConfidence: 1), .heavier, "+15% объёма")
+        XCTAssertEqual(Cycle.adjustmentDirection(phase: .ovulatory, cycleConfidence: 1), .heavier, "RIR −1 при базовом объёме")
+        // Овуляторная ниже 0.5: объём базовый, RIR округлился к нулю — поправки нет.
+        XCTAssertNil(Cycle.adjustmentDirection(phase: .ovulatory, cycleConfidence: 0.4))
+        XCTAssertEqual(Cycle.adjustmentDirection(phase: .ovulatory, cycleConfidence: 0.5), .heavier, "половина — от нуля")
+        XCTAssertNil(Cycle.adjustmentDirection(phase: .earlyLuteal, cycleConfidence: 0))
+    }
+
+    func test_periodizationReason_onlyWithNonZeroAdjustment() {
+        XCTAssertNil(Cycle.periodization(phase: .ovulatory, cycleConfidence: 0.4).reason)
+        XCTAssertNil(Cycle.periodization(phase: .menstrual, cycleConfidence: 0).reason)
+        XCTAssertEqual(Cycle.periodization(phase: .follicular, cycleConfidence: 0.6).reason,
+                       .phasePeriodization(phase: .follicular, cycleConfidence: 0.6))
+        XCTAssertEqual(Cycle.periodization(phase: .menstrual, cycleConfidence: 0.12).reason,
+                       .phasePeriodization(phase: .menstrual, cycleConfidence: 0.12))
+    }
+
+    /// Таблица §11.2 не даёт смешанного знака ни на какой уверенности: объём и
+    /// RIR одной фазы смотрят в одну сторону либо один из них нулевой.
+    func test_phaseTable_hasNoMixedSign() {
+        for phase in [Phase.menstrual, .follicular, .ovulatory, .earlyLuteal, .lateLuteal] {
+            for step in 0...100 {
+                let c = Double(step) / 100
+                let volume = Cycle.effectiveVolumeShift(phase: phase, cycleConfidence: c)
+                let rir = Cycle.effectiveRIRShift(phase: phase, cycleConfidence: c)
+                let lighter = volume < 0 || rir > 0
+                let heavier = volume > 0 || rir < 0
+                XCTAssertFalse(lighter && heavier, "\(phase) при \(c): объём \(volume), RIR \(rir)")
+            }
+        }
+    }
 }

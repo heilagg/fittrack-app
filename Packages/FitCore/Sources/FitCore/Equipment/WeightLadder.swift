@@ -21,6 +21,11 @@
 public enum RoundDirection: Sendable, Equatable {
     case up
     case down
+    /// К ближайшей ступени, при равенстве — к нижней. Для веса, введённого
+    /// руками (SPEC §20.3, §19.2 п.23): у человека, набравшего 23 кг между
+    /// ступенями 22 и 24, направления нет, а при равенстве записано не больше,
+    /// чем сделано. Ветки дерева §20.9 этим направлением не пользуются.
+    case nearest
 }
 
 public enum WeightLadder: Sendable, Equatable {
@@ -177,6 +182,11 @@ public enum WeightLadder: Sendable, Equatable {
             case .arithmetic(let step) where step > 0: return step
             default: return value
             }
+
+        case .nearest:
+            let up = roundToAchievable(value, direction: .up)
+            let down = roundToAchievable(value, direction: .down)
+            return abs(up - value) < abs(value - down) ? up : down
         }
     }
 

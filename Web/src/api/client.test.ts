@@ -138,7 +138,7 @@ describe('ApiClient', () => {
   it('POST …/substitute: to_slug, reason, date и tz в теле', async () => {
     const exercise = {
       id: 'e1', slug: 'hip_thrust_barbell', order_index: 0, target_sets: 3, target_rep_min: 8,
-      target_rep_max: 12, target_rir: 2, weight_readiness: 1, is_calibration: false, sets: [],
+      target_rep_max: 12, target_rir: 2, weight_readiness: 1, is_calibration: false, weighted: true, sets: [],
     }
     const fetchMock = vi.fn(async () => json(exercise))
     expect(await client(fetchMock as unknown as typeof fetch).substitute('w1', 'e1', 'hip_thrust_barbell', 'pain')).toEqual(exercise)

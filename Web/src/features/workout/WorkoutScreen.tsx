@@ -12,7 +12,7 @@ import { Link, useParams } from 'react-router-dom'
 import type { ApiClient } from '../../api/client'
 import type { FinishWorkoutResponse } from '../../api/schemas'
 import { useExerciseNames } from '../../content/useExercises'
-import { currentSets, isExerciseOpen, progressSegments } from '../../workout/progress'
+import { currentSets, isExerciseOpen, progressSegments, remainingSets } from '../../workout/progress'
 import { useWakeLock } from '../../workout/wakeLock'
 import { ErrorBlock } from '../today/TodayScreen'
 import { AlternativesPanel } from './AlternativesPanel'
@@ -65,7 +65,8 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
             <span className="caption" data-testid="exercise-position">
               {position !== null && `Упражнение ${position} из ${ordered.length}`}
             </span>
-            <FinishButton api={api} workoutId={w.id} disabled={busy} onFinished={setFinished} />
+            <FinishButton api={api} workoutId={w.id} disabled={busy} remainingSets={remainingSets(ordered)}
+              onFinished={setFinished} />
           </div>
           <ol className="progress" aria-hidden="true">
             {progressSegments(ordered).map((state, i) => (
@@ -74,7 +75,12 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
           </ol>
         </>
       )}
-      {w.is_calibration && <p className="chip">Калибровочная тренировка: веса занижены намеренно.</p>}
+      {/* После завершения плашка ни о чём: сводка уже говорит, что сделано. */}
+      {w.is_calibration && !isFinished && (
+        <p className="chip" data-testid="calibration-chip">
+          Калибровочная тренировка: веса занижены намеренно.
+        </p>
+      )}
       <WakeLockNote enabled={!isFinished} />
       {isFinished ? (
         <WorkoutSummary workout={w} week={finished?.week} names={names.data} cooldown={finished?.cooldown} />
@@ -105,6 +111,8 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
           Все подходы выполнены.
         </p>
       )}
+      {/* После завершения состав показывает сводка — второй список был бы повтором. */}
+      {!isFinished && (
       <section aria-label="Состав тренировки" className="card">
         <ol data-testid="workout-exercises" className="rows rows--stacked">
           {ordered.map((exercise) => (
@@ -120,6 +128,7 @@ export function WorkoutScreen({ api }: { api: ApiClient }) {
           ))}
         </ol>
       </section>
+      )}
       <p>
         <Link to="/" className="link-back">
           Сегодня

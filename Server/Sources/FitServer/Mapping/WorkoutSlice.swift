@@ -300,6 +300,20 @@ extension Mapping {
         return nil
     }
 
+    /// `id` подхода, уже занявшего номер `setIndex` в паре (упражнение
+    /// тренировки, слаг) — ключ уникальности `sets_index_per_exercise` (§3.1,
+    /// §20.3). `nil` — номер свободен.
+    public static func setIndexOwner(_ tx: UserTransaction, workoutExerciseID: UUID, slug: String,
+                                     setIndex: Int) async throws -> String? {
+        let rows = try await tx.query("""
+            select id::text from sets
+             where workout_exercise_id = \(workoutExerciseID) and exercise_slug = \(slug)
+               and set_index = \(setIndex)
+            """)
+        for try await (id) in rows.decode(String.self) { return id }
+        return nil
+    }
+
     // MARK: - День плана по идентификатору
 
     /// Строка `planned_days` вместе с неделей, которой она принадлежит.

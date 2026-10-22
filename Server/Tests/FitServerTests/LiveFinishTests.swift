@@ -58,7 +58,7 @@ struct LiveFinishTests {
             ? LogSetRequest(id: UUID().uuidString, setIndex: index, completedAt: iso(moment),
                             skipped: true, day: Live.today)
             : LogSetRequest(id: UUID().uuidString, setIndex: index, prescribedKg: exercise.prescribedKg,
-                            actualKg: exercise.prescribedKg, actualReps: exercise.targetRepMin,
+                            actualKg: exercise.prescribedKg ?? (exercise.weighted ? 20 : nil), actualReps: exercise.targetRepMin,
                             feedback: .ok, completedAt: iso(moment), day: Live.today)
         try await app.testing().test(
             .POST, "/v1/workouts/\(workout)/exercises/\(exercise.id)/sets",

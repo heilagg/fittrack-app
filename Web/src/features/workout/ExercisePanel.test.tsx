@@ -1,9 +1,11 @@
+import '@testing-library/jest-dom/vitest'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { ExerciseContent, LogSetResponse, Workout, WorkoutExercise } from '../../api/schemas'
 import { ExercisePanel } from './ExercisePanel'
+import { answer, echo } from './logSetTesting'
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
@@ -46,6 +48,7 @@ const exercise: WorkoutExercise = {
   prescribed_kg: 40,
   weight_readiness: 1.0,
   is_calibration: false,
+  weighted: true,
   decision_tree: tree,
   sets: [],
 }
@@ -60,7 +63,7 @@ const content: ExerciseContent = {
   equipment_labels: ['Штанга', 'Скамья'],
 }
 
-const nextTree: LogSetResponse = {
+const nextTree: Pick<LogSetResponse, 'decision_tree'> = {
   decision_tree: { ...tree, nodes: { ...tree.nodes, n0: { ...tree.nodes.n0, weight_kg: 42.5 } } },
 }
 
@@ -117,7 +120,7 @@ describe('экран упражнения', () => {
   })
 
   it('тап: тело подхода — клиентский UUID, set_index с 1, вес дерева, повторы, фидбэк', async () => {
-    const logSet = vi.fn<LogSet>(async () => nextTree)
+    const logSet = vi.fn<LogSet>(answer(nextTree))
     mount(logSet)
     tap('ok')
     await flush()
@@ -144,7 +147,7 @@ describe('экран упражнения', () => {
     tap('easy') // 10 повторов при rep_max 10 → easy_at_or_above_max
     expect(weight()).toBe('42.5 кг')
     expect(screen.getByTestId('set-counter').textContent).toBe('Подход 2 из 3')
-    await act(async () => resolve(nextTree))
+    await act(async () => resolve(echo(nextTree, logSet)))
     expect(weight()).toBe('42.5 кг') // ответ сервера согласован с показанным
   })
 
@@ -157,7 +160,7 @@ describe('экран упражнения', () => {
     expect(selected()).toEqual([])
     tap('hard')
     expect(selected()).toEqual(['hard'])
-    await act(async () => resolve(nextTree))
+    await act(async () => resolve(echo(nextTree, logSet)))
     await waitFor(() => expect(selected()).toEqual([]))
   })
 
@@ -189,7 +192,7 @@ describe('экран упражнения', () => {
     const logSet = vi
       .fn<LogSet>()
       .mockRejectedValueOnce(new NetworkError('/v1/x', new TypeError('network')))
-      .mockResolvedValueOnce(nextTree)
+      .mockImplementationOnce(answer(nextTree))
     const client = mount(logSet)
     tap('ok')
     await flush()
@@ -216,7 +219,7 @@ describe('экран упражнения', () => {
   })
 
   it('подтверждённый подход попадает в кеш с новым деревом, номер подхода растёт', async () => {
-    const client = mount(vi.fn<LogSet>(async () => nextTree))
+    const client = mount(vi.fn<LogSet>(answer(nextTree)))
     tap('ok')
     await flush()
     const cached = client.getQueryData<Workout>(['workout', 'w-1'])!.exercises[0]!
@@ -230,6 +233,7 @@ describe('экран упражнения', () => {
       ...exercise,
       slug: 'pushup_bw',
       prescribed_kg: undefined,
+      weighted: false,
       decision_tree: {
         start: 'n0',
         nodes: {
@@ -238,7 +242,7 @@ describe('экран упражнения', () => {
         },
       },
     }
-    const logSet = vi.fn<LogSet>(async () => ({ decision_tree: bodyweight.decision_tree! }))
+    const logSet = vi.fn<LogSet>(answer({ decision_tree: bodyweight.decision_tree! }))
     mount(logSet, bodyweight)
     expect(weight()).toBe('Без веса')
     tap('ok')
@@ -277,28 +281,28 @@ describe('экран упражнения', () => {
 
 describe('таймер отдыха после подхода', () => {
   it('120 с по умолчанию упражнения при готовности 1.0', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree))
+    mount(vi.fn<LogSet>(answer(nextTree)))
     tap('ok')
     await flush()
     expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых 2:00')
   })
 
   it('«тяжело» прибавляет 30 секунд', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree))
+    mount(vi.fn<LogSet>(answer(nextTree)))
     tap('hard')
     await flush()
     expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых 2:30')
   })
 
   it('низкая готовность удлиняет отдых на 20%', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree), { ...exercise, weight_readiness: 0.85 })
+    mount(vi.fn<LogSet>(answer(nextTree)), { ...exercise, weight_readiness: 0.85 })
     tap('ok')
     await flush()
     expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых 2:24')
   })
 
   it('«+30 сек» сдвигает метку, «Пропустить» убирает таймер', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree))
+    mount(vi.fn<LogSet>(answer(nextTree)))
     tap('ok')
     await flush()
     fireEvent.click(screen.getByRole('button', { name: '+30 сек' }))
@@ -309,7 +313,7 @@ describe('таймер отдыха после подхода', () => {
   })
 
   it('отсчёт идёт от метки: после «заморозки» на минуту остаётся минута', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree))
+    mount(vi.fn<LogSet>(answer(nextTree)))
     tap('ok')
     await flush()
     await act(async () => {
@@ -321,11 +325,12 @@ describe('таймер отдыха после подхода', () => {
 
   it('«Следующий подход» — только во время отдыха, с весом из дерева', async () => {
     let resolve!: (r: LogSetResponse) => void
-    mount(vi.fn<LogSet>(() => new Promise((r) => (resolve = r))))
+    const logSet = vi.fn<LogSet>(() => new Promise((r) => (resolve = r)))
+    mount(logSet)
     expect(screen.queryByTestId('next-set')).toBeNull() // до первого подхода отдыха нет
     tap('easy') // easy_at_or_above_max → 42.5
     expect(screen.getByTestId('next-set').textContent).toBe('Следующий подход: 42.5 кг')
-    await act(async () => resolve(nextTree))
+    await act(async () => resolve(echo(nextTree, logSet)))
     await waitFor(() => expect(screen.getByTestId('next-set').textContent).toBe('Следующий подход: 42.5 кг'))
     await act(async () => {
       vi.setSystemTime(new Date('2026-10-12T09:32:00Z')) // отдых 2:00 истёк
@@ -336,7 +341,7 @@ describe('таймер отдыха после подхода', () => {
   })
 
   it('«Пропустить» убирает и строку следующего подхода', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree))
+    mount(vi.fn<LogSet>(answer(nextTree)))
     tap('ok')
     await flush()
     expect(screen.getByTestId('next-set')).toBeTruthy()
@@ -346,7 +351,8 @@ describe('таймер отдыха после подхода', () => {
 
   it('без веса и после последнего подхода строки нет', async () => {
     const bodyweight = { ...tree, nodes: { n0: { truncated: false, terminates: false, transitions: { ok: 'n0' } } } }
-    mount(vi.fn<LogSet>(async () => ({ decision_tree: bodyweight })), { ...exercise, prescribed_kg: undefined, decision_tree: bodyweight })
+    mount(vi.fn<LogSet>(answer({ decision_tree: bodyweight })),
+      { ...exercise, prescribed_kg: undefined, weighted: false, decision_tree: bodyweight })
     tap('ok')
     await flush()
     expect(screen.getByTestId('rest-clock')).toBeTruthy()
@@ -359,7 +365,7 @@ describe('таймер отдыха после подхода', () => {
   })
 
   it('таймер не блокирует ввод: кнопки фидбэка доступны во время отдыха', async () => {
-    mount(vi.fn<LogSet>(async () => nextTree))
+    mount(vi.fn<LogSet>(answer(nextTree)))
     tap('ok')
     await flush()
     expect(screen.getByTestId('rest-clock')).toBeTruthy()
@@ -367,5 +373,112 @@ describe('таймер отдыха после подхода', () => {
     await waitFor(() =>
       expect((document.querySelector('[data-feedback="ok"]') as HTMLButtonElement).disabled).toBe(false),
     )
+  })
+})
+
+describe('вес числом (§13.2, §19.2 п.23)', () => {
+  const input = () => screen.getByTestId('weight-input') as HTMLInputElement
+  const feedbackDisabled = () => (document.querySelector('[data-feedback="ok"]') as HTMLButtonElement).disabled
+  const calibration: WorkoutExercise = {
+    ...exercise,
+    prescribed_kg: undefined,
+    is_calibration: true,
+    decision_tree: {
+      start: 'n0',
+      nodes: {
+        n0: { truncated: false, terminates: false, transitions: { ok: 'n0', failed: 'n1' } },
+        n1: { truncated: false, terminates: false, transitions: {} },
+      },
+    },
+  }
+
+  it('поле предзаполнено весом дерева: один тап шлёт его, следующий вес — мгновенно из ветки', async () => {
+    const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+    mount(logSet)
+    expect(input().value).toBe('40')
+    tap('easy')
+    expect(weight()).toBe('42.5 кг')
+    const body = logSet.mock.calls[0]![2]
+    expect([body.prescribed_kg, body.actual_kg]).toEqual([40, 40])
+  })
+
+  it('набранный вес уходит числом и уводит с дерева; записанный сервером показан явно', async () => {
+    let resolve!: (r: LogSetResponse) => void
+    const logSet = vi.fn<LogSet>(() => new Promise((r) => (resolve = r)))
+    mount(logSet)
+    fireEvent.change(input(), { target: { value: '41,5' } })
+    tap('easy')
+    const body = logSet.mock.calls[0]![2]
+    expect([body.prescribed_kg, body.actual_kg]).toEqual([40, 41.5])
+    expect(weight()).toBe('Ждём сервер…')
+    // Сервер записал ближайшую ступень — 40 кг.
+    await act(async () => resolve({ ...echo(nextTree, logSet), set: { ...echo(nextTree, logSet).set, actual_kg: 40 } }))
+    await waitFor(() => expect(screen.getByTestId('recorded-weight').textContent).toContain('Записано 40 кг'))
+    await waitFor(() => expect(weight()).toBe('42.5 кг'))
+    expect(input().value).toBe('42,5')
+  })
+
+  it('записанный вес совпал с набранным — строки «Записано» нет', async () => {
+    mount(vi.fn<LogSet>(answer(nextTree)))
+    fireEvent.change(input(), { target: { value: '45' } })
+    tap('ok')
+    await flush()
+    await waitFor(() => expect(weight()).toBe('42.5 кг'))
+    expect(screen.queryByTestId('recorded-weight')).toBeNull()
+  })
+
+  it('калибровка без базовой линии: веса нет, поле пустое и обязательное', async () => {
+    const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+    mount(logSet, calibration)
+    expect(weight()).toBe('Введите вес')
+    expect(input().value).toBe('')
+    expect(screen.getByTestId('weight-hint').textContent).toContain('Подберите рабочий вес')
+    expect(feedbackDisabled()).toBe(true)
+    tap('ok')
+    expect(logSet).not.toHaveBeenCalled()
+    fireEvent.change(input(), { target: { value: '22,5' } })
+    expect(feedbackDisabled()).toBe(false)
+    tap('ok')
+    const body = logSet.mock.calls[0]![2]
+    expect(body.actual_kg).toBe(22.5)
+    expect('prescribed_kg' in body).toBe(false)
+    expect(weight()).toBe('Ждём сервер…')
+  })
+
+  it('не число и вне 0–500 — ошибка поля, подход не уходит', () => {
+    const logSet = vi.fn<LogSet>()
+    mount(logSet)
+    for (const text of ['двадцать', '500,5', '-5']) {
+      fireEvent.change(input(), { target: { value: text } })
+      expect(input()).toHaveAttribute('aria-invalid', 'true')
+      expect(screen.getByTestId('weight-hint').textContent).toBe('Вес — число от 0 до 500 кг.')
+      expect(feedbackDisabled()).toBe(true)
+      tap('ok')
+    }
+    expect(logSet).not.toHaveBeenCalled()
+  })
+
+  it('боль в калибровке без веса уходит без actual_kg', async () => {
+    const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+    mount(logSet, calibration)
+    fireEvent.click(screen.getByTestId('pain-button'))
+    const body = logSet.mock.calls[0]![2]
+    expect(body.pain_flag).toBe(true)
+    expect('actual_kg' in body).toBe(false)
+  })
+
+  it('у упражнения без веса поля веса нет', () => {
+    mount(vi.fn(), { ...exercise, slug: 'pushup_bw', prescribed_kg: undefined, weighted: false })
+    expect(screen.queryByTestId('weight-input')).toBeNull()
+  })
+
+  it('set_index_taken — без ошибки поля: тренировка перечитывается', async () => {
+    const logSet = vi.fn<LogSet>().mockRejectedValue(new ApiError(409, 'set_index_taken', 'Этот подход уже записан'))
+    const client = mount(logSet)
+    const invalidate = vi.spyOn(client, 'invalidateQueries')
+    tap('ok')
+    await flush()
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['workout', 'w-1'] })
+    expect(screen.queryByTestId('log-failure')).toBeNull()
   })
 })

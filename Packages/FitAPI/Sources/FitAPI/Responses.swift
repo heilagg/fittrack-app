@@ -367,6 +367,10 @@ public struct WorkoutExerciseDTO: Sendable, Equatable, Codable {
     /// Было ли ЭТО упражнение в калибровке на момент старта (§9.8): снимок
     /// `exercise_states.in_calibration`, а не флаг тренировки.
     public var isCalibration: Bool
+    /// Есть ли у упражнения вес вообще — лестница не `.none` (§20.3). Без него
+    /// клиент не отличил бы «вес ещё не известен» (калибровка без базовой
+    /// линии, §9.8) от «веса нет»: у обоих `prescribed_kg` пуст.
+    public var weighted: Bool
     public var substitutedFrom: String?
     public var substitutionReason: SubstitutionReason?
     /// Дерево §20.9 — поле упражнения, а не отдельная карта: строится оно от
@@ -379,12 +383,12 @@ public struct WorkoutExerciseDTO: Sendable, Equatable, Codable {
         case id, slug, orderIndex = "order_index", targetSets = "target_sets",
              targetRepMin = "target_rep_min", targetRepMax = "target_rep_max",
              targetRIR = "target_rir", prescribedKg = "prescribed_kg",
-             weightReadiness = "weight_readiness", isCalibration = "is_calibration",
+             weightReadiness = "weight_readiness", isCalibration = "is_calibration", weighted,
              substitutedFrom = "substituted_from", substitutionReason = "substitution_reason",
              decisionTree = "decision_tree", sets
     }
 
-    public init(id: String, prescribed: PrescribedExercise, isCalibration: Bool,
+    public init(id: String, prescribed: PrescribedExercise, isCalibration: Bool, weighted: Bool,
                 substitutedFrom: String? = nil, substitutionReason: SubstitutionReason? = nil,
                 decisionTree: DecisionTreeDTO? = nil, sets: [SetDTO] = []) {
         self.id = id
@@ -397,6 +401,7 @@ public struct WorkoutExerciseDTO: Sendable, Equatable, Codable {
         self.prescribedKg = prescribed.prescribedKg
         self.weightReadiness = prescribed.weightReadiness
         self.isCalibration = isCalibration
+        self.weighted = weighted
         self.substitutedFrom = substitutedFrom
         self.substitutionReason = substitutionReason
         self.decisionTree = decisionTree
@@ -521,13 +526,20 @@ public struct CooldownPoseDTO: Sendable, Equatable, Codable {
 /// вторым источником того же числа: разойдясь с показанным, он менял бы цифру
 /// после того, как пользовательница её увидела и приняла. Досрочное завершение
 /// упражнения (§9.3) клиент читает оттуда же — из узла с `terminates`.
+///
+/// **И записанный подход — `set`** (§20.3, §19.2 п.23 (в)). Вес клиент
+/// присылает числом, а пишется ступень лестницы: `set.actual_kg` — то, что
+/// записано, и клиент показывает его, а не то, что отправлял. Это не второй
+/// источник следующего числа: следующее — по-прежнему в дереве.
 public struct LogSetResponseDTO: Sendable, Equatable, Codable {
     public var decisionTree: DecisionTreeDTO
+    public var set: SetDTO
 
-    enum CodingKeys: String, CodingKey { case decisionTree = "decision_tree" }
+    enum CodingKeys: String, CodingKey { case decisionTree = "decision_tree", set }
 
-    public init(decisionTree: DecisionTreeDTO) {
+    public init(decisionTree: DecisionTreeDTO, set: SetDTO) {
         self.decisionTree = decisionTree
+        self.set = set
     }
 }
 

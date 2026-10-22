@@ -2,7 +2,9 @@
 // таймер от абсолютной метки (как таймер отдыха §13.3), автопереход, «+15 сек»
 // и «Пропустить», смена стороны текстом, экран не гаснет. Ввода данных нет.
 //
-// Сессия пишется на сервер дважды: старт при открытии и завершение в конце.
+// Сессия пишется на сервер дважды: старт кнопкой «Начать» и завершение в конце.
+// Открытие проигрывателя запроса не шлёт (§12.2, 2026-10-20): иначе «Назад» и
+// перезагрузка молча начинали новую сессию с новым `id`.
 // `id` создаётся до первой отправки и повторяется при повторе (§20.3). Очереди
 // нет (§20.10): обрыв — явное состояние с кнопкой «Повторить». Профиль не
 // настроен — повтор не поможет, вместо него ссылка на онбординг.
@@ -15,7 +17,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useParams } from 'react-router-dom'
 import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { CooldownPose } from '../../api/schemas'
-import { cooldownTimeline, EXTEND_STEP_SECONDS, secondsLeft, stepCaption, timelineOf, type Step } from '../../stretch/timeline'
+import { cooldownTimeline, EXTEND_STEP_SECONDS, secondsLeft, stepCaption, timelineOf, totalSeconds, type Step } from '../../stretch/timeline'
+import { formatMinutes } from '../../ui/format'
 import { useWakeLock } from '../../workout/wakeLock'
 import { formatClock } from '../../workout/rest'
 import { ExerciseFrames } from '../workout/Illustration'
@@ -123,12 +126,6 @@ function Player({
   }
 
   useEffect(() => {
-    startSession.mutate()
-    // Старт ровно один раз на открытие: повтор — кнопкой при обрыве.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
     if (!started || finished || saving || failure !== null) return
     const tick = () => {
       const remaining = secondsLeft(endAt, now())
@@ -155,18 +152,64 @@ function Player({
     )
   }
 
+  const exit = (
+    <p>
+      {/* Выход посреди сессии: незавершённая сессия на сервере остаётся без
+          `finished_at` и в историю не попадает (§12.2). */}
+      <Link to={kind === 'standalone' ? '/stretch' : '/'} className="link-back" data-testid="stretch-exit">
+        Выйти
+      </Link>
+    </p>
+  )
+  const failureBlock = failure !== null && (
+    <div role="alert" data-testid="stretch-failure">
+      <p>{failureText(failure)}</p>
+      {needsSetup ? (
+        <Link to="/onboarding" className="button-primary" data-testid="stretch-onboarding">
+          Перейти к настройке
+        </Link>
+      ) : (
+        <button type="button" className="button-primary" onClick={() => (started ? void finish() : startSession.mutate())}>
+          Повторить
+        </button>
+      )}
+    </div>
+  )
+
+  if (!started) {
+    // До старта — состав и кнопка: сессия начинается, когда её начали.
+    const names = [...new Set(steps.map((s) => poses.get(s.pose)?.name ?? s.pose))]
+    return (
+      <main>
+        {exit}
+        <section className="exercise" aria-label="Перед стартом" data-testid="stretch-intro">
+          <h1 className="exercise-title">{title}</h1>
+          <p className="caption">
+            {names.length} {names.length === 1 ? 'поза' : names.length < 5 ? 'позы' : 'поз'} · {formatMinutes(totalSeconds(steps))}
+          </p>
+          <ol className="rows caption" data-testid="stretch-intro-poses">
+            {names.map((name) => (
+              <li key={name}>{name}</li>
+            ))}
+          </ol>
+          {failure === null && (
+            <button type="button" className="button-primary" data-testid="stretch-start" disabled={startSession.isPending}
+              onClick={() => startSession.mutate()}>
+              {startSession.isPending ? 'Начинаем…' : 'Начать'}
+            </button>
+          )}
+          {failureBlock}
+        </section>
+      </main>
+    )
+  }
+
   const step = steps[index]!
   const pose = poses.get(step.pose)
   const caption = stepCaption(step)
   return (
     <main>
-      <p>
-        {/* Выход посреди сессии: незавершённая сессия на сервере остаётся без
-            `finished_at` и в историю не попадает (§12.2). */}
-        <Link to={kind === 'standalone' ? '/stretch' : '/'} className="link-back" data-testid="stretch-exit">
-          Выйти
-        </Link>
-      </p>
+      {exit}
       <section className="exercise" aria-label="Сессия растяжки" data-testid="stretch-player">
         {/* Смена позы объявляется здесь; часы — `timer`, вслух каждую секунду не читаются. */}
         <p className="caption" data-testid="stretch-progress" aria-live="polite">
@@ -202,20 +245,7 @@ function Player({
         </div>
         {saving && <p role="status" className="caption" data-testid="stretch-saving">Записываем сессию…</p>}
         {wakeLock === 'active' && <p className="caption" data-testid="wake-lock">Экран не погаснет</p>}
-        {failure !== null && (
-          <div role="alert" data-testid="stretch-failure">
-            <p>{failureText(failure)}</p>
-            {needsSetup ? (
-              <Link to="/onboarding" className="button-primary" data-testid="stretch-onboarding">
-                Перейти к настройке
-              </Link>
-            ) : (
-              <button type="button" className="button-primary" onClick={() => (started ? void finish() : startSession.mutate())}>
-                Повторить
-              </button>
-            )}
-          </div>
-        )}
+        {failureBlock}
       </section>
     </main>
   )

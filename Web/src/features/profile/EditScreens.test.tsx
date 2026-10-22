@@ -75,6 +75,17 @@ describe('личные данные', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('день')
     expect(patchProfile).not.toHaveBeenCalled()
   })
+
+  it('длительность вне 10–180 минут не уходит', async () => {
+    const patchProfile = vi.fn(async () => profile)
+    mount(<PersonalScreen api={{ getProfileIfStarted: async () => profile, patchProfile } as unknown as ApiClient} />)
+    for (const value of ['9', '181']) {
+      fireEvent.change(await screen.findByLabelText(/Длительность тренировки/), { target: { value } })
+      fireEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('Длительность — от 10 до 180 минут')
+    }
+    expect(patchProfile).not.toHaveBeenCalled()
+  })
 })
 
 describe('инвентарь', () => {

@@ -56,7 +56,8 @@ enum StretchRoutes {
         let input = RawInput(request)
         return try await database.withUserTransaction(authorization: input.authorization) { tx in
             let body = try input.decode(StartStretchSessionRequest.self)
-            let day = try RequestDay.validated(date: body.date, tz: body.tz)
+            // Без допуска в сутки (§20.3): дата старта — сегодняшняя в зоне клиента.
+            let day = try RequestDay.validated(date: body.date, tz: body.tz, skewDays: 0)
             let id = try validate(body, library: library)
             // Строка `stretch_sessions` ссылается на `profiles` (§3.1): без
             // профиля сессию записать не к чему. Онбординг создаёт строку на

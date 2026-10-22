@@ -27,6 +27,7 @@ import { DISCLAIMER_PENDING_LEGAL, ONBOARDING_SUMMARY, RED_FLAG_PENDING_LEGAL } 
 import { CycleSettingsForm } from '../cycle/CycleSettingsForm'
 import { BirthYearField } from './BirthYearField'
 import { EquipmentForm, JOINTS, RestrictionsForm } from '../profile/forms'
+import { birthYearProblem, bodyWeightProblem, heightProblem } from '../../profile/ranges'
 import { ErrorBlock } from '../today/TodayScreen'
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
@@ -265,11 +266,9 @@ function BasicsStep({ api, onDone }: { api: ApiClient; onDone: (sex: string) => 
     const year = Number(birthYear)
     const h = Number(height.replace(',', '.'))
     const w = Number(weight.replace(',', '.'))
-    const thisYear = new Date().getFullYear()
     if (!sex) return setProblem('Выберите пол при рождении')
-    if (!Number.isInteger(year) || year < 1900 || year > thisYear) return setProblem('Проверьте год рождения')
-    if (!(h >= 100 && h <= 250)) return setProblem('Рост — от 100 до 250 см')
-    if (!(w >= 30 && w <= 400)) return setProblem('Вес — от 30 до 400 кг')
+    const rangeProblem = birthYearProblem(year) ?? heightProblem(h) ?? bodyWeightProblem(w)
+    if (rangeProblem) return setProblem(rangeProblem)
     setProblem(null)
     void run(async () => {
       const userId = await currentUserId()

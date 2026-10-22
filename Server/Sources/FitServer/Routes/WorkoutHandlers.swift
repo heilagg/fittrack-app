@@ -255,7 +255,7 @@ extension WorkoutRoutes {
             if let probe = try? input.decode(SetIdentityProbe.self), probe.id == nil {
                 throw APIError(.setIDRequired)
             }
-            let body = try input.decode(LogSetRequest.self)
+            var body = try input.decode(LogSetRequest.self)
             let day = try RequestDay.validated(date: body.date, tz: body.tz)
             let setID = try WeekPlanRoutes.uuid(body.id, "id")
 
@@ -269,6 +269,26 @@ extension WorkoutRoutes {
                   location.workoutID == workout.id
             else { throw APIError(.notFound, details: ["we_id": .string(exerciseID.uuidString)]) }
             let exercise = location.row
+
+            let profile = try await Mapping.readProfile(tx)
+            guard let complete = profile.complete else {
+                throw APIError(.profileIncomplete, details: [
+                    "missing": .string(Mapping.missingProfileFields(profile).joined(separator: ","))
+                ])
+            }
+            // Инвентарь ТРЕНИРОВКИ: лестница принадлежит тому, на чём она идёт.
+            let equipment = try await Mapping.readEquipment(
+                tx, id: workout.equipmentProfileID.flatMap(UUID.init(uuidString:)))
+            let candidate = library.candidates.first { $0.slug == exercise.slug }
+            let ladder = candidate.map {
+                WeightLadder.build(loadType: $0.loadType, profile: equipment.profile)
+            } ?? .none
+
+            // Проверки и округление — ДО сверки с записанным: ретрай присылает то
+            // же число, и сравниваться оно обязано в той же форме, в какой легло.
+            try Self.validateSet(body, targetSets: exercise.targetSets, weighted: ladder != .none)
+            // Вес — числом, сервер кладёт ближайшую ступень (§20.3, §19.2 п.23).
+            body.actualKg = body.actualKg.map { ladder.roundToAchievable($0, direction: .nearest) }
 
             if let stored = try await Mapping.inspectSet(tx, id: setID, against: body) {
                 guard stored.workoutExerciseID == exercise.id else {
@@ -287,19 +307,14 @@ extension WorkoutRoutes {
                 }
             }
 
-            let profile = try await Mapping.readProfile(tx)
-            guard let complete = profile.complete else {
-                throw APIError(.profileIncomplete, details: [
-                    "missing": .string(Mapping.missingProfileFields(profile).joined(separator: ","))
-                ])
+            // Номер подхода уникален в паре (упражнение, слаг) (§20.3). Чтение до
+            // записи даёт ответ с `id` занявшего; уникальный индекс — последняя
+            // линия против гонки двух запросов, и его нарушение — тот же код.
+            if let owner = try await Mapping.setIndexOwner(
+                tx, workoutExerciseID: exerciseID, slug: exercise.slug, setIndex: body.setIndex),
+               owner != setID.uuidString.lowercased() {
+                throw APIError(.setIndexTaken, details: ["set_id": .string(owner)])
             }
-            // Инвентарь ТРЕНИРОВКИ: лестница принадлежит тому, на чём она идёт.
-            let equipment = try await Mapping.readEquipment(
-                tx, id: workout.equipmentProfileID.flatMap(UUID.init(uuidString:)))
-            let candidate = library.candidates.first { $0.slug == exercise.slug }
-            let ladder = candidate.map {
-                WeightLadder.build(loadType: $0.loadType, profile: equipment.profile)
-            } ?? .none
 
             // §20.6: суставы кладёт сервер, из `joint_stress` упражнения и на
             // момент события — переразметка контента уже случившееся не меняет.
@@ -317,6 +332,9 @@ extension WorkoutRoutes {
                 try await Mapping.upsertSet(tx, id: setID, workoutExerciseID: exerciseID, body: body,
                                             prescribedReps: exercise.targetRepMax, painJoints: joints,
                                             timeZone: day.timeZone)
+            } catch let error as PSQLError where error.serverInfo?[.sqlState] == "23505"
+                        && (error.serverInfo?[.constraintName] ?? "") == "sets_index_per_exercise" {
+                throw APIError(.setIndexTaken, details: ["set_index": .int(body.setIndex)])
             } catch let error as PSQLError where Self.isForeignRow(error) {
                 // `id` занят подходом другого пользователя (§20.6): RLS строку не
                 // показывает, и upsert на неё натыкается. Для запроса её нет — 404,
@@ -362,7 +380,24 @@ extension WorkoutRoutes {
             // Только дерево, без готового следующего подхода (§20.3): клиент уже
             // применил ветку, и второй источник того же числа разошёлся бы с
             // показанным после того, как она его увидела.
-            return try WeekPlanRoutes.json(LogSetResponseDTO(decisionTree: tree))
+            guard let recorded = after.body[exercise.id]?.first(where: { $0.id == setID.uuidString.lowercased() })
+            else { throw APIError(.internal) }
+            return try WeekPlanRoutes.json(LogSetResponseDTO(decisionTree: tree, set: recorded))
         }
+    }
+
+    /// Диапазоны тела подхода (§20.3, миграция 0016): тот же check стоит в
+    /// схеме, но сообщение с полем даёт сервер, и до записи.
+    static func validateSet(_ body: LogSetRequest, targetSets: Int, weighted: Bool) throws {
+        func field(_ name: String) -> APIError { APIError(.validationFailed, details: ["field": .string(name)]) }
+        guard (1...(targetSets + 2)).contains(body.setIndex) else { throw field("set_index") }
+        if let reps = body.actualReps, !(0...100).contains(reps) { throw field("actual_reps") }
+        if let kg = body.actualKg, !(0...500).contains(kg) { throw field("actual_kg") }
+        if let kg = body.prescribedKg, !(0...500).contains(kg) { throw field("prescribed_kg") }
+        // Весовой подход без веса не принимается (§9.8): подменять его нулём
+        // значило записать нижнюю ступень как сделанный вес. Пропуск веса не
+        // несёт законно, а о боли сообщают сразу — требовать перед этим вес
+        // нельзя (§8.4).
+        if weighted, !body.skipped, !body.painFlag, body.actualKg == nil { throw field("actual_kg") }
     }
 }
