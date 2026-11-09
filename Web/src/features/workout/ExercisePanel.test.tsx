@@ -103,16 +103,31 @@ function mount(logSet: LogSet, e: WorkoutExercise = exercise, c: ExerciseContent
   return client
 }
 
-const tap = (feedback: string) =>
-  fireEvent.click(document.querySelector(`[data-feedback="${feedback}"]`) as HTMLElement)
+/**
+ * Подход в два шага (§13.2): «Подход выполнен», затем оценка; «Не смог»
+ * отвечает на вопрос о повторах (`reps`).
+ */
+const tap = (feedback: string, reps = '7') => {
+  const done = screen.queryByTestId('set-done')
+  if (done) fireEvent.click(done)
+  const button = document.querySelector(`[data-feedback="${feedback}"]`) as HTMLElement | null
+  if (!button) return
+  fireEvent.click(button)
+  if (feedback === 'failed') {
+    fireEvent.change(screen.getByTestId('failed-reps-input'), { target: { value: reps } })
+    fireEvent.click(screen.getByRole('button', { name: 'Записать' }))
+  }
+}
 const weight = () => screen.getByTestId('weight').textContent
 const flush = () => act(async () => {})
 
 describe('экран упражнения', () => {
-  it('до первого подхода: вес из корня дерева, повторы — верх диапазона, подход 1 из 3', () => {
+  it('до первого подхода: вес из корня дерева, цель — верх диапазона, подход 1 из 3', () => {
     mount(vi.fn())
     expect(weight()).toBe('40 кг')
-    expect(screen.getByTestId('reps').textContent).toBe('10')
+    expect(screen.getByTestId('target').textContent).toBe('10 повторов')
+    // Счётчика повторов нет (§13.2).
+    expect(screen.queryByRole('group', { name: 'Повторы' })).toBeNull()
     expect(screen.getByTestId('set-counter').textContent).toBe('Подход 1 из 3')
     expect(screen.getByTestId('current-exercise').textContent).toBe('Приседания со штангой')
     // Подпись снаряда под названием (§13.2, §6.6): через запятую.
@@ -164,19 +179,64 @@ describe('экран упражнения', () => {
     await waitFor(() => expect(selected()).toEqual([]))
   })
 
-  it('«легко» ниже верха диапазона вес не поднимает (повторы входят предикатом)', async () => {
+  it('до «Подход выполнен» оценок нет и ничего не уходит; после — четыре оценки', () => {
     const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
     mount(logSet)
-    fireEvent.click(screen.getByLabelText('Меньше повторов')) // 9 < 10
-    tap('easy')
-    expect(weight()).toBe('40 кг')
-    expect(logSet.mock.calls[0]![2].actual_reps).toBe(9)
+    expect(document.querySelector('[data-feedback]')).toBeNull()
+    fireEvent.click(screen.getByTestId('set-done'))
+    expect(logSet).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('set-done')).toBeNull()
+    expect([...document.querySelectorAll('[data-feedback]')].map((b) => b.textContent))
+      .toEqual(['Легко', 'Нормально', 'Тяжело', 'Не смог'])
   })
 
-  it('«не смог» уводит вес вниз по дереву', () => {
-    mount(vi.fn<LogSet>(() => new Promise(() => {})))
-    tap('failed')
+  it('«легко», «нормально», «тяжело» — повторы равны цели; ветки — верхние (§20.9)', async () => {
+    for (const [feedback, next] of [['easy', '42.5 кг'], ['ok', '40 кг'], ['hard', '40 кг']] as const) {
+      const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+      mount(logSet)
+      tap(feedback)
+      expect(logSet.mock.calls[0]![2]).toMatchObject({ feedback, actual_reps: 10 })
+      expect(weight(), feedback).toBe(next)
+      cleanup()
+    }
+  })
+
+  it('«не смог» спрашивает повторы, пишет ответ и уводит вес вниз по дереву', () => {
+    const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+    mount(logSet)
+    fireEvent.click(screen.getByTestId('set-done'))
+    fireEvent.click(document.querySelector('[data-feedback="failed"]') as HTMLElement)
+    expect(logSet).not.toHaveBeenCalled()
+    expect(screen.getByLabelText(/Сколько повторов получилось/)).toBeTruthy()
+    const submit = screen.getByRole('button', { name: 'Записать' }) as HTMLButtonElement
+    for (const bad of ['', 'пять', '101', '-1', '2.5']) {
+      fireEvent.change(screen.getByTestId('failed-reps-input'), { target: { value: bad } })
+      expect(submit.disabled, bad).toBe(true)
+    }
+    fireEvent.change(screen.getByTestId('failed-reps-input'), { target: { value: '4' } })
+    fireEvent.click(submit)
+    expect(logSet.mock.calls[0]![2]).toMatchObject({ feedback: 'failed', actual_reps: 4 })
     expect(weight()).toBe('36 кг')
+  })
+
+  it('«не смог» по ошибке — «Другая оценка» возвращает к оценкам, ничего не записав', () => {
+    const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+    mount(logSet)
+    fireEvent.click(screen.getByTestId('set-done'))
+    fireEvent.click(document.querySelector('[data-feedback="failed"]') as HTMLElement)
+    fireEvent.click(screen.getByRole('button', { name: 'Другая оценка' }))
+    expect(screen.queryByTestId('failed-reps')).toBeNull()
+    fireEvent.click(document.querySelector('[data-feedback="ok"]') as HTMLElement)
+    expect(logSet.mock.calls[0]![2]).toMatchObject({ feedback: 'ok', actual_reps: 10 })
+  })
+
+  it('completed_at — момент «Подход выполнен», а не оценки (§20.9)', () => {
+    const logSet = vi.fn<LogSet>(() => new Promise(() => {}))
+    mount(logSet)
+    fireEvent.click(screen.getByTestId('set-done'))
+    vi.setSystemTime(new Date('2026-10-12T09:31:15Z'))
+    fireEvent.click(document.querySelector('[data-feedback="ok"]') as HTMLElement)
+    expect(logSet.mock.calls[0]![2].completed_at).toBe('2026-10-12T09:30:00.000Z')
   })
 
   it('пока подход не подтверждён, следующий ввести нельзя: очереди нет', () => {
@@ -244,7 +304,7 @@ describe('экран упражнения', () => {
     }
     const logSet = vi.fn<LogSet>(answer({ decision_tree: bodyweight.decision_tree! }))
     mount(logSet, bodyweight)
-    expect(weight()).toBe('Без веса')
+    expect(weight()).toBe('Собственный вес')
     tap('ok')
     await flush()
     const body = logSet.mock.calls[0]![2]
@@ -370,15 +430,15 @@ describe('таймер отдыха после подхода', () => {
     await flush()
     expect(screen.getByTestId('rest-clock')).toBeTruthy()
     // Подтверждение доходит до панели через кеш, а он оповещает позже ответа.
-    await waitFor(() =>
-      expect((document.querySelector('[data-feedback="ok"]') as HTMLButtonElement).disabled).toBe(false),
-    )
+    // Следующий подход начинается своей кнопкой «Подход выполнен».
+    await waitFor(() => expect((screen.getByTestId('set-done') as HTMLButtonElement).disabled).toBe(false))
   })
 })
 
 describe('вес числом (§13.2, §19.2 п.23)', () => {
   const input = () => screen.getByTestId('weight-input') as HTMLInputElement
-  const feedbackDisabled = () => (document.querySelector('[data-feedback="ok"]') as HTMLButtonElement).disabled
+  // До «Подход выполнен» вход в подход — одна кнопка; закрыта она — закрыто всё.
+  const feedbackDisabled = () => (screen.getByTestId('set-done') as HTMLButtonElement).disabled
   const calibration: WorkoutExercise = {
     ...exercise,
     prescribed_kg: undefined,
@@ -482,3 +542,29 @@ describe('вес числом (§13.2, §19.2 п.23)', () => {
     expect(screen.queryByTestId('log-failure')).toBeNull()
   })
 })
+
+describe('подпись упражнения без веса (§13.2)', () => {
+  it('резинка — «Резинка», остальное без веса — «Собственный вес»', () => {
+    const bands = {
+      ...exercise, slug: 'band_row', prescribed_kg: undefined, weighted: false,
+      decision_tree: { start: 'n0', nodes: { n0: { truncated: false, terminates: false, transitions: {} } } },
+    }
+    mount(vi.fn(), bands, { ...content, slug: 'band_row', equipment_labels: ['Резинка'] })
+    expect(weight()).toBe('Резинка')
+    cleanup()
+    mount(vi.fn(), bands, { ...content, slug: 'pushup_bw', equipment_labels: [] })
+    expect(weight()).toBe('Собственный вес')
+  })
+})
+
+describe('отдых от «Подход выполнен» (§13.3)', () => {
+  it('таймер стартует на «Подход выполнен», до оценки; «тяжело» добавляет 30 секунд', async () => {
+    mount(vi.fn<LogSet>(() => new Promise(() => {})))
+    fireEvent.click(screen.getByTestId('set-done'))
+    expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых 2:00')
+    expect(screen.queryByTestId('next-set')).toBeNull()
+    fireEvent.click(document.querySelector('[data-feedback="hard"]') as HTMLElement)
+    await waitFor(() => expect(screen.getByTestId('rest-clock').textContent).toBe('Отдых 2:30'))
+  })
+})
+

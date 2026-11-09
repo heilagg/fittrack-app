@@ -412,6 +412,15 @@ a.button-text {
   border-radius: var(--radius-control);
 }
 
+/* «Подход выполнен» — на месте четырёх оценок и той же высоты, во всю ширину (§13.2). */
+.feedback-grid > .set-done {
+  grid-column: 1 / -1;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--font-weight-bold);
+}
+
 .button-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

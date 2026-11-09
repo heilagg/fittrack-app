@@ -100,16 +100,15 @@ function mount(overrides: Partial<ApiClient> = {}) {
 const current = () => screen.findByTestId('current-exercise')
 
 describe('флаг боли (§8.4)', () => {
-  it('подход уходит сразу: pain_flag, вес и повторы с экрана, без фидбэка', async () => {
+  it('подход уходит сразу: pain_flag, вес и цель с экрана, без фидбэка', async () => {
     const { logSet } = mount()
     expect(await current()).toHaveTextContent('Приседания')
     expect(screen.getByTestId('illustration-placeholder')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Меньше повторов' }))
     fireEvent.click(screen.getByTestId('pain-button'))
     await waitFor(() => expect(logSet).toHaveBeenCalledTimes(1))
     const [workoutId, exerciseId, body] = logSet.mock.calls[0]!
     expect([workoutId, exerciseId]).toEqual(['w-1', 'we-1'])
-    expect(body).toMatchObject({ set_index: 1, prescribed_kg: 40, actual_kg: 40, actual_reps: 9, pain_flag: true, skipped: false })
+    expect(body).toMatchObject({ set_index: 1, prescribed_kg: 40, actual_kg: 40, actual_reps: 10, pain_flag: true, skipped: false })
     expect(body.feedback).toBeUndefined()
   })
 
@@ -162,6 +161,7 @@ describe('флаг боли (§8.4)', () => {
   it('флаг боли не в ряду фидбэка', async () => {
     mount()
     await current()
+    fireEvent.click(screen.getByTestId('set-done'))
     const row = screen.getByRole('group', { name: 'Как прошёл подход' })
     expect(within(row).queryByTestId('pain-button')).toBeNull()
   })
@@ -171,9 +171,7 @@ describe('замена в один тап (§13.4)', () => {
   it('«Заменить упражнение» — альтернативы user_choice, причина выбирается', async () => {
     const { getAlternatives, substitute } = mount()
     await current()
-    // Повторы, введённые для прежнего упражнения, к новому не переезжают.
-    fireEvent.click(screen.getByRole('button', { name: 'Меньше повторов' }))
-    expect(screen.getByTestId('reps')).toHaveTextContent('9')
+    expect(screen.getByTestId('target')).toHaveTextContent('10 повторов')
     fireEvent.click(screen.getByTestId('substitute-button'))
     const panel = await screen.findByTestId('alternatives')
     expect(panel).toHaveAttribute('data-purpose', 'user_choice')
@@ -182,7 +180,8 @@ describe('замена в один тап (§13.4)', () => {
     fireEvent.click(await within(panel).findByRole('button', { name: 'Выбрать' }))
     await waitFor(() => expect(substitute).toHaveBeenCalledWith('w-1', 'we-1', 'hip_thrust_barbell', 'occupied'))
     expect(await current()).toHaveTextContent('Ягодичный мост')
-    expect(screen.getByTestId('reps')).toHaveTextContent('12')
+    // Цель — нового упражнения.
+    expect(screen.getByTestId('target')).toHaveTextContent('12 повторов')
   })
 
   it('«Отмена» возвращает к тому же упражнению без записи', async () => {

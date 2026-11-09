@@ -214,6 +214,7 @@ describe('завершение тренировки', () => {
     const { api } = mount({ logSet: vi.fn(() => new Promise<LogSetResponse>((r) => (resolve = r))) })
     await ready()
     expect((finishButton() as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(screen.getByTestId('set-done'))
     fireEvent.click(document.querySelector('[data-feedback="ok"]') as HTMLElement)
     await flush()
     expect((finishButton() as HTMLButtonElement).disabled).toBe(true)
