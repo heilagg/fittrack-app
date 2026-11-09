@@ -5,7 +5,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { cycleNo, disclaimer, trainingDays, verifyLink, tapFeedback, finishWorkout } from './helpers'
+import { cycleNo, disclaimer, trainingDays, verifyLink, tapFeedback, finishWorkout, readyForNextSet } from './helpers'
 
 const dir = fileURLToPath(new URL('../design-screens', import.meta.url))
 const shot = (page: Page, name: string) => page.screenshot({ path: join(dir, `${name}.png`), fullPage: true, animations: 'disabled' })
@@ -97,7 +97,7 @@ test('онбординг, Сегодня, привязка, тренировка
   await page.goto(await verifyLink(email))
   await page.getByRole('button', { name: 'Начать тренировку' }).click()
   await expect(page.getByTestId('current-exercise')).toBeVisible()
-  await expect(page.getByTestId('weight')).toHaveText(/кг|Без веса/)
+  await expect(page.getByTestId('weight')).toHaveText(/кг|Собственный вес|Резинка|Введите вес/)
   await shot(page, '14-workout-set')
 
   // Подход «в пути»: ответ сервера задержан, выбранная кнопка залита.
@@ -108,9 +108,9 @@ test('онбординг, Сегодня, привязка, тренировка
   await tapFeedback(page, 'ok')
   await expect(page.getByTestId('rest-clock')).toBeVisible()
   await shot(page, '15-workout-set-pending')
-  // Подтверждён: кнопки фидбэка снова доступны. Перехват снимается после
+  // Подтверждён: следующий подход снова доступен. Перехват снимается после
   // ответа — иначе задержанный запрос уже некому отпустить.
-  await expect(page.getByRole('button', { name: 'Нормально' })).toBeEnabled({ timeout: 15_000 })
+  await readyForNextSet(page, 15_000)
   await page.unroute('**/exercises/*/sets')
   await shot(page, '16-workout-rest')
 
@@ -135,10 +135,9 @@ test('онбординг, Сегодня, привязка, тренировка
     for (const node of Object.values(body.decision_tree.nodes)) node.weight_kg = 14
     await route.fulfill({ response, json: body })
   })
-  const normal = page.getByRole('button', { name: 'Нормально' })
-  await expect(normal).toBeEnabled({ timeout: 15_000 })
-  await normal.click()
-  await expect(normal).toBeEnabled({ timeout: 15_000 })
+  await readyForNextSet(page, 15_000)
+  await tapFeedback(page, 'ok')
+  await readyForNextSet(page, 15_000)
   await expect(page.getByTestId('next-set')).toBeVisible()
   await shot(page, '18-workout-rest-next-set-staged')
   await page.unroute('**/exercises/*/sets')

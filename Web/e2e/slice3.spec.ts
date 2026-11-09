@@ -32,7 +32,11 @@ test.describe('экран упражнения', () => {
     if (labels!.length > 0) await expect(page.getByTestId('equipment-line')).toHaveText(labels!.join(', '))
     else await expect(page.getByTestId('equipment-line')).toHaveCount(0)
     // Весовое упражнение в калибровке без базовой линии спрашивает вес (§9.8).
-    await expect(page.getByTestId('weight')).toHaveText(/кг|Без веса|Введите вес/)
+    // Весовое упражнение в калибровке без базовой линии спрашивает вес (§9.8);
+    // без веса — «Собственный вес» или «Резинка» (§13.2).
+    await expect(page.getByTestId('weight')).toHaveText(/кг|Собственный вес|Резинка|Введите вес/)
+    // Над подходом — цель, счётчика повторов нет (§13.2).
+    await expect(page.getByTestId('target')).toHaveText(/^\d+ повтор/)
     expect(await counterText(page)).toMatchObject({ n: 1 })
     await expect(page.getByTestId('wake-lock')).toBeVisible()
 
@@ -73,6 +77,7 @@ test.describe('экран упражнения', () => {
     await expect(page.getByTestId('log-failure')).toContainText('Нет связи')
     // Очереди нет: следующий подход ввести нельзя.
     await expect(feedback(page, 'ok')).toBeDisabled()
+    await expect(page.getByTestId('set-done')).toHaveCount(0)
 
     await page.unroute('**/exercises/*/sets')
     await page.getByRole('button', { name: 'Повторить' }).click()
@@ -119,12 +124,46 @@ test.describe('экран упражнения', () => {
     // ближайшая ступень — 20.
     await input.fill('21')
     const saved = page.waitForResponse((r) => r.url().includes('/sets') && r.request().method() === 'POST')
+    await page.getByTestId('set-done').click()
     await page.locator('[data-feedback="ok"]').click()
     const response = await saved
     expect(response.status()).toBe(200)
     const body = (await response.json()) as { set: { actual_kg: number } }
     expect(body.set.actual_kg).toBe(20)
     await expect(page.getByTestId('recorded-weight')).toContainText('Записано 20 кг')
+  })
+
+  test('подход в два шага: «Подход выполнен», затем оценка; «Не смог» пишет ответ на вопрос (§13.2)', async ({ page }) => {
+    await startLinkedWorkout(page)
+    const weight = page.getByTestId('weight-input')
+    if ((await weight.count()) > 0 && (await weight.inputValue()) === '') await weight.fill('20')
+    const target = Number(/^(\d+)/.exec((await page.getByTestId('target').textContent()) ?? '')![1])
+
+    // До «Подход выполнен» оценок нет; после — отдых уже идёт, а запроса ещё нет.
+    await expect(page.locator('[data-feedback]')).toHaveCount(0)
+    const posts: { feedback: string; actual_reps: number; completed_at: string }[] = []
+    page.on('request', (r) => {
+      if (r.method() === 'POST' && r.url().includes('/sets')) posts.push(r.postDataJSON())
+    })
+    await page.getByTestId('set-done').click()
+    await expect(page.getByTestId('rest-clock')).toContainText('Отдых')
+    await expect(page.locator('[data-feedback]')).toHaveCount(4)
+    expect(posts).toEqual([])
+
+    const first = page.waitForResponse((r) => r.url().includes('/sets') && r.request().method() === 'POST')
+    await page.locator('[data-feedback="ok"]').click()
+    expect((await first).status()).toBe(200)
+    expect(posts[0]).toMatchObject({ feedback: 'ok', actual_reps: target })
+
+    await expect(page.getByTestId('set-done')).toBeEnabled()
+    await page.getByTestId('set-done').click()
+    await page.locator('[data-feedback="failed"]').click()
+    await page.getByTestId('failed-reps-input').fill('3')
+    const second = page.waitForResponse((r) => r.url().includes('/sets') && r.request().method() === 'POST')
+    await page.getByRole('button', { name: 'Записать' }).click()
+    expect((await second).status()).toBe(200)
+    expect(posts[1]).toMatchObject({ feedback: 'failed', actual_reps: 3 })
+    expect(posts).toHaveLength(2)
   })
 })
 

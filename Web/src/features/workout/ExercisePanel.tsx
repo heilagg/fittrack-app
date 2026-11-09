@@ -1,10 +1,16 @@
 // Экран упражнения (SPEC §13.2), срез 3: логирование подходов.
 //
-// Что здесь происходит на тап по кнопке фидбэка:
-//   1. по дереву §20.9 мгновенно выбирается ветка и показывается вес
-//      следующего подхода — без запроса, ради этого дерево и существует;
-//   2. стартует таймер отдыха (от абсолютной метки);
-//   3. факт подхода уходит на сервер ОТДЕЛЬНЫМ запросом с клиентским UUID.
+// Подход отмечается в два шага (§13.2, 2026-11-09). Над подходом — цель:
+// вес и `target_rep_max` повторов, счётчика повторов нет.
+//   1. «Подход выполнен» — подход кончился: запоминается момент
+//      (`completed_at`) и стартует таймер отдыха (§13.3). На сервер ничего не
+//      уходит.
+//   2. Оценка. «Легко», «Нормально», «Тяжело» — повторы равны цели; «Не смог»
+//      спрашивает «Сколько повторов получилось?». Дальше — как прежде: по
+//      дереву §20.9 мгновенно выбирается ветка и показывается вес следующего
+//      подхода, а факт подхода уходит ОДНИМ запросом с клиентским UUID — уже с
+//      оценкой, повторами и моментом из шага 1. Дописывать оценку к записанному
+//      подходу нельзя: завершённый подход неизменяем (§4.3).
 //
 // Очереди и офлайна нет (§20.10): пока подход не подтверждён, следующий
 // ввести нельзя, а обрыв показывается прямо, с кнопкой «Повторить». Повтор
@@ -30,7 +36,7 @@ import { ApiError, NetworkError, type ApiClient } from '../../api/client'
 import type { ExerciseContent, SetRow, Workout, WorkoutExercise } from '../../api/schemas'
 import { equipmentLine } from '../../onboarding/labels'
 import { currentSets } from '../../workout/progress'
-import { restDuration } from '../../workout/rest'
+import { HARD_EXTRA_SECONDS, restDuration } from '../../workout/rest'
 import { applyBranch, branchFor, currentStep, type Branch, type Feedback, type Step } from '../../workout/tree'
 import { formatWeight, parseWeight, WEIGHT_MAX_KG } from '../../workout/weight'
 import { ExerciseFrames } from './Illustration'
@@ -51,6 +57,16 @@ const FEEDBACK: { value: Feedback; label: string }[] = [
   { value: 'hard', label: 'Тяжело' },
   { value: 'failed', label: 'Не смог' },
 ]
+
+/** «1 повтор», «3 повтора», «15 повторов». */
+export function repsWord(n: number): string {
+  const tens = n % 100
+  const ones = n % 10
+  if (tens >= 11 && tens <= 14) return `${n} повторов`
+  if (ones === 1) return `${n} повтор`
+  if (ones >= 2 && ones <= 4) return `${n} повтора`
+  return `${n} повторов`
+}
 
 function failureText(error: unknown): string {
   if (error instanceof NetworkError) return 'Нет связи с сервером. Подход не записан — повторите.'
@@ -80,7 +96,14 @@ export function ExercisePanel({
 }) {
   const queryClient = useQueryClient()
   const tree = exercise.decision_tree
-  const [reps, setReps] = useState(exercise.target_rep_max)
+  // Цель подхода — верх диапазона (§13.2, §20.9): ровно при нём «легко»
+  // ведёт к росту, а «тяжело» оставляет как есть.
+  const target = exercise.target_rep_max
+  /** Момент «Подход выполнен»; `null` — подход ещё идёт. */
+  const [doneAt, setDoneAt] = useState<number | null>(null)
+  /** После «Не смог» — вопрос о повторах. */
+  const [asking, setAsking] = useState(false)
+  const [failedReps, setFailedReps] = useState('')
   const [sent, setSent] = useState<Pending | null>(null)
   const [failure, setFailure] = useState<unknown>(null)
   const [sending, setSending] = useState(false)
@@ -130,7 +153,6 @@ export function ExercisePanel({
           ),
         },
       )
-      setReps(exercise.target_rep_max)
       setTypedKg(null)
       setRecordedNote(
         logged.actual_kg !== undefined && logged.actual_kg !== body.actual_kg ? logged.actual_kg : null,
@@ -150,8 +172,26 @@ export function ExercisePanel({
     }
   }
 
-  function log(feedback: Feedback) {
-    if (pending || sending || !tree || base.kind !== 'node' || weightInvalid) return
+  /** «Подход выполнен»: момент конца подхода и отдых, без записи (§13.2, §13.3). */
+  function markDone() {
+    if (pending || sending || base.kind !== 'node' || weightInvalid || doneAt !== null) return
+    const now = clock.now()
+    setDoneAt(now)
+    const rest = restDuration(content?.default_rest_seconds ?? 90, exercise.weight_readiness, 'ok')
+    setRestEndAt(now + rest * 1000)
+  }
+
+  /** Оценка: «Не смог» сначала спрашивает повторы, остальные пишут цель. */
+  function rate(feedback: Feedback) {
+    if (feedback === 'failed') {
+      setAsking(true)
+      return
+    }
+    log(feedback, target)
+  }
+
+  function log(feedback: Feedback, reps: number) {
+    if (pending || sending || !tree || base.kind !== 'node' || weightInvalid || doneAt === null) return
     const branch: Branch = branchFor(feedback, reps, exercise.target_rep_min, exercise.target_rep_max)
     const body: Pending['body'] = {
       id: crypto.randomUUID(),
@@ -161,7 +201,8 @@ export function ExercisePanel({
       actual_reps: reps,
       feedback,
       pain_flag: false,
-      completed_at: new Date().toISOString(),
+      // Конец подхода — «Подход выполнен», а не оценка (§13.2, §20.9).
+      completed_at: new Date(doneAt).toISOString(),
       skipped: false,
     }
     // Мгновенно: следующий вес — из дерева, до ответа сервера. Вес, набранный
@@ -169,8 +210,11 @@ export function ExercisePanel({
     const offTree = exercise.weighted && typed !== recommended
     setRecordedNote(null)
     setSent({ body, next: offTree ? { kind: 'ask-server' } : applyBranch(tree, base.nodeId, branch) })
-    const rest = restDuration(content?.default_rest_seconds ?? 90, exercise.weight_readiness, feedback)
-    setRestEndAt(clock.now() + rest * 1000)
+    // Отдых уже идёт с «Подход выполнен»; «тяжело» добавляет свои 30 секунд.
+    if (feedback === 'hard') setRestEndAt((end) => (end ?? clock.now()) + HARD_EXTRA_SECONDS * 1000)
+    setDoneAt(null)
+    setAsking(false)
+    setFailedReps('')
     void send(body)
   }
 
@@ -187,19 +231,24 @@ export function ExercisePanel({
       set_index: confirmed + 1,
       ...(recommended !== undefined ? { prescribed_kg: recommended } : {}),
       ...(typed !== null ? { actual_kg: typed } : {}),
-      actual_reps: reps,
+      actual_reps: target,
       pain_flag: true,
-      completed_at: new Date().toISOString(),
+      completed_at: new Date(doneAt ?? clock.now()).toISOString(),
       skipped: false,
     }
     setRecordedNote(null)
     setSent({ body, next: base })
     setRestEndAt(null)
+    setDoneAt(null)
+    setAsking(false)
     void send(body)
   }
 
   const nextSetNumber = confirmed + inFlight + 1
   const weight = view.kind === 'node' ? view.weightKg : undefined
+  const failedCount = /^\d{1,3}$/.test(failedReps.trim()) ? Number(failedReps.trim()) : null
+  const failedValid = failedCount !== null && failedCount <= 100
+  const blocked = pending !== null || sending || base.kind !== 'node' || weightInvalid
 
   return (
     <section aria-label="Упражнение" className="exercise">
@@ -256,7 +305,10 @@ export function ExercisePanel({
               ) : exercise.weighted ? (
                 <span className="hero-text">Введите вес</span>
               ) : (
-                <span className="hero-text">Без веса</span>
+                // Подпись — по снаряду из контента (§13.2): резинка не собственный вес.
+                <span className="hero-text">
+                  {content?.equipment_labels.includes('Резинка') ? 'Резинка' : 'Собственный вес'}
+                </span>
               )}
             </p>
             {recordedNote !== null && (
@@ -288,48 +340,61 @@ export function ExercisePanel({
                 </span>
               </p>
             )}
-            <p className="caption">
-              Цель: {exercise.target_rep_min}–{exercise.target_rep_max} повторов
+            <p data-testid="target" className="reps-value">
+              {repsWord(target)}
             </p>
-            <div className="stepper" role="group" aria-label="Повторы">
-              <button
-                type="button"
-                className="round-button"
-                aria-label="Меньше повторов"
-                onClick={() => setReps((r) => Math.max(1, r - 1))}
-                disabled={pending !== null}
-              >
-                −
-              </button>
-              <span data-testid="reps" className="reps-value">
-                {reps}
-              </span>
-              <button
-                type="button"
-                className="round-button"
-                aria-label="Больше повторов"
-                onClick={() => setReps((r) => Math.min(100, r + 1))}
-                disabled={pending !== null}
-              >
-                +
+          </div>
+          {doneAt === null && pending === null ? (
+            // Пока подход идёт — одна кнопка на месте оценок и того же размера.
+            <div className="feedback-grid">
+              <button type="button" className="set-done" data-testid="set-done" disabled={blocked} onClick={markDone}>
+                Подход выполнен
               </button>
             </div>
-          </div>
-          <div role="group" aria-label="Как прошёл подход" className="feedback-grid">
-            {FEEDBACK.map((f) => (
-              <button
-                key={f.value}
-                type="button"
-                data-feedback={f.value}
-                // Подход в пути отмечен своей кнопкой, пока сервер его не подтвердил.
-                data-selected={pending?.body.feedback === f.value}
-                disabled={pending !== null || sending || base.kind !== 'node' || weightInvalid}
-                onClick={() => log(f.value)}
-              >
-                {f.label}
+          ) : asking ? (
+            <form
+              className="card"
+              data-testid="failed-reps"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (failedValid) log('failed', failedCount!)
+              }}
+            >
+              <label className="field">
+                Сколько повторов получилось?{' '}
+                <input
+                  data-testid="failed-reps-input"
+                  inputMode="numeric"
+                  autoFocus
+                  value={failedReps}
+                  onChange={(e) => setFailedReps(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="button-primary" disabled={!failedValid || blocked}>
+                Записать
               </button>
-            ))}
-          </div>
+              {/* Промахнулась мимо «Не смог» — вернуться к оценкам, ничего не записав. */}
+              <button type="button" className="button-text" onClick={() => setAsking(false)}>
+                Другая оценка
+              </button>
+            </form>
+          ) : (
+            <div role="group" aria-label="Как прошёл подход" className="feedback-grid">
+              {FEEDBACK.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  data-feedback={f.value}
+                  // Подход в пути отмечен своей кнопкой, пока сервер его не подтвердил.
+                  data-selected={pending?.body.feedback === f.value}
+                  disabled={blocked}
+                  onClick={() => rate(f.value)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -358,7 +423,8 @@ export function ExercisePanel({
         <RestTimer
           key={restEndAt}
           endAt={restEndAt}
-          nextWeightKg={terminated || allDone ? undefined : weight}
+          // До оценки следующий вес неизвестен: его даёт ветка дерева.
+          nextWeightKg={terminated || allDone || doneAt !== null ? undefined : weight}
           onExtend={(seconds) => setRestEndAt((end) => (end ?? clock.now()) + seconds * 1000)}
           onSkip={() => setRestEndAt(null)}
         />

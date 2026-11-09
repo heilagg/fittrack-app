@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { completeOnboarding, linkAfterOnboarding, startLinkedWorkout, todayIsoWeekday, trainingDays, tapFeedback, finishWorkout } from './helpers'
+import { completeOnboarding, linkAfterOnboarding, readyForNextSet, startLinkedWorkout, todayIsoWeekday, trainingDays, tapFeedback, finishWorkout } from './helpers'
 
 // «Сегодня»: календарь недели и чип типа дня против настоящих Supabase и
 // Server. Онбординг ставит три дня, первый из которых сегодняшний, средний
@@ -44,7 +44,7 @@ test('календарь: сегодня залито, будущие дни т�
 test('после завершённой тренировки сегодняшний день отмечен выполненным', async ({ page }) => {
   await startLinkedWorkout(page)
   await tapFeedback(page, 'ok')
-  await expect(page.getByRole('button', { name: 'Нормально' })).toBeEnabled()
+  await readyForNextSet(page)
   await finishWorkout(page)
   await expect(page.getByTestId('summary')).toBeVisible()
   await page.getByRole('link', { name: 'Сегодня' }).click()
