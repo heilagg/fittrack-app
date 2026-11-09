@@ -153,10 +153,22 @@ export async function startLinkedWorkout(page: Page): Promise<string> {
  * линии спрашивает вес первого подхода (§9.8), и кнопки до ввода закрыты:
  * пустое поле заполняется 20 кг — ступень и гантелей, и грифа посева.
  */
-export async function tapFeedback(page: Page, value: 'easy' | 'ok' | 'hard' | 'failed') {
+export async function tapFeedback(page: Page, value: 'easy' | 'ok' | 'hard' | 'failed', failedReps = '5') {
   const weight = page.getByTestId('weight-input')
   if ((await weight.count()) > 0 && (await weight.inputValue()) === '') await weight.fill('20')
+  // Подход — в два шага (§13.2): «Подход выполнен», затем оценка; «Не смог»
+  // отвечает, сколько повторов получилось.
+  await page.getByTestId('set-done').click()
   await page.locator(`[data-feedback="${value}"]`).click()
+  if (value === 'failed') {
+    await page.getByTestId('failed-reps-input').fill(failedReps)
+    await page.getByRole('button', { name: 'Записать' }).click()
+  }
+}
+
+/** Следующий подход можно начинать: «Подход выполнен» снова доступна. */
+export async function readyForNextSet(page: Page, timeout?: number) {
+  await expect(page.getByTestId('set-done')).toBeEnabled(timeout === undefined ? undefined : { timeout })
 }
 
 /**
