@@ -88,12 +88,20 @@ struct LivePreviewTests {
                 #expect(sliced.plan.days.count == 1,
                         Comment(rawValue: "срез по \(Mapping.LocalTime.iso(target))"))
 
-                // Тот же день, что и в недельном ответе: срез не пересчитывает.
                 let id = try #require(sliced.plan.days.first?.dayID)
                 let fromWeek = try #require(full.plan.days.first { $0.dayID == id })
-                #expect(sliced.plan.days.first?.kind == fromWeek.kind)
-                #expect(sliced.plan.days.first?.session?.exercises.map(\.slug)
-                        == fromWeek.session?.exercises.map(\.slug))
+                #expect(sliced.plan.days.first?.date == fromWeek.date, "дата дня — плановая")
+                if Mapping.LocalTime.iso(target) < Live.today.date {
+                    // Прошедший не отмеченный день в неделе не собран, а его
+                    // предпросмотр — состав на сегодня: так его и начнут (§7.1).
+                    #expect(fromWeek.cause?.cause == .past)
+                    #expect(sliced.plan.days.first?.kind == "session")
+                } else {
+                    // Тот же день, что и в недельном ответе: срез не пересчитывает.
+                    #expect(sliced.plan.days.first?.kind == fromWeek.kind)
+                    #expect(sliced.plan.days.first?.session?.exercises.map(\.slug)
+                            == fromWeek.session?.exercises.map(\.slug))
+                }
             }
         }
     }

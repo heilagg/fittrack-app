@@ -234,6 +234,11 @@ export const weekDaySchema = dayOutcomeSchema.extend({
   session_kind: sessionKindSchema,
   session_kind_name: z.string(),
   day_id: z.string(),
+  /**
+   * Фактическая дата тренировки дня (§7.1, §20.3): у начатого и выполненного.
+   * Тренировку пятницы можно сделать в среду — выполнение отмечается на ней.
+   */
+  performed_on: z.string().optional(),
 })
 export type WeekDay = z.infer<typeof weekDaySchema>
 

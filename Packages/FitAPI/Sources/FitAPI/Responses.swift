@@ -148,15 +148,23 @@ public struct WeekDayDTO: Sendable, Equatable, Codable {
     public var cause: DayCauseDTO?
     public var losesPlannedVolume: Bool
     public var session: BuiltSessionDTO?
+    /// Фактическая дата тренировки дня, ISO (§7.1, §20.3): у дня с причиной
+    /// `started` или `done`. Тренировку пятницы можно сделать в среду, и лента
+    /// отмечает выполнение на этой дате, а не на `date`.
+    public var performedOn: String?
 
     enum CodingKeys: String, CodingKey {
         case date, sessionKind = "session_kind", sessionKindName = "session_kind_name",
-             dayID = "day_id", kind, cause, losesPlannedVolume = "loses_planned_volume", session
+             dayID = "day_id", kind, cause, losesPlannedVolume = "loses_planned_volume", session,
+             performedOn = "performed_on"
     }
 
     /// `date` — уже в ISO: перевод дня шкалы FitCore в дату живёт в `Mapping/`
     /// сервера (§20.7), и второй реализации календаря здесь не заводится.
-    public init(_ o: DayOutcome, date: String, dayKind: SessionKind) {
+    /// `performedOn` берётся только у дня, где тренировка есть (`started`,
+    /// `done`): у остальных ключ опускается, даже если вызывающая сторона его
+    /// передала.
+    public init(_ o: DayOutcome, date: String, dayKind: SessionKind, performedOn: String? = nil) {
         let day = DayOutcomeDTO(o, dayKind: dayKind)
         self.date = date
         sessionKind = dayKind.rawValue
@@ -166,6 +174,7 @@ public struct WeekDayDTO: Sendable, Equatable, Codable {
         cause = day.cause
         losesPlannedVolume = day.losesPlannedVolume
         session = day.session
+        self.performedOn = o.cause == .started || o.cause == .done ? performedOn : nil
     }
 }
 
@@ -181,10 +190,15 @@ public struct WeekPlanDTO: Sendable, Equatable, Codable {
     /// `week` — строки недели с датами в ISO. В ответ попадают те, у которых
     /// есть итог в `plan` (у `/preview` это срез одного дня), по `date`: ISO-даты
     /// сортируются строкой так же, как календарём.
-    public init(_ plan: WeekPlan, week: [(day: PlannedDay, isoDate: String)]) {
+    ///
+    /// `performedOn` — фактические даты тренировок по `day_id`, ISO (§20.3).
+    public init(_ plan: WeekPlan, week: [(day: PlannedDay, isoDate: String)], performedOn: [String: String]) {
         days = week
             .compactMap { entry in
-                plan.days[entry.day.id].map { WeekDayDTO($0, date: entry.isoDate, dayKind: entry.day.kind) }
+                plan.days[entry.day.id].map {
+                    WeekDayDTO($0, date: entry.isoDate, dayKind: entry.day.kind,
+                               performedOn: performedOn[entry.day.id])
+                }
             }
             .sorted { ($0.date, $0.dayID) < ($1.date, $1.dayID) }
         statusLines = plan.statusLines.map { ReasonDTO($0) }

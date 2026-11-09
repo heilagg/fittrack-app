@@ -4,7 +4,7 @@
 // каким днём — `today/calendar.ts`; здесь только разметка.
 
 import type { CalendarDay } from '../../today/calendar'
-import { formatDayHeading } from '../../ui/format'
+import { formatDayHeading, formatShortDate } from '../../ui/format'
 
 const weekday = new Intl.DateTimeFormat('ru-RU', { weekday: 'short', timeZone: 'UTC' })
 
@@ -15,13 +15,18 @@ function shortWeekday(date: string): string {
 
 const STATUS_TEXT: Record<CalendarDay['status'], string> = {
   planned: 'запланирована тренировка',
+  missed: 'тренировка не сделана, можно сделать сегодня',
   done: 'тренировка выполнена',
+  moved: 'тренировка выполнена в другой день',
   none: '',
 }
 
 /** Доступное имя дня: цвет и обводка состояние не передают. */
 function label(day: CalendarDay): string {
-  return [formatDayHeading(day.date), day.today ? 'сегодня' : '', STATUS_TEXT[day.status]]
+  const status = day.status === 'moved' && day.performedOn
+    ? `тренировка выполнена ${formatShortDate(day.performedOn)}`
+    : STATUS_TEXT[day.status]
+  return [formatDayHeading(day.date), day.today ? 'сегодня' : '', status]
     .filter(Boolean)
     .join(', ')
 }

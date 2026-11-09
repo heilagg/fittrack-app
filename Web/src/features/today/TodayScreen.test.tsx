@@ -362,5 +362,79 @@ describe('тап по дню недели (срез 6)', () => {
     expect(getPreview).not.toHaveBeenCalled()
     expect(screen.queryByTestId('day-preview')).toBeNull()
   })
+
+  it('будущий день — «Начать сегодня» стартует ЕГО день и ведёт в тренировку (§7.1)', async () => {
+    const startWorkout = vi.fn(async () => ({ id: 'w-2' }))
+    mount({
+      getWeekPlan: (async () => week) as unknown as ApiClient['getWeekPlan'],
+      getPreview: (async () => preview) as unknown as ApiClient['getPreview'],
+      startWorkout: startWorkout as unknown as ApiClient['startWorkout'],
+    })
+    fireEvent.click(await screen.findByRole('button', { name: /14 октября/ }))
+    const button = await screen.findByTestId('preview-start')
+    expect(button.textContent).toBe('Начать сегодня')
+    expect(screen.getByText('Состав пересчитаем на сегодняшнее самочувствие.')).toBeTruthy()
+    fireEvent.click(button)
+    await waitFor(() => expect(at()).toBe('/workout/w-2'))
+    expect(startWorkout).toHaveBeenCalledWith('day-2')
+  })
+
+  it('прошедший не отмеченный день — «Сделать сегодня»; в ленте — не сделан', async () => {
+    const past: WeekPlanResponse = {
+      plan: { days: [{ ...week.plan.days[1]!, date: '2026-10-13', day_id: 'day-0' }], status_lines: [] },
+    }
+    const pastWeek: WeekPlanResponse = {
+      plan: {
+        days: [{ ...week.plan.days[1]!, date: '2026-10-13', day_id: 'day-0', kind: 'not_built',
+          cause: { code: 'past', params: {}, message: 'День прошёл' } as WeekDay['cause'] }],
+        status_lines: [],
+      },
+    }
+    const card14 = { ...card, date: '2026-10-14' }
+    mount({
+      getToday: (async () => card14) as unknown as ApiClient['getToday'],
+      getWeekPlan: (async () => pastWeek) as unknown as ApiClient['getWeekPlan'],
+      getPreview: (async () => ({ plan: { days: [{ ...past.plan.days[0]!, session: card.day.session! }], status_lines: [] } })) as unknown as ApiClient['getPreview'],
+    })
+    const day = await screen.findByRole('button', { name: /^вторник, 13 октября/ })
+    await waitFor(() => expect(day.closest('li')?.getAttribute('data-status')).toBe('missed'))
+    expect(day.getAttribute('aria-label')).toContain('тренировка не сделана, можно сделать сегодня')
+    fireEvent.click(day)
+    expect((await screen.findByTestId('preview-start')).textContent).toBe('Сделать сегодня')
+  })
+
+  it('день, выполненный в другую дату, — подпись с датой, кнопки нет; галочка — на фактической дате', async () => {
+    const moved: WeekDay = {
+      ...week.plan.days[1]!, kind: 'not_built', performed_on: '2026-10-12',
+      cause: { code: 'done', params: {}, message: 'Тренировка выполнена' } as WeekDay['cause'],
+    }
+    mount({
+      getWeekPlan: (async () => ({ plan: { days: [week.plan.days[0]!, moved], status_lines: [] } })) as unknown as ApiClient['getWeekPlan'],
+      getPreview: (async () => ({ plan: { days: [moved], status_lines: [] } })) as unknown as ApiClient['getPreview'],
+    })
+    const own = await screen.findByRole('button', { name: /^среда, 14 октября/ })
+    await waitFor(() => expect(own.closest('li')?.getAttribute('data-status')).toBe('moved'))
+    expect(own.getAttribute('aria-label')).toContain('тренировка выполнена 12 октября')
+    expect(screen.getByRole('button', { name: /^понедельник, 12 октября/ }).closest('li')?.getAttribute('data-status')).toBe('done')
+    fireEvent.click(own)
+    expect((await screen.findByTestId('preview-performed')).textContent).toBe('Выполнена 12 октября')
+    expect(screen.queryByTestId('preview-start')).toBeNull()
+  })
+
+  it('начатый чужой день — «Продолжить тренировку» в предпросмотре', async () => {
+    const started: WeekDay = {
+      ...week.plan.days[1]!, kind: 'not_built', performed_on: '2026-10-12',
+      cause: { code: 'started', params: {}, message: 'Тренировка начата' } as WeekDay['cause'],
+    }
+    const startWorkout = vi.fn(async () => ({ id: 'w-2' }))
+    mount({
+      getWeekPlan: (async () => ({ plan: { days: [week.plan.days[0]!, started], status_lines: [] } })) as unknown as ApiClient['getWeekPlan'],
+      getPreview: (async () => ({ plan: { days: [started], status_lines: [] } })) as unknown as ApiClient['getPreview'],
+      startWorkout: startWorkout as unknown as ApiClient['startWorkout'],
+    })
+    fireEvent.click(await screen.findByRole('button', { name: /14 октября/ }))
+    fireEvent.click(await screen.findByTestId('preview-continue'))
+    await waitFor(() => expect(at()).toBe('/workout/w-2'))
+  })
 })
 

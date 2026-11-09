@@ -607,7 +607,8 @@ input[type='checkbox'] {
   font-variant-numeric: tabular-nums;
 }
 
-.week > li[data-status='planned'] .week-day {
+.week > li[data-status='planned'] .week-day,
+.week > li[data-status='missed'] .week-day {
   border-color: var(--color-accent);
   color: var(--color-text);
 }

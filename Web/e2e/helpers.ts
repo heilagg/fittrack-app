@@ -121,10 +121,10 @@ export async function completeOnboarding(page: Page) {
 }
 
 /**
- * Весь путь до начатой тренировки: онбординг, привязка по письму, «Начать».
- * Возвращает адрес экрана тренировки.
+ * Онбординг и привязка по письму: «Начать» сегодняшнего дня ведёт на привязку,
+ * после неё — снова «Сегодня», а тренировка ещё не начата.
  */
-export async function startLinkedWorkout(page: Page): Promise<string> {
+export async function linkAfterOnboarding(page: Page) {
   const email = `web-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
   await completeOnboarding(page)
   await expect(page.getByTestId('exercise-name').first()).toBeVisible()
@@ -135,6 +135,14 @@ export async function startLinkedWorkout(page: Page): Promise<string> {
   await expect(page.getByTestId('link-sent')).toContainText(email)
   await page.goto(await verifyLink(email))
   await expect(page.getByRole('heading', { name: 'Сегодня' })).toBeVisible()
+}
+
+/**
+ * Весь путь до начатой тренировки: онбординг, привязка по письму, «Начать».
+ * Возвращает адрес экрана тренировки.
+ */
+export async function startLinkedWorkout(page: Page): Promise<string> {
+  await linkAfterOnboarding(page)
   await page.getByRole('button', { name: 'Начать тренировку' }).click()
   await expect(page).toHaveURL(/\/workout\/[0-9a-f-]{36}$/)
   return page.url()

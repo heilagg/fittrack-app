@@ -124,7 +124,7 @@ extension WeekPlanRoutes {
                                            library: library, userSeed: userSeed)
                 let (plan, notice) = try await planAndNotice(tx, weekPlanID: existing.id,
                                                              context: context, cause: nil)
-                return try json(response(plan, week: context.week, notice: notice))
+                return try json(response(plan, week: context.week, notice: notice, workoutDays: inputs.workoutDays))
             }
 
             guard let userID = UUID(uuidString: tx.token.subject) else {
@@ -155,7 +155,7 @@ extension WeekPlanRoutes {
             // (§20.3), но снимок пишется — со следующим показом сравнивать уже
             // будет с чем.
             try await Mapping.writeLastShownPlan(tx, weekPlanID: weekPlanID, plan: plan)
-            return try json(response(plan, week: context.week, notice: nil), status: .created)
+            return try json(response(plan, week: context.week, notice: nil, workoutDays: inputs.workoutDays), status: .created)
         }
     }
 
@@ -181,7 +181,7 @@ extension WeekPlanRoutes {
                                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
             let (plan, notice) = try await planAndNotice(tx, weekPlanID: week.id,
                                                          context: context, cause: nil)
-            return try json(response(plan, week: context.week, notice: notice))
+            return try json(response(plan, week: context.week, notice: notice, workoutDays: inputs.workoutDays))
         }
     }
 
@@ -237,23 +237,30 @@ extension WeekPlanRoutes {
             guard let week = try await loadWeek(tx, weekStart: weekStart) else {
                 // §20.3: срезать нечего. Не 404 — неделя не «не найдена», её
                 // просто ещё не генерировали, и это законное состояние.
-                return try json(response(WeekPlan(days: [:], statusLines: []), week: [], notice: nil))
+                return try json(response(WeekPlan(days: [:], statusLines: []), week: [], notice: nil, workoutDays: [:]))
             }
             // `/preview` не пишет ничего, включая счётчик цикла (§20.6).
             let inputs = try await self.inputs(tx, on: day, persistCycle: false)
             let context = self.context(inputs, weekStart: weekStart, today: day.date,
                                        days: week.days, isDeload: week.isDeload, library: library,
                                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
-            let plan = Planner.planRemainingDays(context)
 
             // Дней с одной датой в неделе не больше одного — это держит схема
             // (`unique (week_plan_id, planned_date)`), — но срез написан через
             // множество, а не через `first`: полагаться здесь на уникальность
             // значило бы отдать клиенту один день из двух молча.
             let ids = Set(week.days.filter { $0.date == target }.map(\.id))
+            // Прошедший не отмеченный день можно сделать сегодня (§7.1), и его
+            // предпросмотр — от сегодняшнего состояния, как старт. Будущий — от
+            // замороженного на свою дату (§7.1, «Будущие дни»). Дата дня в ответе
+            // — плановая: ставится на сегодня только расчёт.
+            let planned = target < day.date
+                ? ids.reduce(context) { Planner.startingToday($0, dayID: $1) }
+                : context
+            let plan = Planner.planRemainingDays(planned)
             let sliced = WeekPlan(days: plan.days.filter { ids.contains($0.key) },
                                   statusLines: plan.statusLines)
-            return try json(response(sliced, week: context.week, notice: nil))
+            return try json(response(sliced, week: context.week, notice: nil, workoutDays: inputs.workoutDays))
         }
     }
 
@@ -305,7 +312,7 @@ extension WeekPlanRoutes {
                                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
             let (plan, notice) = try await planAndNotice(tx, weekPlanID: week.id,
                                                          context: context, cause: .dayEdited)
-            return try json(response(plan, week: context.week, notice: notice))
+            return try json(response(plan, week: context.week, notice: notice, workoutDays: inputs.workoutDays))
         }
     }
 
@@ -339,7 +346,7 @@ extension WeekPlanRoutes {
                                        userSeed: Mapping.userSeed(canonicalUUID: tx.token.subject))
             let (plan, notice) = try await planAndNotice(tx, weekPlanID: week.id,
                                                          context: context, cause: cause)
-            return try json(response(plan, week: context.week, notice: notice))
+            return try json(response(plan, week: context.week, notice: notice, workoutDays: inputs.workoutDays))
         }
     }
 
